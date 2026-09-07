@@ -43,20 +43,6 @@ st.markdown("""
         50% { background-color: #fffacd; color: black; transform: scale(1.03); }
         100% { background-color: #ff8c00; color: white; transform: scale(1); }
     }
-    .mesa-alerta {
-        animation: piscar-mesa 1s infinite;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        font-weight: bold;
-    }
-    .mesa-pronta {
-        animation: piscar-pronto 1s infinite;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        font-weight: bold;
-    }
     .mesa-aberta {
         background-color: #d4edda;
         color: #155724;
@@ -136,9 +122,6 @@ if "clientes_mesa" not in st.session_state:
 if "historico_vendas_definitivo" not in st.session_state:
     st.session_state.historico_vendas_definitivo = []
 
-if "remocoes_log" not in st.session_state:
-    st.session_state.remocoes_log = []
-
 URL_OFICIAL = "https://nobresabor.streamlit.app"
 
 def gerar_qrcode_bytes(url_texto):
@@ -208,6 +191,8 @@ def area_cliente():
                 obs = st.text_input("Observações:")
                 
                 if st.button("🚀 Enviar Pedido"):
+                    # Se for Bebida ou Sobremesa, confirma automaticamente. Se for Refeição, fica Pendente para a Cozinha.
+                    is_refeicao = (cat_escolhida == "Refeições")
                     novo_pedido = {
                         "item": item_escolhido,
                         "tipo": cat_escolhida,
@@ -215,12 +200,16 @@ def area_cliente():
                         "preco": row_prod['Preço Unitário'],
                         "origem": f"Cliente ({cli['nome']})",
                         "obs": obs,
-                        "status": "Pendente",
-                        "cozinha_status": "Pendente" if cat_escolhida == "Refeições" else "N/A",
+                        "status": "Confirmado" if not is_refeicao else "Pendente",
+                        "cozinha_status": "N/A" if not is_refeicao else "Pendente",
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-                    st.success("Pedido enviado!")
+                    
+                    # Atualiza o status da mesa para Aberta
+                    st.session_state.mesas[num_mesa]["status"] = "Aberta"
+                    
+                    st.success("Pedido enviado com sucesso!")
                     st.rerun()
                 
         with tab_consumo:
@@ -234,7 +223,7 @@ def area_cliente():
                     total_item = p['quantidade'] * p['preco']
                     if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                         subtotal_geral += total_item
-                    st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz")
+                    st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz ({p['status']})")
                 st.markdown(f"### Total: {subtotal_geral:,.2f} Kz")
                 
         with tab_eventos:
@@ -249,7 +238,6 @@ def area_cliente():
 def area_cozinha():
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
     
-    # Atualiza o estado do caixa a cada ciclo do fragmento
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
     if not st.session_state.caixa_aberto:
@@ -278,7 +266,6 @@ def area_cozinha():
                         if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}"):
                             st.session_state.mesas[i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
                             st.session_state.mesas[i]["pedidos"][idx_p]["status"] = "Confirmado"
-                            st.session_state.mesas[i]["total"] += (ped['quantidade'] * ped['preco'])
                             st.rerun()
                         if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}"):
                             st.session_state.mesas[i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
@@ -378,7 +365,6 @@ def area_administrador():
 def area_caixa_mesas():
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
-    # Atualiza o estado do caixa periodicamente
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
     if not st.session_state.caixa_aberto:
@@ -397,23 +383,50 @@ def area_caixa_mesas():
         st.header(f"🎛️ Gestão da Mesa {m_ativa}")
         dados_mesa = st.session_state.mesas[m_ativa]
         
+        # CÁLCULO AUTOMÁTICO DO TOTAL DA MESA (Soma todos os pedidos válidos)
+        total_calculado = sum(
+            p['quantidade'] * p['preco'] 
+            for p in dados_mesa['pedidos'] 
+            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+        )
+        dados_mesa['total'] = total_calculado
+
         with st.expander("📷 QR Code", expanded=False):
             link_mesa = f"{URL_OFICIAL}/?mesa={m_ativa}"
             st.code(link_mesa)
             st.image(gerar_qrcode_bytes(link_mesa), width=130)
 
-        st.write(f"**Total:** **{dados_mesa['total']:,.2f} Kz**")
+        # Exibe os pedidos atuais da mesa para o Caixa acompanhar
+        st.subheader("📝 Pedidos Lançados na Mesa")
+        if not dados_mesa['pedidos']:
+            st.info("Nenhum pedido efetuado nesta mesa ainda.")
+        else:
+            for idx_p, p in enumerate(dados_mesa['pedidos']):
+                col_p1, col_p2, col_p3 = st.columns([3, 2, 2])
+                with col_p1:
+                    st.write(f"- {p['quantidade']}x {p['item']} ({p['tipo']})")
+                    if p['obs']:
+                        st.caption(f"Obs: {p['obs']}")
+                with col_p2:
+                    st.write(f"**{(p['quantidade'] * p['preco']):,.2f} Kz**")
+                with col_p3:
+                    st.write(f"Estado: `{p['status']}`")
+
+        st.markdown(f"### Total a Pagar: **{dados_mesa['total']:,.2f} Kz**")
 
         if st.button("💳 Fechar Conta e Faturar", type="primary"):
-            st.session_state.historico_vendas_definitivo.append({
-                "Nome": "Cliente Mesa", "Telefone": "N/A", "Mesa": m_ativa,
-                "Valor": dados_mesa["total"], "Dia": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pagamento": "Dinheiro/TPA"
-            })
-            st.success("Conta fechada!")
-            st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
-            if m_ativa in st.session_state.clientes_mesa:
-                del st.session_state.clientes_mesa[m_ativa]
-            st.rerun()
+            if dados_mesa['total'] > 0:
+                st.session_state.historico_vendas_definitivo.append({
+                    "Nome": "Cliente Mesa", "Telefone": "N/A", "Mesa": m_ativa,
+                    "Valor": dados_mesa["total"], "Dia": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pagamento": "Dinheiro/TPA"
+                })
+                st.success("Conta fechada com sucesso!")
+                st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
+                if m_ativa in st.session_state.clientes_mesa:
+                    del st.session_state.clientes_mesa[m_ativa]
+                st.rerun()
+            else:
+                st.warning("A mesa não tem valor a faturar.")
     else:
         cols_por_linha = 6
         for linha in range(5):
@@ -423,16 +436,25 @@ def area_caixa_mesas():
                 if num_mesa <= 30:
                     dados_m = st.session_state.mesas[num_mesa]
                     status_m = dados_m["status"]
+                    
+                    # Atualiza o total visual de cada mesa automaticamente
+                    dados_m['total'] = sum(
+                        p['quantidade'] * p['preco'] 
+                        for p in dados_m['pedidos'] 
+                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                    )
+                    
                     classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
                     
                     with cols[c]:
                         st.markdown(f"""
                             <div class="{classe_css}">
-                                Mesa {num_mesa}<br>{status_m}
+                                Mesa {num_mesa}<br>{status_m}<br>
+                                <span style="font-size: 0.8em;">{dados_m['total']:,.2f} Kz</span>
                             </div>
                         """, unsafe_allow_html=True)
                         if st.button(f"Gerir {num_mesa}", key=f"btn_m_{num_mesa}", use_container_width=True):
-                            st.session_state.mesa_ativa = num_mesa
+                            st.session_state.mesa_ativa = num_numesa if 'num_numesa' in locals() else num_mesa
                             st.rerun()
 
 
