@@ -233,43 +233,56 @@ def area_cliente():
         tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo & Fatura", "🎉 Programas"])
         
         with tab_menu:
-            cat_escolhida = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas"])
+            cat_escolhida = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas"], key="cat_cli_sel")
             stock_df = st.session_state.stock
             itens_cat = stock_df[stock_df['Categoria'] == cat_escolhida]
             
             if not itens_cat.empty:
-                item_escolhido = st.selectbox("Item:", itens_cat['Produto'].tolist())
-                row_prod = itens_cat[itens_cat['Produto'] == item_escolhido].iloc[0]
-                qtd = st.number_input("Quantidade:", min_value=1, value=1)
-                obs = st.text_input("Observações:")
-                
-                if st.button("🚀 Enviar Pedido"):
-                    is_refeicao = (cat_escolhida == "Refeições")
-                    novo_pedido = {
-                        "item": item_escolhido,
-                        "tipo": cat_escolhida,
-                        "quantidade": int(qtd),
-                        "preco": float(row_prod['Preço Unitário']),
-                        "origem": f"Cliente ({cli['nome']})",
-                        "obs": obs,
-                        "status": "Confirmado" if not is_refeicao else "Pendente",
-                        "cozinha_status": "N/A" if not is_refeicao else "Pendente",
-                        "hora": datetime.now().strftime("%H:%M:%S")
-                    }
+                # Usamos um formulário com clear_on_submit=True para limpar os campos após o envio
+                with st.form(key=f"form_pedido_{num_mesa}", clear_on_submit=True):
+                    item_escolhido = st.selectbox("Item:", itens_cat['Produto'].tolist())
+                    qtd = st.number_input("Quantidade:", min_value=1, value=1)
+                    obs = st.text_input("Observações:")
                     
-                    dados_m["pedidos"].append(novo_pedido)
-                    dados_m["status"] = "Aberta"
+                    btn_enviar_pedido = st.form_submit_button("🚀 Enviar Pedido", use_container_width=True)
                     
-                    total_calc = sum(
-                        p['quantidade'] * p['preco'] 
-                        for p in dados_m["pedidos"] 
-                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                    )
-                    dados_m["total"] = float(total_calc)
-                    
-                    salvar_mesas_disco(mesas_data)
-                    st.success("Pedido enviado com sucesso e registado na sua mesa!")
-                    st.rerun()
+                    if btn_enviar_pedido:
+                        row_prod = itens_cat[itens_cat['Produto'] == item_escolhido].iloc[0]
+                        is_refeicao = (cat_escolhida == "Refeições")
+                        novo_pedido = {
+                            "item": item_escolhido,
+                            "tipo": cat_escolhida,
+                            "quantidade": int(qtd),
+                            "preco": float(row_prod['Preço Unitário']),
+                            "origem": f"Cliente ({cli['nome']})",
+                            "obs": obs,
+                            "status": "Confirmado" if not is_refeicao else "Pendente",
+                            "cozinha_status": "N/A" if not is_refeicao else "Pendente",
+                            "hora": datetime.now().strftime("%H:%M:%S")
+                        }
+                        
+                        dados_m["pedidos"].append(novo_pedido)
+                        dados_m["status"] = "Aberta"
+                        
+                        total_calc = sum(
+                            p['quantidade'] * p['preco'] 
+                            for p in dados_m["pedidos"] 
+                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                        )
+                        dados_m["total"] = float(total_calc)
+                        
+                        salvar_mesas_disco(mesas_data)
+                        
+                        # Ativa flag na sessão para exibir a notificação de sucesso após o submit
+                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado com sucesso! Já pode solicitar outro item."
+                        st.rerun()
+
+            # Exibe a notificação de sucesso logo abaixo do formulário se ela existir
+            chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
+            if chave_aviso in st.session_state:
+                st.success(st.session_state[chave_aviso])
+                # Remove o aviso para não ficar preso na tela permanentemente
+                del st.session_state[chave_aviso]
                 
         with tab_consumo:
             st.subheader("O Meu Consumo")
