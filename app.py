@@ -181,7 +181,6 @@ def area_cliente():
     str_mesa = str(num_mesa)
     dados_m = mesas_data[str_mesa]
 
-    # Se a mesa já foi faturada, exibe a fatura final e agradecimento
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
@@ -292,7 +291,6 @@ def area_cliente():
                     if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                         subtotal_geral += total_item
                     
-                    # Mostra indicador claro na visão do cliente se a refeição ficou pronta
                     status_txt = p['status']
                     if p.get('cozinha_status') == "Feito":
                         status_txt = "🍽️ Refeição Pronta!"
@@ -535,7 +533,6 @@ def area_caixa_mesas():
                 with col_p2:
                     st.write(f"**{(float(p['quantidade']) * float(p['preco'])):,.2f} Kz**")
                 with col_p3:
-                    # Exibe o status da cozinha de forma clara nos detalhes da mesa
                     c_status = p.get('cozinha_status', 'N/A')
                     if c_status == "Feito":
                         st.markdown("🍽️ **Refeição Pronta**")
@@ -595,7 +592,7 @@ def area_caixa_mesas():
                 dados_mesa["status"] = "Fechada"
                 
                 salvar_mesas_disco(mesas_data)
-                st.success("Conta fechada, fatura emitida e enviada para o cliente com sucesso!")
+                st.success("Conta fechada, fatura emitida e enviada para el cliente com sucesso!")
                 del st.session_state.mesa_ativa
                 st.rerun()
         else:
@@ -625,7 +622,6 @@ def area_caixa_mesas():
                     )
                     dados_m['total'] = float(total_m)
                     
-                    # Verifica se existe algum pedido de refeição marcado como "Feito" nesta mesa
                     tem_refeicao_pronta = any(
                         p.get("tipo") == "Refeições" and p.get("cozinha_status") == "Feito" 
                         for p in dados_m['pedidos']
@@ -634,18 +630,23 @@ def area_caixa_mesas():
                     classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
                     
                     with cols[c]:
-                        # Alerta visual em cima com o emoji de prato e escrito "refeição pronta" se aplicável
                         alerta_pronto_html = "<div style='color: #0d6efd; font-size: 0.85em; font-weight: bold; margin-bottom: 2px;'>🍽️ Refeição Pronta</div>" if tem_refeicao_pronta else ""
                         
-                        nome_cliente_txt = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
-                        
-                        st.markdown(f"""
+                        # Correção aplicada aqui: Conteúdo estruturado para evitar tags HTML cruas na tela
+                        if dados_m.get('cliente'):
+                            nome_cli_formatado = f"<br><span style='font-size: 0.8em;'>{dados_m['cliente']['nome']}</span>"
+                        else:
+                            nome_cli_formatado = ""
+
+                        conteudo_html = f"""
                             <div class="{classe_css}">
                                 {alerta_pronto_html}
-                                Mesa {num_mesa}<br>{status_m}{nome_cliente_txt}<br>
+                                Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>
                                 <span style="font-size: 0.8em;">{dados_m['total']:,.2f} Kz</span>
                             </div>
-                        """, unsafe_allow_html=True)
+                        """
+                        st.markdown(conteudo_html, unsafe_allow_html=True)
+                        
                         if st.button(f"Gerir {num_mesa}", key=f"btn_m_{num_mesa}", use_container_width=True):
                             st.session_state.mesa_ativa = num_mesa
                             st.rerun()
