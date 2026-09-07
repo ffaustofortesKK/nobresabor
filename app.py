@@ -68,10 +68,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. INICIALIZAÇÃO DE ESTADOS DA SESSÃO
+# 1. CAPTURA DE PARÂMETROS DA URL (ESTADO GLOBAL)
+# ==========================================
+mesa_detectada = None
+perfil_url = None
+caixa_url_param = False
+
+try:
+    query_params = st.query_params
+    if "mesa" in query_params:
+        mesa_detectada = int(query_params.get("mesa"))
+    if "perfil" in query_params:
+        perfil_url = query_params.get("perfil")
+    if query_params.get("caixa") == "aberto":
+        caixa_url_param = True
+except Exception:
+    try:
+        old_params = st.experimental_get_query_params()
+        if "mesa" in old_params:
+            mesa_detectada = int(old_params["mesa"][0])
+        if "perfil" in old_params:
+            perfil_url = old_params["perfil"][0]
+        if "caixa" in old_params and old_params["caixa"][0] == "aberto":
+            caixa_url_param = True
+    except Exception:
+        pass
+
+# ==========================================
+# 2. INICIALIZAÇÃO DE ESTADOS DA SESSÃO
 # ==========================================
 if "caixa_aberto" not in st.session_state:
-    st.session_state.caixa_aberto = False
+    st.session_state.caixa_aberto = caixa_url_param
+else:
+    if caixa_url_param:
+        st.session_state.caixa_aberto = True
 
 if "mesas" not in st.session_state:
     st.session_state.mesas = {
@@ -116,35 +146,14 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# ==========================================
-# 2. CAPTURA DE PARÂMETROS DA URL
-# ==========================================
-mesa_detectada = None
-perfil_url = None
-try:
-    query_params = st.query_params
-    if "mesa" in query_params:
-        mesa_detectada = int(query_params.get("mesa"))
-    if "perfil" in query_params:
-        perfil_url = query_params.get("perfil")
-except Exception:
-    try:
-        old_params = st.experimental_get_query_params()
-        if "mesa" in old_params:
-            mesa_detectada = int(old_params["mesa"][0])
-        if "perfil" in old_params:
-            perfil_url = old_params["perfil"][0]
-    except Exception:
-        pass
-
-# Sidebar limpa
+# Sidebar dinâmica
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 st.sidebar.divider()
 if st.session_state.caixa_aberto:
-    st.sidebar.success("🟢 Caixa Aberto (Administrador)")
+    st.sidebar.success("🟢 Caixa Aberto")
 else:
-    st.sidebar.error("🔴 Caixa Fechado (Administrador)")
+    st.sidebar.error("🔴 Caixa Fechado")
 
 # ==========================================
 # ÁREA: CLIENTE (QR CODE)
@@ -302,9 +311,13 @@ def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
     st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH). É aqui que se faz a Abertura e Fecho do Caixa.")
     
-    with st.expander("🔗 Links Oficiais do Sistema", expanded=False):
-        st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
+    # Links dinâmicos atualizados conforme o estado do caixa
+    sufixo_caixa = "&caixa=aberto" if st.session_state.caixa_aberto else ""
+    
+    with st.expander("🔗 Links Oficiais do Sistema (Copie estes links atualizados)", expanded=True):
+        st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa{sufixo_caixa}")
         st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
+        st.caption("ℹ️ Nota: Abra o link do caixa acima numa nova aba. Como cada aba do navegador opera de forma independente, usar este link oficial garante que o perfil do caixa reconhece imediatamente que o caixa está aberto.")
         
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
@@ -381,7 +394,7 @@ def area_administrador():
 def area_caixa_mesas():
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
-    # Validação do Estado do Caixa (Controlado exclusivamente pelo Administrador)
+    # Validação do Estado do Caixa
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador precisa de abrir o caixa no Painel de Administração para que possa gerir as mesas e efetuar pagamentos.")
         return
