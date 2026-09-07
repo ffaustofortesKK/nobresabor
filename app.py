@@ -69,7 +69,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Captura de Parâmetros
+# Captura de Parâmetros da URL
 mesa_detectada = None
 perfil_url = None
 
@@ -146,7 +146,14 @@ else:
 # ÁREA: CLIENTE
 # ==========================================
 def area_cliente():
-    num_mesa = mesa_detectada if (mesa_detectada and 1 <= mesa_detectada <= 30) else 1
+    # Fixa a mesa na sessão para nunca se perder ao submeter formulários ou atualizar
+    if "mesa_cliente_atual" not in st.session_state:
+        if mesa_detectada and 1 <= mesa_detectada <= 30:
+            st.session_state.mesa_cliente_atual = mesa_detectada
+        else:
+            st.session_state.mesa_cliente_atual = 1
+            
+    num_mesa = st.session_state.mesa_cliente_atual
     
     if num_mesa not in st.session_state.clientes_mesa:
         st.markdown("<h1 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h1>", unsafe_allow_html=True)
@@ -191,7 +198,6 @@ def area_cliente():
                 obs = st.text_input("Observações:")
                 
                 if st.button("🚀 Enviar Pedido"):
-                    # Se for Bebida ou Sobremesa, confirma automaticamente. Se for Refeição, fica Pendente para a Cozinha.
                     is_refeicao = (cat_escolhida == "Refeições")
                     novo_pedido = {
                         "item": item_escolhido,
@@ -205,8 +211,6 @@ def area_cliente():
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-                    
-                    # Atualiza o status da mesa para Aberta
                     st.session_state.mesas[num_mesa]["status"] = "Aberta"
                     
                     st.success("Pedido enviado com sucesso!")
@@ -383,7 +387,7 @@ def area_caixa_mesas():
         st.header(f"🎛️ Gestão da Mesa {m_ativa}")
         dados_mesa = st.session_state.mesas[m_ativa]
         
-        # CÁLCULO AUTOMÁTICO DO TOTAL DA MESA (Soma todos os pedidos válidos)
+        # Cálculo automático do total da mesa
         total_calculado = sum(
             p['quantidade'] * p['preco'] 
             for p in dados_mesa['pedidos'] 
@@ -396,7 +400,6 @@ def area_caixa_mesas():
             st.code(link_mesa)
             st.image(gerar_qrcode_bytes(link_mesa), width=130)
 
-        # Exibe os pedidos atuais da mesa para o Caixa acompanhar
         st.subheader("📝 Pedidos Lançados na Mesa")
         if not dados_mesa['pedidos']:
             st.info("Nenhum pedido efetuado nesta mesa ainda.")
@@ -437,7 +440,6 @@ def area_caixa_mesas():
                     dados_m = st.session_state.mesas[num_mesa]
                     status_m = dados_m["status"]
                     
-                    # Atualiza o total visual de cada mesa automaticamente
                     dados_m['total'] = sum(
                         p['quantidade'] * p['preco'] 
                         for p in dados_m['pedidos'] 
@@ -454,7 +456,7 @@ def area_caixa_mesas():
                             </div>
                         """, unsafe_allow_html=True)
                         if st.button(f"Gerir {num_mesa}", key=f"btn_m_{num_mesa}", use_container_width=True):
-                            st.session_state.mesa_ativa = num_numesa if 'num_numesa' in locals() else num_mesa
+                            st.session_state.mesa_ativa = num_mesa
                             st.rerun()
 
 
