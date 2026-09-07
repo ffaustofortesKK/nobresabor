@@ -100,15 +100,21 @@ def gerar_qrcode_bytes(url_texto):
     return buffered.getvalue()
 
 # ==========================================
-# 2. CAPTURA AUTOMÁTICA DA MESA VIA URL (QR CODE)
+# 2. CAPTURA ROBUSTA DA MESA VIA URL (QR CODE)
 # ==========================================
-query_params = st.query_params
 mesa_detectada = None
-
-if "mesa" in query_params:
-    try:
+try:
+    # Método moderno Streamlit
+    query_params = st.query_params
+    if "mesa" in query_params:
         mesa_detectada = int(query_params.get("mesa"))
-    except:
+except Exception:
+    try:
+        # Fallback para versões anteriores do Streamlit
+        old_params = st.experimental_get_query_params()
+        if "mesa" in old_params:
+            mesa_detectada = int(old_params["mesa"][0])
+    except Exception:
         pass
 
 
@@ -122,7 +128,6 @@ if mesa_detectada and 1 <= mesa_detectada <= 30:
     st.sidebar.success(f"📱 Atendimento Digital (Mesa {mesa_detectada})")
     menu_selecionado = "📱 Cliente"
 else:
-    # Módulo cliente manual removido do menu lateral conforme solicitado
     menu_opcoes = [
         "💻 Caixa & Gestão de Mesas", 
         "🍳 Cozinha (Chef)",
@@ -136,10 +141,7 @@ else:
 # ÁREA: CLIENTE (AUTOMATIZADO POR QR CODE)
 # ==========================================
 def area_cliente():
-    if mesa_detectada and 1 <= mesa_detectada <= 30:
-        num_mesa = mesa_detectada
-    else:
-        num_mesa = 1
+    num_mesa = mesa_detectada if (mesa_detectada and 1 <= mesa_detectada <= 30) else 1
     
     # Se o cliente ainda não estiver registado, mostra o ecrã de boas-vindas pedido
     if num_mesa not in st.session_state.clientes_mesa:
@@ -550,7 +552,7 @@ def area_administrador():
 # ==========================================
 # EXECUÇÃO DO ROTEADOR PRINCIPAL
 # ==========================================
-if menu_selecionado == "📱 Cliente" or mesa_detectada:
+if menu_selecionado == "📱 Cliente" or (mesa_detectada and 1 <= mesa_detectada <= 30):
     area_cliente()
 elif menu_selecionado == "💻 Caixa & Gestão de Mesas":
     area_caixa()
