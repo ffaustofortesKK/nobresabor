@@ -495,11 +495,11 @@ def area_caixa():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR
+# ÁREA: ADMINISTRADOR (EXCLUSIVO CONTROLO E FATURAÇÃO)
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
-    st.info("Controlo de abertura/fecho de caixa, faturação do dia, histórico definitivo, caixa de remoções, stock e RH.")
+    st.info("Painel de Controlo Mestre: Abertura/Fecho de Caixa, Faturação, Remoções, Stock e Recursos Humanos.")
     
     with st.expander("🔗 Links Oficiais do Sistema", expanded=True):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
@@ -508,9 +508,9 @@ def area_administrador():
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["💰 Controlo de Caixa", "📊 Faturação & Histórico de Clientes", "🗑️ Caixa de Remoções", "📦 Stock", "👥 RH"])
     
     with tab1:
-        st.subheader("Estado do Caixa")
+        st.subheader("Estado do Caixa (Abertura / Fecho)")
         if st.session_state.caixa_aberto:
-            st.success("O Caixa encontra-se atualmente **ABERTO**.")
+            st.success("O Caixa encontra-se atualmente **ABERTO** e operacional para o operador.")
             if st.button("🔴 Fechar o Caixa"):
                 st.session_state.caixa_aberto = False
                 st.rerun()
@@ -518,7 +518,7 @@ def area_administrador():
             st.error("O Caixa encontra-se atualmente **FECHADO**.")
             if st.button("🟢 Abrir o Caixa"):
                 st.session_state.caixa_aberto = True
-                st.success("Caixa aberto com sucesso! O painel do caixa em `/?perfil=caixa` já está operacional.")
+                st.success("Caixa aberto com sucesso! O painel do caixa está operacional.")
                 st.rerun()
                 
     with tab2:
