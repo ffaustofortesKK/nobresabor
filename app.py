@@ -82,6 +82,8 @@ try:
         perfil_url = query_params.get("perfil")
     if query_params.get("caixa") == "aberto":
         caixa_url_param = True
+    elif query_params.get("caixa") == "fechado":
+        caixa_url_param = False
 except Exception:
     try:
         old_params = st.experimental_get_query_params()
@@ -89,8 +91,11 @@ except Exception:
             mesa_detectada = int(old_params["mesa"][0])
         if "perfil" in old_params:
             perfil_url = old_params["perfil"][0]
-        if "caixa" in old_params and old_params["caixa"][0] == "aberto":
-            caixa_url_param = True
+        if "caixa" in old_params:
+            if old_params["caixa"][0] == "aberto":
+                caixa_url_param = True
+            elif old_params["caixa"][0] == "fechado":
+                caixa_url_param = False
     except Exception:
         pass
 
@@ -98,10 +103,11 @@ except Exception:
 # 2. INICIALIZAÇÃO DE ESTADOS DA SESSÃO
 # ==========================================
 if "caixa_aberto" not in st.session_state:
-    st.session_state.caixa_aberto = caixa_url_param
-else:
-    if caixa_url_param:
-        st.session_state.caixa_aberto = True
+    # Se houver parâmetro explícito na URL, respeita-o. Caso contrário, começa fechado.
+    if "caixa" in st.query_params or (try_has_caixa := True): # segurança
+        st.session_state.caixa_aberto = caixa_url_param
+    else:
+        st.session_state.caixa_aberto = False
 
 if "mesas" not in st.session_state:
     st.session_state.mesas = {
@@ -262,6 +268,12 @@ def area_cliente():
 # ==========================================
 def area_cozinha():
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
+    
+    # Validação do Estado do Caixa na Cozinha também
+    if not st.session_state.caixa_aberto:
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** A cozinha aguarda a abertura do caixa pelo Administrador.")
+        return
+
     st.info("O Chef gere as refeições solicitadas, podendo Aprovar, Recusar ou marcar como Feito.")
     
     tem_pedidos = False
@@ -311,13 +323,13 @@ def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
     st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH). É aqui que se faz a Abertura e Fecho do Caixa.")
     
-    # Links dinâmicos atualizados conforme o estado do caixa
-    sufixo_caixa = "&caixa=aberto" if st.session_state.caixa_aberto else ""
+    # Links dinâmicos atualizados conforme o estado exato do caixa
+    estado_param = "aberto" if st.session_state.caixa_aberto else "fechado"
     
     with st.expander("🔗 Links Oficiais do Sistema (Copie estes links atualizados)", expanded=True):
-        st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa{sufixo_caixa}")
-        st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
-        st.caption("ℹ️ Nota: Abra o link do caixa acima numa nova aba. Como cada aba do navegador opera de forma independente, usar este link oficial garante que o perfil do caixa reconhece imediatamente que o caixa está aberto.")
+        st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa&caixa={estado_param}")
+        st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha&caixa={estado_param}")
+        st.caption("ℹ️ Nota: Ao abrir ou fechar o caixa, estes links mudam de estado. Se atualizar a aba do caixa ou cozinha com estes links, elas reagirão imediatamente.")
         
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
@@ -394,7 +406,7 @@ def area_administrador():
 def area_caixa_mesas():
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
-    # Validação do Estado do Caixa
+    # Validação rigorosa do Estado do Caixa
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador precisa de abrir o caixa no Painel de Administração para que possa gerir as mesas e efetuar pagamentos.")
         return
@@ -551,6 +563,6 @@ if mesa_detectada and 1 <= mesa_detectada <= 30:
 elif perfil_url == "cozinha":
     area_cozinha()
 elif perfil_url == "caixa":
-    area_caixa_mesas()
+    area_ca_mesas = area_caixa_mesas()
 else:
     area_administrador()
