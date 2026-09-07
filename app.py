@@ -83,8 +83,18 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
+# Detecção de Mesa via Parâmetros de URL (Suporta formato ?mesa=X e rotas simuladas)
 query_params = st.query_params
 mesa_qr = query_params.get("mesa", None)
+
+# Se não vier via ?mesa= mas houver navegação por rota simulada no ambiente
+if not mesa_qr and "path" in query_params:
+    path_val = query_params.get("path", "")
+    if "cliente/mesa" in path_val:
+        try:
+            mesa_qr = path_val.split("mesa")[1].split("/")[0]
+        except:
+            pass
 
 # ==========================================
 # MENU LATERAL (NAVEGAÇÃO POR MÓDULOS)
@@ -394,20 +404,26 @@ def modulo_stock():
 
 
 # ==========================================
-# MÓDULO: ADMINISTRADOR
+# MÓDULO: ADMINISTRADOR (QR CODES FORMATO NOBRESABOR)
 # ==========================================
 def modulo_administrador():
-    st.title("👑 Módulo do Administrador - Configurações e QR Codes")
-    st.info("Gere os QR Codes de acesso direto para cada uma das 30 mesas.")
+    st.title("👑 Módulo do Administrador - Configuração de Rotas e QR Codes")
+    st.info("Gere os QR Codes personalizados no formato amigável (ex: nobresabor/cliente/mesaX) para cada uma das 30 mesas.")
     
-    url_base = st.text_input("URL base da Aplicação (ex: http://192.168.X.X:8501)", "http://localhost:8501")
+    dominio_base = st.text_input("Domínio / URL base do Sistema (ex: http://localhost:8501 ou https://nobresabor.app)", "http://localhost:8501")
     
     cols_qr = st.columns(3)
     for i in range(1, 31):
-        link_mesa = f"{url_base}/?mesa={i}"
+        # Formato de link personalizado sugerido
+        link_mesa = f"{dominio_base.rstrip('/')}/cliente/mesa{i}/qr"
+        # Mantém compatibilidade com o parâmetro interno do Streamlit caso necessário
+        link_compativel = f"{dominio_base.rstrip('/')}/?mesa={i}"
+        
         with cols_qr[(i - 1) % 3]:
             st.markdown(f"**Mesa {i}**")
             st.code(link_mesa, language="text")
+            
+            # Gera o QR Code com o link personalizado
             img_bytes = gerar_qrcode_bytes(link_mesa)
             st.image(img_bytes, width=140, caption=f"QR Code Mesa {i}")
             st.divider()
