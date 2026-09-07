@@ -65,13 +65,21 @@ def salvar_historico_vendas(hist_list):
     except:
         pass
 
-# Estilos CSS
+# Estilos CSS com animação de borda vermelha piscando para refeições prontas
 st.markdown("""
     <style>
-    @keyframes piscar-mesa {
-        0% { background-color: #ff4b4b; color: white; transform: scale(1); }
-        50% { background-color: #ffe6e6; color: black; transform: scale(1.03); }
-        100% { background-color: #ff4b4b; color: white; transform: scale(1); }
+    @keyframes borda-vermelha-piscar {
+        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 8px #ff4b4b; background-color: #fff5f5; }
+        50% { border: 3px solid transparent; box-shadow: none; background-color: #ffffff; }
+        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 8px #ff4b4b; background-color: #fff5f5; }
+    }
+    .mesa-pronta-alerta {
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+        animation: borda-vermelha-piscar 1s infinite;
+        color: #d32f2f;
     }
     .mesa-aberta {
         background-color: #d4edda;
@@ -80,6 +88,7 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         font-weight: bold;
+        border: 1px solid #c3e6cb;
     }
     .mesa-fechada {
         background-color: #f8d7da;
@@ -88,6 +97,7 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         font-weight: bold;
+        border: 1px solid #f5c6cb;
     }
     .bloco-seccao {
         padding: 25px;
@@ -627,14 +637,18 @@ def area_caixa_mesas():
                         for p in dados_m['pedidos']
                     )
                     
-                    classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
+                    # Se tiver refeição pronta, usa a classe com borda vermelha a piscar
+                    if tem_refeicao_pronta:
+                        classe_css = "mesa-pronta-alerta"
+                    else:
+                        classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
                     
                     with cols[c]:
-                        alerta_pronto_html = "<div style='color: #0d6efd; font-size: 0.85em; font-weight: bold; margin-bottom: 2px;'>🍽️ Refeição Pronta</div>" if tem_refeicao_pronta else ""
+                        alerta_pronto_html = "<div style='color: #d32f2f; font-size: 0.85em; font-weight: bold; margin-bottom: 2px;'>🚨 Refeição Pronta!</div>" if tem_refeicao_pronta else ""
                         
                         nome_cli_formatado = f"<br><span style='font-size: 0.8em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
 
-                        # String HTML plana (sem indentação interna) para evitar o bug de bloco de código do Streamlit
+                        # String HTML plana para evitar erro de indentação
                         conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br><span style='font-size: 0.8em;'>{dados_m['total']:,.2f} Kz</span></div>"
                         
                         st.markdown(conteudo_html, unsafe_allow_html=True)
