@@ -243,21 +243,20 @@ def area_cliente():
 
 
 # ==========================================
-# ÁREA: COZINHA (Atualização a cada 15 segundos)
+# ÁREA: COZINHA (Com Fragmento Auto-Executável)
 # ==========================================
+@st.fragment(run_every=6)
 def area_cozinha():
-    # Atualiza automaticamente a cada 15 segundos para dar tempo de leitura
-    st.markdown("""
-        <meta http-equiv="refresh" content="15">
-    """, unsafe_allow_html=True)
-
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
     
+    # Atualiza o estado do caixa a cada ciclo do fragmento
+    st.session_state.caixa_aberto = ler_estado_caixa_disco()
+
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** A cozinha foi encerrada automaticamente.")
         return
 
-    st.info("🔄 Esta tela atualiza-se automaticamente a cada 15 segundos.")
+    st.caption("🔄 Esta secção atualiza-se sozinha em segundo plano (sem dar F5 na página).")
     
     tem_pedidos = False
     for i in range(1, 31):
@@ -373,21 +372,20 @@ def area_administrador():
 
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (Atualização a cada 15 segundos)
+# ÁREA: CAIXA / GESTÃO DE MESAS (Com Fragmento Auto-Executável)
 # ==========================================
+@st.fragment(run_every=6)
 def area_caixa_mesas():
-    # Atualiza automaticamente a cada 15 segundos
-    st.markdown("""
-        <meta http-equiv="refresh" content="15">
-    """, unsafe_allow_html=True)
-
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
+    # Atualiza o estado do caixa periodicamente
+    st.session_state.caixa_aberto = ler_estado_caixa_disco()
+
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador encerrou o caixa, pelo que esta secção foi bloqueada automaticamente.")
         return
 
-    st.success("🟢 Caixa Aberto. A atualizar automaticamente a cada 15 segundos.")
+    st.success("🟢 Caixa Aberto. Atualização inteligente em segundo plano ativa.")
     st.markdown("<br>", unsafe_allow_html=True)
 
     if "mesa_ativa" in st.session_state:
