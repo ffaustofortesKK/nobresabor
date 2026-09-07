@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilo CSS para Animações e Alertas
+# Estilo CSS para Animações, Espaçamentos e Alertas
 st.markdown("""
     <style>
     @keyframes piscar-mesa {
@@ -55,6 +55,14 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         font-weight: bold;
+    }
+    .bloco-seccao {
+        padding: 25px;
+        border-radius: 12px;
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -129,7 +137,7 @@ except Exception:
     except Exception:
         pass
 
-# Sidebar limpa apenas com identificador visual do sistema
+# Sidebar limpa
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 
@@ -282,19 +290,24 @@ def area_cozinha():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (COM FINANÇAS, STOCK, DCH, COZINHA E GARÇOM)
+# ÁREA: ADMINISTRADOR (FINANÇAS, STOCK, DCH)
 # ==========================================
 def area_administrador():
+    st.markdown("<hr style='margin-top: 40px; margin-bottom: 40px;'>", unsafe_allow_html=True)
     st.title("👑 Painel do Administrador - NobreSabor")
-    st.info("Painel Mestre: Controlo Financeiro, Stock, Recursos Humanos (DCH) e Supervisão Operacional.")
+    st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH).")
     
     with st.expander("🔗 Links Oficiais do Sistema", expanded=False):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
         st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
         
-    tab_fin, tab_stk, tab_dch, tab_coz, tab_garc = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH", "🍳 Cozinha", "👨‍🍳 Garçom"])
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+    
+    # Apenas as 3 abas solicitadas
+    tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH"])
     
     with tab_fin:
+        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
         st.subheader("💰 Gestão de Caixa e Finanças")
         
         col_cx_status, col_cx_btn = st.columns([3, 1])
@@ -313,15 +326,17 @@ def area_administrador():
                     st.session_state.caixa_aberto = True
                     st.rerun()
 
-        st.divider()
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("📊 Histórico de Faturação e Vendas do Dia")
         if st.session_state.historico_vendas_definitivo:
             df_vendas = pd.DataFrame(st.session_state.historico_vendas_definitivo)
             st.dataframe(df_vendas, use_container_width=True)
         else:
             st.info("Ainda não existem vendas fechadas registadas.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with tab_stk:
+        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
         st.subheader("📦 Gestão de Stock")
         with st.form("form_stock_adm"):
             np = st.text_input("Nome do Produto")
@@ -333,9 +348,12 @@ def area_administrador():
                 st.session_state.stock = pd.concat([st.session_state.stock, novo_df], ignore_index=True)
                 st.success("Produto adicionado ao stock!")
                 st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(st.session_state.stock, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
     with tab_dch:
+        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
         st.subheader("👥 Recursos Humanos (DCH)")
         with st.form("form_rh_adm"):
             cc = st.text_input("Código do Colaborador")
@@ -348,29 +366,9 @@ def area_administrador():
                 st.session_state.rh = pd.concat([st.session_state.rh, novo_rh], ignore_index=True)
                 st.success("Colaborador registado com sucesso!")
                 st.rerun()
+        st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(st.session_state.rh, use_container_width=True)
-
-    with tab_coz:
-        st.subheader("🍳 Supervisão da Cozinha")
-        st.info("Resumo dos pedidos de refeições ativos nas mesas:")
-        tem_algum = False
-        for i in range(1, 31):
-            m = st.session_state.mesas[i]
-            for p in m["pedidos"]:
-                if p["tipo"] == "Refeições" and p["status"] != "Anulado":
-                    tem_algum = True
-                    st.write(f"- **Mesa {i}**: {p['quantidade']}x {p['item']} | Estado Cozinha: **{p.get('cozinha_status')}** | Origem: _{p['origem']}_")
-        if not tem_algum:
-            st.success("Nenhuma refeição em andamento na cozinha no momento.")
-
-    with tab_garc:
-        st.subheader("👨‍🍳 Supervisão de Garçons e Lançamentos")
-        st.info("Lista de colaboradores cadastrados com perfil de Garçon:")
-        df_garcons = st.session_state.rh[st.session_state.rh['Categoria'] == 'Garçon']
-        if not df_garcons.empty:
-            st.dataframe(df_garcons, use_container_width=True)
-        else:
-            st.warning("Nenhum garçom registado no DCH.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ==========================================
@@ -382,6 +380,8 @@ def gestao_mesas_caixa():
     if not st.session_state.caixa_aberto:
         st.warning("⚠️ O Caixa encontra-se atualmente FECHADO. Pode abrir o caixa logo abaixo na aba **Finanças** do Painel de Administrador.")
     
+    st.markdown("<br>", unsafe_allow_html=True)
+
     if "mesa_ativa" in st.session_state:
         m_ativa = st.session_state.mesa_ativa
         if st.button("⬅️ Voltar à Visão Geral das Mesas"):
@@ -513,7 +513,6 @@ def gestao_mesas_caixa():
                     st.session_state.mesa_ativa = i
                     st.rerun()
         
-        st.divider()
         area_administrador()
 
 
