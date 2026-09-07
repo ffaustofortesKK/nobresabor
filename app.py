@@ -81,7 +81,6 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Detetar parâmetro de QR Code na URL
 query_params = st.query_params
 mesa_qr = query_params.get("mesa", None)
 
@@ -114,8 +113,6 @@ if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
     
     if num_mesa not in st.session_state.clientes_mesa:
         st.subheader("📝 Registo de Acolhimento do Cliente")
-        st.write("Por favor, preencha os seus dados para iniciar o atendimento:")
-        
         with st.form(f"form_cliente_{num_mesa}"):
             nome_cli = st.text_input("Nome Completo:")
             tel_cli = st.text_input("Número de Telefone / WhatsApp:")
@@ -241,35 +238,20 @@ elif menu == "👨‍🍳 Garçon / Pedidos":
 
 # 3. CAIXA CENTRAL (GESTÃO TOTAL VIA "GERIR MESA")
 elif menu == "💻 Caixa Central (Gestão Total)":
-    st.title("💻 Caixa Central - Controlo das 30 Mesas")
-    st.info("As mesas com novos pedidos piscam a vermelho. Clique em 'Gerir Mesa' para abrir o painel completo de atendimento, pedidos, adição, anulação e fecho de conta.")
     
-    cols = st.columns(6)
-    for i in range(1, 31):
-        mesa_info = st.session_state.mesas[i]
-        tem_pendentes = any(p["status"] == "Pendente" for p in mesa_info["pedidos"])
-        
-        with cols[(i - 1) % 6]:
-            if tem_pendentes:
-                st.markdown(f'<div class="mesa-alerta">MESA {i}<br>🔔 NOVO PEDIDO!</div>', unsafe_allow_html=True)
-            elif mesa_info["status"] == "Aberta":
-                st.markdown(f'<div class="mesa-aberta">Mesa {i}<br>Aberta ({mesa_info["total"]:,.2f} Kz)</div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="mesa-fechada">Mesa {i}<br>Fechada</div>', unsafe_allow_html=True)
-                
-            if st.button(f"Gerir Mesa {i}", key=f"btn_m_{i}p"):
-                st.session_state.mesa_ativa = i
-
-    st.divider()
-
-    # PAINEL INTEGRADO AO CLICAR EM "GERIR MESA"
+    # Se existe uma mesa ativa selecionada, mostramos exclusivamente o painel de gestão detalhado dessa mesa
     if "mesa_ativa" in st.session_state:
         m_ativa = st.session_state.mesa_ativa
-        st.header(f"🎛️ Painel de Gestão da Mesa {m_ativa}")
+        
+        if st.button("⬅️ Voltar à Visão Geral das Mesas"):
+            del st.session_state.mesa_ativa
+            st.rerun()
+            
+        st.header(f"🎛️ Painel de Gestão Completo da Mesa {m_ativa}")
         
         dados_mesa = st.session_state.mesas[m_ativa]
         
-        # 1. Controlo de Abertura / Estado da Mesa
+        # Estado e Abertura / Fecho
         col_st1, col_st2 = st.columns([2, 2])
         with col_st1:
             st.write(f"**Estado Atual:** {dados_mesa['status']} | **Total da Conta:** **{dados_mesa['total']:,.2f} Kz**")
@@ -286,7 +268,7 @@ elif menu == "💻 Caixa Central (Gestão Total)":
 
         st.divider()
 
-        # 2. Adicionar Pedido Diretamente pelo Caixa
+        # Adicionar Pedido Diretamente pelo Caixa
         with st.expander("➕ Adicionar Novo Pedido a esta Mesa"):
             if not st.session_state.stock.empty:
                 prod_cx = st.selectbox("Selecione o Produto:", st.session_state.stock['Produto'].tolist(), key=f"prod_cx_{m_ativa}")
@@ -311,7 +293,7 @@ elif menu == "💻 Caixa Central (Gestão Total)":
                     st.success("Pedido adicionado e confirmado com sucesso!")
                     st.rerun()
 
-        # 3. Gestão e Controlo de Pedidos Existentes
+        # Histórico de Consumo e Controlo de Pedidos
         st.subheader("🛍️ Histórico de Consumo e Controlo de Pedidos")
         if not dados_mesa["pedidos"]:
             st.info("Nenhum pedido registado nesta mesa até o momento.")
@@ -352,13 +334,35 @@ elif menu == "💻 Caixa Central (Gestão Total)":
             
             st.divider()
             
-            # 4. Fecho da Conta / Liquidação Total
+            # Fecho da Conta / Liquidação Total
             if st.button("🔓 Fechar Conta / Liquidar Fatura da Mesa", type="primary"):
                 st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
                 if m_ativa in st.session_state.clientes_mesa:
                     del st.session_state.clientes_mesa[m_ativa]
                 st.success(f"Mesa {m_ativa} fechada e conta liquidada com sucesso!")
                 st.rerun()
+
+    else:
+        # Visão Geral das 30 Mesas
+        st.title("💻 Caixa Central - Controlo das 30 Mesas")
+        st.info("As mesas com novos pedidos piscam a vermelho. Clique em 'Gerir Mesa' para abrir o menu dedicado dessa mesa.")
+        
+        cols = st.columns(6)
+        for i in range(1, 31):
+            mesa_info = st.session_state.mesas[i]
+            tem_pendentes = any(p["status"] == "Pendente" for p in mesa_info["pedidos"])
+            
+            with cols[(i - 1) % 6]:
+                if tem_pendentes:
+                    st.markdown(f'<div class="mesa-alerta">MESA {i}<br>🔔 NOVO PEDIDO!</div>', unsafe_allow_html=True)
+                elif mesa_info["status"] == "Aberta":
+                    st.markdown(f'<div class="mesa-aberta">Mesa {i}<br>Aberta ({mesa_info["total"]:,.2f} Kz)</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="mesa-fechada">Mesa {i}<br>Fechada</div>', unsafe_allow_html=True)
+                    
+                if st.button(f"Gerir Mesa {i}", key=f"btn_m_{i}p"):
+                    st.session_state.mesa_ativa = i
+                    st.rerun()
 
 # 4. ADMINISTRADOR (STOCK / QR CODES)
 elif menu == "👑 Administrador (Stock / QR Codes)":
