@@ -113,24 +113,24 @@ st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 
 if mesa_detectada and 1 <= mesa_detectada <= 30:
-    st.sidebar.success(f"📱 Modo Cliente (Mesa {mesa_detectada})")
-    modulo_atual = "📱 Módulo: Cliente"
+    st.sidebar.success(f"📱 Atendimento Digital (Mesa {mesa_detectada})")
+    menu_selecionado = "📱 Cliente"
 else:
     menu_opcoes = [
-        "💻 Módulo: Caixa & Gestão de Mesas", 
-        "👨‍🍳 Módulo: Garçon", 
-        "📦 Módulo: Stock",
-        "👑 Módulo: Administrador / QR Codes",
-        "👥 Módulo: Recursos Humanos",
-        "📱 Módulo: Cliente (Manual)"
+        "💻 Caixa & Gestão de Mesas", 
+        "👨‍🍳 Garçon", 
+        "📦 Stock",
+        "👑 Administrador / QR Codes",
+        "👥 Recursos Humanos",
+        "📱 Cliente (Manual)"
     ]
-    modulo_atual = st.sidebar.selectbox("Selecione o Módulo:", menu_opcoes)
+    menu_selecionado = st.sidebar.selectbox("Selecione a Área:", menu_opcoes)
 
 
 # ==========================================
-# MÓDULO: CLIENTE (AUTOMATIZADO POR QR CODE)
+# ÁREA: CLIENTE (LIGADO DIRETAMENTE AO CAIXA DA MESA)
 # ==========================================
-def modulo_cliente():
+def area_cliente():
     if mesa_detectada and 1 <= mesa_detectada <= 30:
         num_mesa = mesa_detectada
     else:
@@ -177,6 +177,7 @@ def modulo_cliente():
                 obs = st.text_input("Observações (ex: Sem gelo, carne bem passada):")
                 
                 if st.button("🚀 Enviar Pedido para o Caixa"):
+                    # Atualiza diretamente os dados na estrutura centralizada da mesa correspondente
                     st.session_state.mesas[num_mesa]["status"] = "Aberta"
                     novo_pedido = {
                         "item": item_escolhido,
@@ -220,10 +221,10 @@ def modulo_cliente():
 
 
 # ==========================================
-# MÓDULO: GARÇON
+# ÁREA: GARÇON
 # ==========================================
-def modulo_garcon():
-    st.title("👨‍🍳 Módulo do Garçon - Lançamento de Pedidos")
+def area_garcon():
+    st.title("👨‍🍳 Área do Garçon - Lançamento de Pedidos")
     codigo_garcon = st.text_input("Insira o seu Código de Colaborador (DCH):", type="password")
     
     if codigo_garcon:
@@ -266,9 +267,9 @@ def modulo_garcon():
 
 
 # ==========================================
-# MÓDULO: CAIXA & GESTÃO DE MESAS
+# ÁREA: CAIXA & GESTÃO DE MESAS (LIGAÇÃO DIRETA)
 # ==========================================
-def modulo_caixa():
+def area_caixa():
     if "mesa_ativa" in st.session_state:
         m_ativa = st.session_state.mesa_ativa
         
@@ -276,7 +277,7 @@ def modulo_caixa():
             del st.session_state.mesa_ativa
             st.rerun()
             
-        st.header(f"🎛️ Módulo Caixa - Gestão Detalhada da Mesa {m_ativa}")
+        st.header(f"🎛️ Caixa - Gestão Detalhada da Mesa {m_ativa}")
         
         dados_mesa = st.session_state.mesas[m_ativa]
         
@@ -367,8 +368,8 @@ def modulo_caixa():
                 st.rerun()
 
     else:
-        st.title("💻 Módulo Caixa - Controlo Geral das 30 Mesas")
-        st.info("As mesas com pedidos pendentes piscam a vermelho. Clique em 'Gerir Mesa' para ver os pedidos do cliente, faturar ou obter o QR Code específico da mesa.")
+        st.title("💻 Caixa - Controlo Geral das 30 Mesas")
+        st.info("As mesas com pedidos pendentes piscam a vermelho. Clique em 'Gerir Mesa' para abrir os detalhes, confirmar os pedidos enviados via QR Code e fechar a conta.")
         
         cols = st.columns(6)
         for i in range(1, 31):
@@ -389,10 +390,10 @@ def modulo_caixa():
 
 
 # ==========================================
-# MÓDULO: STOCK
+# ÁREA: STOCK
 # ==========================================
-def modulo_stock():
-    st.title("📦 Módulo de Stock - Gestão de Armazém")
+def area_stock():
+    st.title("📦 Armazém / Stock - Gestão de Produtos")
     with st.form("form_reg_stock"):
         st.write("Registar Novo Produto")
         novo_prod = st.text_input("Nome do Produto")
@@ -411,15 +412,14 @@ def modulo_stock():
 
 
 # ==========================================
-# MÓDULO: ADMINISTRADOR (GERADOR DE QR CODES POR MESA)
+# ÁREA: ADMINISTRADOR (GERADOR DE QR CODES POR MESA)
 # ==========================================
-def modulo_administrador():
-    st.title("👑 Módulo do Administrador - Gestão de QR Codes por Mesa")
+def area_administrador():
+    st.title("👑 Administrador - Gestão de QR Codes por Mesa")
     st.info("Aqui pode consultar o link dedicado de cada mesa, copiar para colocar na mesa correspondente ou gerar o QR Code individual.")
     
     dominio_base = st.text_input("Domínio / URL base do Sistema (ex: http://localhost:8501)", "http://localhost:8501")
     
-    # Seletor para escolher uma mesa específica e focar na extração do seu QR Code individual
     mesa_selecionada_adm = st.selectbox("Selecione a Mesa para obter o QR Code Individual:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
     
     st.divider()
@@ -441,7 +441,6 @@ def modulo_administrador():
         img_bytes = gerar_qrcode_bytes(link_qrcode_executavel)
         st.image(img_bytes, width=180, caption=f"QR Code Oficial - Mesa {mesa_selecionada_adm}")
         
-        # Botão para download direto do QR Code
         st.download_button(
             label=f"📥 Descarregar QR Code Mesa {mesa_selecionada_adm}",
             data=img_bytes,
@@ -451,10 +450,10 @@ def modulo_administrador():
 
 
 # ==========================================
-# MÓDULO: RECURSOS HUMANOS (DCH)
+# ÁREA: RECURSOS HUMANOS (DCH)
 # ==========================================
-def modulo_recursos_humanos():
-    st.title("👥 Módulo de Recursos Humanos (DCH)")
+def area_recursos_humanos():
+    st.title("👥 Recursos Humanos (DCH)")
     with st.form("form_dch"):
         cod_colab = st.text_input("Código do Colaborador (ex: G003)")
         nome_colab = st.text_input("Nome Completo")
@@ -475,17 +474,17 @@ def modulo_recursos_humanos():
 # ==========================================
 # EXECUÇÃO DO ROTEADOR PRINCIPAL
 # ==========================================
-if modulo_atual == "📱 Módulo: Cliente" or mesa_detectada:
-    modulo_cliente()
-elif modulo_atual == "💻 Módulo: Caixa & Gestão de Mesas":
-    modulo_caixa()
-elif modulo_atual == "👨‍🍳 Módulo: Garçon":
-    modulo_garcon()
-elif modulo_atual == "📦 Módulo: Stock":
-    modulo_stock()
-elif modulo_atual == "👑 Módulo: Administrador / QR Codes":
-    modulo_administrador()
-elif modulo_atual == "👥 Módulo: Recursos Humanos":
-    modulo_recursos_humanos()
+if menu_selecionado == "📱 Cliente" or mesa_detectada:
+    area_cliente()
+elif menu_selecionado == "💻 Caixa & Gestão de Mesas":
+    area_caixa()
+elif menu_selecionado == "👨‍🍳 Garçon":
+    area_garcon()
+elif menu_selecionado == "📦 Stock":
+    area_stock()
+elif menu_selecionado == "👑 Administrador / QR Codes":
+    area_administrador()
+elif menu_selecionado == "👥 Recursos Humanos":
+    area_recursos_humanos()
 else:
-    modulo_cliente()
+    area_cliente()
