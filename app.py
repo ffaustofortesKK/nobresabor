@@ -89,7 +89,7 @@ if "rh" not in st.session_state:
 if "clientes_mesa" not in st.session_state:
     st.session_state.clientes_mesa = {}
 
-# Função Auxiliar para Gerar QR Code
+# Função Auxiliar para Gerar QR Code em Bytes
 def gerar_qrcode_bytes(url_texto):
     qr = qrcode.QRCode(version=1, box_size=5, border=2)
     qr.add_data(url_texto)
@@ -100,7 +100,7 @@ def gerar_qrcode_bytes(url_texto):
     return buffered.getvalue()
 
 # ==========================================
-# 2. CAPTURA AUTOMÁTICA DA MESA VIA URL / QR CODE
+# 2. CAPTURA AUTOMÁTICA DA MESA VIA PARÂMETRO URL (QR CODE)
 # ==========================================
 query_params = st.query_params
 mesa_detectada = None
@@ -110,16 +110,6 @@ if "mesa" in query_params:
         mesa_detectada = int(query_params.get("mesa"))
     except:
         pass
-
-if not mesa_detectada and "path" in query_params:
-    path_val = query_params.get("path", "")
-    if "mesa" in path_val:
-        try:
-            partes = path_val.split("mesa")
-            num_str = partes[1].split("/")[0]
-            mesa_detectada = int(num_str)
-        except:
-            pass
 
 
 # ==========================================
@@ -248,7 +238,7 @@ def area_cliente():
 # ==========================================
 def area_cozinha():
     st.title("🍳 Área da Cozinha - Gestão de Pratos")
-    st.info("Aqui o Chefe de Cozinha visualiza todos os pedidos de alimentos pendentes, prepara e clica em 'Pronto' para avisar o Caixa.")
+    st.info("O Chefe de Cozinha visualiza todos os pedidos de alimentos pendentes, prepara e clica em 'Pronto' para notificar o Caixa.")
     
     tem_pedidos_cozinha = False
     
@@ -260,14 +250,14 @@ def area_cozinha():
                 col_c1, col_c2, col_c3 = st.columns([3, 2, 2])
                 with col_c1:
                     st.write(f"### 🍽️ Mesa {i}")
-                    st.write(f"**Item:** {ped['quantidade']}x {ped['item']}")
+                    st.write(f"**Prato:** {ped['quantidade']}x {ped['item']}")
                     st.write(f"Observações: _{ped['obs']}_ | ⏰ {ped['hora']}")
                 with col_c2:
-                    st.write(f"Estado Atual: **Em Preparação**")
+                    st.write("Estado: **Em Preparação 🍳**")
                 with col_c3:
-                    if st.button(f"✅ Prato Pronto (Mesa {i} - #{idx_p})", key=f"btn_prato_pronto_{i}_{idx_p}"):
+                    if st.button(f"✅ Pronto (Mesa {i} - #{idx_p})", key=f"btn_prato_pronto_{i}_{idx_p}"):
                         st.session_state.mesas[i]["pedidos"][idx_p]["cozinha_status"] = "Pronto"
-                        st.success(f"Pronto assinalado para a Mesa {i}!")
+                        st.success(f"Prato assinalado como pronto para a Mesa {i}!")
                         st.rerun()
                 st.divider()
                 
@@ -329,15 +319,13 @@ def area_caixa():
     st.title("💻 Caixa - Controlo Geral e Mesas")
     
     # Controlo de Abertura/Fecho do Caixa
-    col_cx_st1, col_cx_st2 = st.columns([3, 1])
-    with col_cx_st1:
-        if st.session_state.caixa_aberto:
-            st.success("🟢 CAIXA ABERTO E OPERACIONAL")
-        else:
-            st.error("🔴 CAIXA FECHADO PELO ADMINISTRADOR")
-            st.warning("O Administrador é quem abre e fecha o caixa. Contacte a administração se necessário.")
-            return
-    
+    if not st.session_state.caixa_aberto:
+        st.error("🔴 O CAIXA ENCONTRA-SE ATUALMENTE FECHADO.")
+        st.warning("O Administrador é o responsável por abrir e fechar o caixa no painel administrativo.")
+        return
+    else:
+        st.success("🟢 Caixa Aberto e Operacional")
+
     st.divider()
 
     if "mesa_ativa" in st.session_state:
@@ -440,7 +428,7 @@ def area_caixa():
                 st.rerun()
 
     else:
-        st.info("As mesas com novos pedidos piscam a vermelho. As mesas com pratos prontos na cozinha piscam com o emoji 🍲 a avisar o caixa.")
+        st.info("💡 As mesas com novos pedidos piscam a vermelho. As mesas com pratos prontos na cozinha piscam com o aviso 🍲 PRATO PRONTO.")
         
         cols = st.columns(6)
         for i in range(1, 31):
@@ -468,7 +456,7 @@ def area_caixa():
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador")
-    st.info("Aqui controla a abertura/fecho do Caixa, faz o registo de stock, gere o DRH e extrai os QR codes individuais de cada mesa.")
+    st.info("Aqui controla a abertura/fecho do Caixa, faz o registo de stock, gere o DRH e extrai os QR codes oficiais de cada mesa.")
     
     tab_adm_cx, tab_adm_stock, tab_adm_drh, tab_adm_qr = st.tabs(["💰 Controlo de Caixa", "📦 Stock", "👥 Recursos Humanos", "📷 QR Codes das Mesas"])
     
@@ -529,14 +517,12 @@ def area_administrador():
         
         st.divider()
         col_det1, col_det2 = st.columns([2, 1])
-        link_mesa_limpo = f"{dominio_base.rstrip('/')}/cliente/mesa{mesa_selecionada_adm}/qr"
         link_qrcode_executavel = f"{dominio_base.rstrip('/')}/?mesa={mesa_selecionada_adm}"
         
         with col_det1:
-            st.write("Copie o link amigável para configurar nas placas de mesa:")
-            st.code(link_mesa_limpo, language="text")
-            st.write("Link direto de execução no sistema:")
+            st.write("Link direto formatado para leitura automática via QR Code:")
             st.code(link_qrcode_executavel, language="text")
+            st.info("Este link carrega instantaneamente a interface do cliente direcionada à mesa selecionada.")
             
         with col_det2:
             img_bytes = gerar_qrcode_bytes(link_qrcode_executavel)
