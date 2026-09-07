@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Ficheiro local simples para partilhar o estado do caixa entre abas no mesmo servidor Streamlit Cloud
+# Ficheiro local para partilhar o estado exato do caixa entre as abas na nuvem
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 
 def ler_estado_caixa_disco():
@@ -109,14 +109,9 @@ except Exception:
     except Exception:
         pass
 
-# Sincroniza o estado com o disco para que todas as abas vejam se o caixa abriu/fechou
+# Sincroniza o estado com o disco central do servidor
 estado_atual_disco = ler_estado_caixa_disco()
-
-if "caixa_aberto" not in st.session_state:
-    st.session_state.caixa_aberto = estado_atual_disco
-else:
-    # Atualiza automaticamente com base no servidor/disco
-    st.session_state.caixa_aberto = estado_atual_disco
+st.session_state.caixa_aberto = estado_atual_disco
 
 if "mesas" not in st.session_state:
     st.session_state.mesas = {
@@ -161,7 +156,7 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Sidebar dinâmica com indicador automático
+# Sidebar dinâmica
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 st.sidebar.divider()
@@ -276,11 +271,19 @@ def area_cliente():
 # ÁREA: COZINHA (CHEF)
 # ==========================================
 def area_cozinha():
+    # Script JavaScript leve que atualiza a página automaticamente a cada 6 segundos nas abas operacionais
+    st.markdown("""
+        <script>
+            setTimeout(function(){
+                window.location.reload();
+            }, 6000);
+        </script>
+    """, unsafe_allow_html=True)
+
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
     
-    # Validação automática do estado do caixa
     if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** A cozinha foi encerrada automaticamente porque o Administrador fechou o caixa.")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador encerrou o caixa, pelo que esta secção foi bloqueada automaticamente.")
         return
 
     st.info("O Chef gere as refeições solicitadas, podendo Aprovar, Recusar ou marcar como Feito.")
@@ -332,10 +335,10 @@ def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
     st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH). É aqui que se faz a Abertura e Fecho do Caixa.")
     
-    with st.expander("🔗 Links Oficiais do Sistema (Fixo e Automático)", expanded=True):
+    with st.expander("🔗 Links Oficiais do Sistema", expanded=True):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
         st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
-        st.caption("ℹ️ Nota: Os links agora são fixos e limpos. Ao abrir ou fechar o caixa abaixo, o sistema atualiza automaticamente o estado para todas as abas.")
+        st.caption("ℹ️ Nota: Ao fechar o caixa aqui, as abas de caixa e cozinha detetam o fecho automaticamente em poucos segundos.")
         
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
@@ -355,14 +358,14 @@ def area_administrador():
             if st.session_state.caixa_aberto:
                 if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
                     st.session_state.caixa_aberto = False
-                    gravar_estado_caixa_disco(False) # Fecha automaticamente para o Caixa e Cozinha
-                    st.success("Caixa fechado com sucesso! Cozinha e Caixa foram encerrados.")
+                    gravar_estado_caixa_disco(False)
+                    st.success("Caixa fechado! O sistema bloqueará a cozinha e o caixa automaticamente.")
                     st.rerun()
             else:
                 if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_adm"):
                     st.session_state.caixa_aberto = True
-                    gravar_estado_caixa_disco(True) # Abre automaticamente para o Caixa e Cozinha
-                    st.success("Caixa aberto com sucesso! Cozinha e Caixa foram ativados.")
+                    gravar_estado_caixa_disco(True)
+                    st.success("Caixa aberto com sucesso!")
                     st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -414,9 +417,17 @@ def area_administrador():
 # ÁREA: CAIXA / GESTÃO DE MESAS (?perfil=caixa)
 # ==========================================
 def area_caixa_mesas():
+    # Script JavaScript leve que atualiza a página automaticamente a cada 6 segundos nas abas operacionais
+    st.markdown("""
+        <script>
+            setTimeout(function(){
+                window.location.reload();
+            }, 6000);
+        </script>
+    """, unsafe_allow_html=True)
+
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
-    # Validação automática do estado do caixa
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador fechou o caixa no Painel de Administração, pelo que esta secção foi bloqueada automaticamente.")
         return
