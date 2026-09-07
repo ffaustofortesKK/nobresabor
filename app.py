@@ -11,18 +11,36 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilo CSS para o Efeito de Alerta a Piscar (Blink)
+# Estilo CSS para o Efeito de Alerta a Piscar nas Mesas com Pedidos Pendentes
 st.markdown("""
     <style>
-    @keyframes piscar {
-        0% { opacity: 1; background-color: #ff4b4b; color: white; }
-        50% { opacity: 0.3; background-color: #ffe6e6; color: black; }
-        100% { opacity: 1; background-color: #ff4b4b; color: white; }
+    @keyframes piscar-mesa {
+        0% { background-color: #ff4b4b; color: white; transform: scale(1); }
+        50% { background-color: #ffe6e6; color: black; transform: scale(1.03); }
+        100% { background-color: #ff4b4b; color: white; transform: scale(1); }
     }
-    .alerta-piscar {
-        animation: piscar 1s infinite;
-        padding: 10px;
-        border-radius: 8px;
+    .mesa-alerta {
+        animation: piscar-mesa 1s infinite;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        cursor: pointer;
+    }
+    .mesa-aberta {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+    }
+    .mesa-fechada {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 10px;
         text-align: center;
         font-weight: bold;
     }
@@ -31,16 +49,12 @@ st.markdown("""
 
 # Inicialização de Estados da Sessão
 if "mesas" not in st.session_state:
+    # Cada mesa guarda o seu estado, lista de pedidos e total acumulado
     st.session_state.mesas = {
         i: {"status": "Fechada", "pedidos": [], "total": 0.0} for i in range(1, 31)
     }
 
-if "pedidos_caixa" not in st.session_state:
-    # Cada pedido terá: id, mesa, item, tipo (Bebida/Comida), qtd, preco, status (Pendente Caixa, Confirmado, Cozinha, Pronto)
-    st.session_state.pedidos_caixa = []
-
 if "stock" not in st.session_state:
-    # Stock inicial de exemplo incluindo bebidas
     st.session_state.stock = pd.DataFrame([
         ["Água 0.5L", "Bebidas", 50, 300.0],
         ["Refrigerante Cola", "Bebidas", 40, 450.0],
@@ -50,10 +64,7 @@ if "stock" not in st.session_state:
         ["Bife a Cavalo", "Alimentos", 15, 4000.0]
     ], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
 
-if "rh" not in st.session_state:
-    st.session_state.rh = pd.DataFrame(columns=["Nome", "Categoria", "Telefone", "BI", "Faltas", "Desconto/Dia", "Turno"])
-
-# Função Auxiliar para Gerar QR Code em Imagem Bytes
+# Função para Gerar QR Code
 def gerar_qrcode_bytes(url_texto):
     qr = qrcode.QRCode(version=1, box_size=5, border=2)
     qr.add_data(url_texto)
@@ -63,247 +74,217 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Menu Lateral para Navegação por Perfil
+# Detetar se foi acedido via link de QR Code (ex: ?mesa=5)
+query_params = st.query_params
+mesa_qr = query_params.get("mesa", None)
+
+if mesa_qr:
+    try:
+        num_mesa_qr = int(mesa_qr)
+        if 1 <= num_mesa_qr <= 30:
+            # Abre a mesa automaticamente ao aceder via QR Code
+            st.session_state.mesas[num_mesa_qr]["status"] = "Aberta"
+    except ValueError:
+        pass
+
+# Menu Lateral
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("Restaurante Gestão")
-menu = st.sidebar.selectbox("Selecione o Painel:", [
-    "🏠 Início / Boas-Vindas", 
-    "📱 Cliente (Mesa / QR Code)", 
-    "💻 Caixa Central", 
-    "🍳 Cozinha", 
-    "📦 Stock", 
-    "👥 Recursos Humanos", 
-    "👑 Administrador"
+menu = st.sidebar.selectbox("Navegação:", [
+    "📱 Cliente / QR Code (Mesa)", 
+    "👨‍🍳 Garçon / Pedidos", 
+    "💻 Caixa Central (30 Mesas)", 
+    "📦 Administrador (Stock)",
+    "👑 Gestão de Links e QR Codes"
 ])
 
-# 1. INÍCIO / BOAS-VINDAS
-if menu == "🏠 Início / Boas-Vindas":
-    st.title("Bem-vindo ao Sistema do Restaurante! 🍽️")
-    st.markdown("""
-    > *"A boa comida é a base da verdadeira felicidade."* — Aproveite o melhor ambiente da cidade!
+# 1. CLIENTE (QR CODE)
+if menu == "📱 Cliente / QR Code (Mesa)":
+    st.title("📱 Pedido via QR Code do Cliente")
     
-    Este sistema gere as **30 mesas**, fluxo de pedidos entre **Caixa** e **Cozinha**, controlo de **Stock** (com baixa automática de bebidas) e **Recursos Humanos**.
-    """)
-
-# 2. CLIENTE (QR CODE / TABLET)
-elif menu == "📱 Cliente (Mesa / QR Code)":
-    st.title("📱 Pedido via QR Code / Tablet (Simulação)")
+    # Seleção da mesa (caso não venha direto pelo link)
+    default_mesa = int(mesa_qr) if mesa_qr and mesa_qr.isdigit() else 1
+    num_mesa = st.selectbox("Número da sua Mesa:", [i for i in range(1, 31)], index=default_mesa-1)
     
-    # Simulação de parâmetro de mesa via URL ou seleção direta
-    num_mesa = st.selectbox("Identificação da Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+    # Abre a mesa automaticamente para o cliente
+    st.session_state.mesas[num_mesa]["status"] = "Aberta"
     
-    if st.session_state.mesas[num_mesa]["status"] == "Fechada":
-        st.warning("⚠️ Esta mesa ainda está Fechada. Solicite a abertura ao Caixa ou Garçom.")
-    else:
-        st.success(f"✅ Mesa {num_mesa} aberta! Faça o seu pedido:")
+    st.success(f"✅ Mesa {num_mesa} ativa e aberta! Faça o seu pedido abaixo:")
+    st.markdown("> *«Aproveite o melhor ambiente e saboreie a nossa culinária!»*")
+    
+    # Formulário de Pedido
+    if not st.session_state.stock.empty:
+        opcoes = st.session_state.stock['Produto'].tolist()
+        item_escolhido = st.selectbox("Escolha o Item:", opcoes)
         
-        # Selecionar itens disponíveis no stock
-        opcoes_stock = st.session_state.stock['Produto'].tolist()
-        item_escolhido = st.selectbox("Selecione o Item do Cardápio:", opcoes_stock)
+        # Obter dados do stock
+        row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_escolhido].iloc[0]
+        tipo_item = row_prod['Categoria']
+        preco_item = row_prod['Preço Unitário']
         
-        # Identificar se é Bebida ou Comida com base no stock
-        tipo_item = st.session_state.stock.loc[st.session_state.stock['Produto'] == item_escolhido, 'Categoria'].values[0]
-        preco_item = st.session_state.stock.loc[st.session_state.stock['Produto'] == item_escolhido, 'Preço Unitário'].values[0]
-        
-        qtd_pedido = st.number_input("Quantidade:", min_value=1, value=1, step=1)
+        qtd = st.number_input("Quantidade:", min_value=1, value=1, step=1)
         obs = st.text_input("Observações (ex: Sem gelo, bem passado):")
         
         if st.button("Enviar Pedido para o Caixa"):
             novo_pedido = {
-                "id": len(st.session_state.pedidos_caixa) + 1,
-                "mesa": num_mesa,
                 "item": item_escolhido,
-                "tipo": tipo_item, # Bebidas ou Alimentos/Outros
-                "quantidade": qtd_pedido,
-                "preco_unitario": preco_item,
+                "tipo": tipo_item,
+                "quantidade": qtd,
+                "preco": preco_item,
+                "origem": "Cliente (QR Code)",
                 "obs": obs,
-                "status": "Pendente Caixa",
+                "status": "Pendente",
                 "hora": datetime.now().strftime("%H:%M:%S")
             }
-            st.session_state.pedidos_caixa.append(novo_pedido)
-            st.success("🎉 Pedido enviado com sucesso para o Caixa! Aproveite o melhor ambiente do restaurante.")
+            st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
+            st.success("🎉 Pedido enviado com sucesso! O Caixa já foi notificado.")
             st.balloons()
+    else:
+        st.warning("Armazém sem produtos registados.")
+
+# 2. GARÇON
+elif menu == "👨‍🍳 Garçon / Pedidos":
+    st.title("👨‍🍳 Painel do Garçon (Registo de Pedidos por Mesa)")
+    
+    nome_garcon = st.text_input("Identificação do Garçon (Nome / Código):")
+    mesa_garcon = st.selectbox("Selecione a Mesa a Atender:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+    
+    # Garante que a mesa abre ao ser atendida pelo garçon
+    st.session_state.mesas[mesa_garcon]["status"] = "Aberta"
+    
+    if nome_garcon and not st.session_state.stock.empty:
+        opcoes = st.session_state.stock['Produto'].tolist()
+        item_g = st.selectbox("Item solicitado:", opcoes)
+        
+        row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_g].iloc[0]
+        tipo_item = row_prod['Categoria']
+        preco_item = row_prod['Preço Unitário']
+        
+        qtd_g = st.number_input("Quantidade:", min_value=1, value=1, step=1, key="qtd_g")
+        obs_g = st.text_input("Observações:", key="obs_g")
+        
+        if st.button("Registar Pedido na Mesa"):
+            novo_pedido = {
+                "item": item_g,
+                "tipo": tipo_item,
+                "quantidade": qtd_g,
+                "preco": preco_item,
+                "origem": f"Garçon ({nome_garcon})",
+                "obs": obs_g,
+                "status": "Pendente",
+                "hora": datetime.now().strftime("%H:%M:%S")
+            }
+            st.session_state.mesas[mesa_garcon]["pedidos"].append(novo_pedido)
+            st.success(f"Pedido registado pelo Garçon {nome_garcon} para a Mesa {mesa_garcon}!")
+    elif not nome_garcon:
+        st.info("Por favor, insira o seu nome de Garçon para continuar.")
 
 # 3. CAIXA CENTRAL
-elif menu == "💻 Caixa Central":
-    st.title("💻 Caixa Central - Faturação, Mesas e Alertas")
+elif menu == "💻 Caixa Central (30 Mesas)":
+    st.title("💻 Caixa Central - Controlo das 30 Mesas e Vendas")
+    st.info("As mesas com pedidos pendentes piscam a vermelho. Clique numa mesa para ver os detalhes, confirmar e dar baixa no stock.")
     
-    tab1, tab2, tab3 = st.tabs(["🔴 Alertas e Pedidos Pendentes", "🪑 Estado das 30 Mesas", "📦 Faturação e Histórico"])
-    
-    with tab1:
-        st.subheader("Painel de Notificações de Pedidos")
-        st.info("As mesas com pedidos pendentes piscam em alerta. Clique na mesa para confirmar os pedidos.")
+    # Exibir grelha das 30 mesas
+    cols = st.columns(6)
+    for i in range(1, 31):
+        mesa_info = st.session_state.mesas[i]
+        tem_pendentes = any(p["status"] == "Pendente" for p in mesa_info["pedidos"])
         
-        # Filtrar pedidos pendentes para o caixa
-        pendentes = [p for p in st.session_state.pedidos_caixa if p["status"] == "Pendente Caixa"]
+        with cols[(i - 1) % 6]:
+            if tem_pendentes:
+                st.markdown(f'<div class="mesa-alerta">MESA {i}<br>🔔 NOVO PEDIDO!</div>', unsafe_allow_html=True)
+            elif mesa_info["status"] == "Aberta":
+                st.markdown(f'<div class="mesa-aberta">Mesa {i}<br>Aberta ({mesa_info["total"]:,.2f} Kz)</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="mesa-fechada">Mesa {i}<br>Fechada</div>', unsafe_allow_html=True)
+                
+            if st.button(f"Gerir Mesa {i}", key=f"btn_m_{i}p"):
+                st.session_state.mesa_ativa = i
+
+    st.divider()
+
+    # Gestão detalhada da Mesa selecionada pelo Caixa
+    if "mesa_ativa" in st.session_state:
+        m_ativa = st.session_state.mesa_ativa
+        st.subheader(f"📋 Gestão Detalhada da Mesa {m_ativa}")
         
-        if not pendentes:
-            st.success("✨ Nenhum pedido pendente no momento. Tudo limpo!")
+        dados_mesa = st.session_state.mesas[m_ativa]
+        st.write(f"**Estado:** {dados_mesa['status']} | **Total Consumido:** {dados_mesa['total']:,.2f} Kz")
+        
+        if not dados_mesa["pedidos"]:
+            st.info("Nenhum pedido registado nesta mesa.")
         else:
-            # Identificar mesas que têm pedidos pendentes
-            mesas_com_alerta = set(p["mesa"] for p in pendentes)
-            
-            st.markdown("### Mesas com Alerta Ativo:")
-            cols_alerta = st.columns(min(len(mesas_com_alerta), 6))
-            
-            for idx, m_id in enumerate(mesas_com_alerta):
-                with cols_alerta[idx % len(cols_alerta)]:
-                    st.markdown(f'<div class="alerta-piscar">MESA {m_id}<br>PEDIDO NOVO!</div>', unsafe_allow_html=True)
-            
-            st.divider()
-            st.markdown("### Detalhe dos Pedidos para Confirmação:")
-            
-            for p in pendentes:
-                with st.expander(f"🔔 Mesa {p['mesa']} | {p['quantidade']}x {p['item']} ({p['tipo']}) - {p['hora']}"):
-                    st.write(f"**Observação:** {p['obs'] if p['obs'] else 'Nenhuma'}")
-                    st.write(f"**Preço Unitário:** {p['preco_unitario']} Kz | **Total:** {p['quantidade'] * p['preco_unitario']} Kz")
-                    
-                    col_b1, col_b2 = st.columns(2)
-                    with col_b1:
-                        if st.button(f"Confirmar Pedido #{p['id']}", key=f"conf_{p['id']}"):
+            st.write("### Pedidos da Mesa:")
+            for idx, ped in enumerate(dados_mesa["pedidos"]):
+                col_d1, col_d2, col_d3 = st.columns([3, 2, 2])
+                with col_d1:
+                    st.write(f"**{ped['quantidade']}x {ped['item']}** ({ped['tipo']})")
+                    st.write(f"Origem: _{ped['origem']}_ | Obs: {ped['obs']} | ⏰ {ped['hora']}")
+                with col_d2:
+                    st.write(f"Estado: **{ped['status']}**")
+                    st.write(f"Subtotal: {ped['quantidade'] * ped['preco']:,.2f} Kz")
+                with col_d3:
+                    if ped["status"] == "Pendente":
+                        if st.button(f"Confirmar #{idx}", key=f"conf_ped_{m_ativa}_{idx}"):
                             # Se for Bebida, desconta imediatamente do stock
-                            if p["tipo"] == "Bebidas":
-                                idx_stock = st.session_state.stock[st.session_state.stock['Produto'] == p['item']].index
-                                if not idx_stock.empty:
-                                    stock_atual = st.session_state.stock.at[idx_stock[0], 'Quantidade']
-                                    if stock_atual >= p['quantidade']:
-                                        st.session_state.stock.at[idx_stock[0], 'Quantidade'] = stock_atual - p['quantidade']
+                            if ped["tipo"] == "Bebidas":
+                                idx_st = st.session_state.stock[st.session_state.stock['Produto'] == ped['item']].index
+                                if not idx_st.empty:
+                                    qtd_atual = st.session_state.stock.at[idx_st[0], 'Quantidade']
+                                    if qtd_atual >= ped['quantidade']:
+                                        st.session_state.stock.at[idx_st[0], 'Quantidade'] = qtd_atual - ped['quantidade']
                                     else:
-                                        st.error("⚠️ Stock insuficiente de bebidas para dar baixa!")
+                                        st.error("⚠️ Stock insuficiente de bebidas!")
                                         continue
                             
-                            # Atualiza status do pedido
-                            for item_ped in st.session_state.pedidos_caixa:
-                                if item_ped["id"] == p["id"]:
-                                    item_ped["status"] = "Confirmado / Enviado Cozinha" if p["tipo"] == "Alimentos" else "Entregue/Confirmado"
-                            
-                            # Adiciona valor ao total da mesa
-                            st.session_state.mesas[p['mesa']]["total"] += (p['quantidade'] * p['preco_unitario'])
-                            st.success(f"Pedido da Mesa {p['mesa']} confirmado com sucesso!")
+                            # Atualiza status e soma ao total da mesa
+                            st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Confirmado"
+                            st.session_state.mesas[m_ativa]["total"] += (ped['quantidade'] * ped['preco'])
+                            st.success("Pedido confirmado com sucesso!")
                             st.rerun()
                             
-                    with col_b2:
-                        if st.button(f"Rejeitar/Cancelar #{p['id']}", key=f"rej_{p['id']}"):
-                            st.session_state.pedidos_caixa = [x for x in st.session_state.pedidos_caixa if x["id"] != p["id"]]
-                            st.warning("Pedido cancelado.")
-                            st.rerun()
-
-    with tab2:
-        st.subheader("Gestão de Abertura e Controlo das 30 Mesas")
-        cols = st.columns(6)
-        for i in range(1, 31):
-            with cols[(i - 1) % 6]:
-                status_atual = st.session_state.mesas[i]["status"]
-                cor = "🟢 Aberta" if status_atual == "Aberta" else "🔴 Fechada"
-                total_mesa = st.session_state.mesas[i]["total"]
-                
-                st.markdown(f"**Mesa {i}**")
-                st.write(f"Estado: {cor}")
-                st.write(f"Consumo: {total_mesa:,.2f} Kz")
-                
-                if status_atual == "Fechada":
-                    if st.button(f"Abrir Mesa {i}", key=f"abrir_m_{i}"):
-                        st.session_state.mesas[i]["status"] = "Aberta"
-                        st.rerun()
-                else:
-                    if st.button(f"Fechar/Conta {i}", key=f"fechar_m_{i}"):
-                        st.session_state.mesas[i]["status"] = "Fechada"
-                        st.session_state.mesas[i]["total"] = 0.0
-                        st.success(f"Mesa {i} fechada com sucesso!")
-                        st.rerun()
-
-    with tab3:
-        st.subheader("Registo Geral de Faturação")
-        historico_confirmados = [p for p in st.session_state.pedidos_caixa if p["status"] != "Pendente Caixa"]
-        if historico_confirmados:
-            st.dataframe(pd.DataFrame(historico_confirmados), use_container_width=True)
-        else:
-            st.info("Nenhum histórico faturado ainda.")
-
-# 4. COZINHA
-elif menu == "🍳 Cozinha":
-    st.title("🍳 Painel da Cozinha (Pratos e Alimentos)")
-    st.write("Pedidos de alimentos confirmados pelo caixa que requerem preparação:")
-    
-    # Apenas alimentos confirmados vão para a cozinha
-    pedidos_cozinha = [p for p in st.session_state.pedidos_caixa if p["tipo"] == "Alimentos" and p["status"] == "Confirmado / Enviado Cozinha"]
-    
-    if not pedidos_cozinha:
-        st.info("Nenhum prato pendente para a cozinha no momento.")
-    else:
-        for p in pedidos_cozinha:
-            st.warning(f"**Mesa {p['mesa']}** | Prato: **{p['quantidade']}x {p['item']}** | Obs: {p['obs']} | Hora: {p['hora']}")
-            if st.button(f"Prato Pronto (Avisar Caixa) - Pedido #{p['id']}", key=f"coz_pronto_{p['id']}"):
-                for item_ped in st.session_state.pedidos_caixa:
-                    if item_ped["id"] == p["id"]:
-                        item_ped["status"] = "Pronto na Cozinha"
-                st.success(f"Aviso enviado ao Caixa de que o prato da Mesa {p['mesa']} está pronto!")
+            if st.button("🔓 Fechar Conta / Liquidar Mesa"):
+                st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
+                st.success(f"Mesa {m_ativa} fechada e conta liquidada com sucesso!")
                 st.rerun()
 
-# 5. STOCK
-elif menu == "📦 Stock":
-    st.title("📦 Armazém de Stock (Bebidas e Alimentos)")
+# 4. ADMINISTRADOR (STOCK)
+elif menu == "📦 Administrador (Stock)":
+    st.title("📦 Painel do Administrador - Controlo de Stock")
+    st.info("O Administrador controla exclusivamente o armazém, registando e gerindo o stock de bebidas e alimentos.")
     
-    with st.form("form_stock"):
-        prod = st.text_input("Nome do Produto")
-        cat = st.selectbox("Categoria", ["Bebidas", "Alimentos", "Outros"])
-        qtd = st.number_input("Quantidade Inicial", min_value=0, step=1)
-        preco = st.number_input("Preço Unitário (Kz)", min_value=0.0, format="%.2f")
-        cadastrar = st.form_submit_button("Registar no Stock")
+    with st.form("form_reg_stock"):
+        st.write("Registar Novo Produto no Armazém")
+        novo_prod = st.text_input("Nome do Produto (Alimento / Bebida)")
+        cat_prod = st.selectbox("Categoria", ["Bebidas", "Alimentos", "Outros"])
+        qtd_prod = st.number_input("Quantidade em Stock", min_value=0, step=1)
+        preco_prod = st.number_input("Preço Unitário (Kz)", min_value=0.0, format="%.2f")
         
-        if cadastrar and prod:
-            novo_item = pd.DataFrame([[prod, cat, qtd, preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-            st.session_state.stock = pd.concat([st.session_state.stock, novo_item], ignore_index=True)
-            st.success(f"Produto '{prod}' registado com sucesso!")
+        btn_add = st.form_submit_button("Salvar no Stock")
+        if btn_add and novo_prod:
+            item_df = pd.DataFrame([[novo_prod, cat_prod, qtd_prod, preco_prod]], 
+                                   columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+            st.session_state.stock = pd.concat([st.session_state.stock, item_df], ignore_index=True)
+            st.success(f"Produto '{novo_prod}' adicionado ao stock!")
             
-    st.subheader("Inventário Atualizado em Tempo Real")
+    st.subheader("Inventário Atualizado")
     st.dataframe(st.session_state.stock, use_container_width=True)
 
-# 6. RECURSOS HUMANOS
-elif menu == "👥 Recursos Humanos":
-    st.title("👥 Gestão de Recursos Humanos")
+# 5. GESTÃO DE LINKS E QR CODES
+elif menu == "👑 Gestão de Links e QR Codes":
+    st.title("👑 Geração de Códigos QR para as 30 Mesas")
     
-    with st.form("form_rh"):
-        st.write("Registar Colaborador (Cozinheiro, Garçon, Chefe de Sala, Limpeza, Comprador)")
-        nome = st.text_input("Nome Completo")
-        categoria = st.selectbox("Categoria", ["Cozinheiro", "Garçon", "Chefe de Sala", "Limpeza", "Comprador"])
-        telefone = st.text_input("Telefone")
-        bi = st.text_input("Número do B.I.")
-        turno = st.selectbox("Turno de Trabalho", ["Turno 1 (Manhã)", "Turno 2 (Tarde/Noite)"])
-        faltas = st.number_input("Número de Faltas", min_value=0, step=1)
-        desconto_dia = st.number_input("Valor a Descontar por Dia (Kz)", min_value=0.0, format="%.2f")
+    url_base = st.text_input("URL base da Aplicação (ex: https://teu-app.streamlit.app)", "http://localhost:8501")
+    
+    if st.button("Gerar Códigos QR"):
+        st.success("Códigos QR gerados para todas as mesas!")
         
-        btn_rh = st.form_submit_button("Salvar Colaborador")
-        if btn_rh and nome:
-            novo_func = pd.DataFrame([[nome, categoria, telefone, bi, faltas, desconto_dia, turno]], 
-                                     columns=["Nome", "Categoria", "Telefone", "BI", "Faltas", "Desconto/Dia", "Turno"])
-            st.session_state.rh = pd.concat([st.session_state.rh, novo_func], ignore_index=True)
-            st.success(f"Colaborador {nome} registado com sucesso!")
-            
-    st.subheader("Quadro de Pessoal")
-    st.dataframe(st.session_state.rh, use_container_width=True)
-
-# 7. ADMINISTRADOR
-elif menu == "👑 Administrador":
-    st.title("👑 Painel do Administrador - Links e QR Codes das 30 Mesas")
-    
-    st.subheader("Gerador de Códigos QR e Links de Acesso (30 Mesas)")
-    st.info("Aqui o Administrador gere os links e descarrega ou visualiza os QR Codes para colocar em cada mesa.")
-    
-    # URL base simulada da aplicação
-    url_base = st.text_input("URL Base da Aplicação (ex: https://teu-app.streamlit.app)", "http://localhost:8501")
-    
-    if st.button("Gerar Códigos QR para as 30 Mesas"):
-        st.success("Códigos QR gerados com sucesso para todas as 30 mesas!")
-        
-    # Exibir grelha com os QR Codes de forma dinâmica
     cols_qr = st.columns(3)
     for i in range(1, 31):
         link_mesa = f"{url_base}/?mesa={i}"
         with cols_qr[(i - 1) % 3]:
             st.markdown(f"**Mesa {i}**")
             st.code(link_mesa, language="text")
-            # Gerar e exibir imagem do QR code
             img_bytes = gerar_qrcode_bytes(link_mesa)
-            st.image(img_bytes, width=150, caption=f"QR Code - Mesa {i}")
+            st.image(img_bytes, width=140, caption=f"QR Code Mesa {i}")
             st.divider()
