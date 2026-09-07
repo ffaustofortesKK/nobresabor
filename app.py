@@ -243,12 +243,12 @@ def area_cliente():
 
 
 # ==========================================
-# ÁREA: COZINHA (Com Auto-Refresh Nativo em Tempo Real)
+# ÁREA: COZINHA (Atualização a cada 15 segundos)
 # ==========================================
 def area_cozinha():
-    # Este componente HTML injeta um redirecionador invisível e limpo que recarrega a página a cada 4 segundos exatamente
+    # Atualiza automaticamente a cada 15 segundos para dar tempo de leitura
     st.markdown("""
-        <meta http-equiv="refresh" content="4">
+        <meta http-equiv="refresh" content="15">
     """, unsafe_allow_html=True)
 
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
@@ -257,7 +257,7 @@ def area_cozinha():
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** A cozinha foi encerrada automaticamente.")
         return
 
-    st.info("🔄 Esta tela atualiza-se automaticamente a cada 4 segundos.")
+    st.info("🔄 Esta tela atualiza-se automaticamente a cada 15 segundos.")
     
     tem_pedidos = False
     for i in range(1, 31):
@@ -373,12 +373,12 @@ def area_administrador():
 
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (Com Auto-Refresh Nativo em Tempo Real)
+# ÁREA: CAIXA / GESTÃO DE MESAS (Atualização a cada 15 segundos)
 # ==========================================
 def area_caixa_mesas():
-    # Meta tag de atualização automática a cada 4 segundos
+    # Atualiza automaticamente a cada 15 segundos
     st.markdown("""
-        <meta http-equiv="refresh" content="4">
+        <meta http-equiv="refresh" content="15">
     """, unsafe_allow_html=True)
 
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
@@ -387,7 +387,7 @@ def area_caixa_mesas():
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador encerrou o caixa, pelo que esta secção foi bloqueada automaticamente.")
         return
 
-    st.success("🟢 Caixa Aberto. A atualizar automaticamente a cada 4 segundos.")
+    st.success("🟢 Caixa Aberto. A atualizar automaticamente a cada 15 segundos.")
     st.markdown("<br>", unsafe_allow_html=True)
 
     if "mesa_ativa" in st.session_state:
