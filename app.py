@@ -367,7 +367,7 @@ def area_caixa():
             st.rerun()
             
         st.header(f"🎛️ Gestão Detalhada da Mesa {m_ativa}")
-        dados_ mesa = st.session_state.mesas[m_ativa]
+        dados_mesa = st.session_state.mesas[m_ativa]
         
         with st.expander(f"📷 QR Code e Link da Mesa {m_ativa}", expanded=True):
             link_mesa = f"{URL_OFICIAL}/?mesa={m_ativa}"
