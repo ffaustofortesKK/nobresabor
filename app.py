@@ -239,7 +239,7 @@ def area_cliente():
                     if p.get('cozinha_status') == "Aprovado":
                         estado_txt = "✅ Refeição Aprovada pela Cozinha"
                     elif p.get('cozinha_status') == "Recusado":
-                        estado_txt = "❌ Refeição Recusada (Esgotada)"
+                        estado_txt = "❌ Refeição Recusada (Esgotado)"
                     elif p.get('cozinha_status') == "Feito":
                         estado_txt = "🍲 Refeição Pronta a Servir!"
                         
@@ -346,7 +346,7 @@ def area_garcon():
 
 
 # ==========================================
-# ÁREA: CAIXA & GESTÃO DE MESAS
+# ÁREA: CAIXA & GESTÃO DE MESAS (EXCLUSIVO DO CAIXA)
 # ==========================================
 def area_caixa():
     st.title("💻 Caixa - Controlo Geral e Mesas")
@@ -434,7 +434,6 @@ def area_caixa():
                             if not justificativa:
                                 st.warning("Preencha a justificativa para remover o item!")
                             else:
-                                # Regista no log de remoções do Admin
                                 st.session_state.remocoes_log.append({
                                     "mesa": m_ativa,
                                     "item": p['item'],
@@ -456,7 +455,6 @@ def area_caixa():
             if st.button("💰 Concluir Pagamento e Fechar Mesa", type="primary"):
                 cli_data = st.session_state.clientes_mesa.get(m_ativa, {"nome": "Cliente Balcão", "telefone": "N/A"})
                 
-                # Regista no histórico definitivo do Administrador (nunca perdido)
                 st.session_state.historico_vendas_definitivo.append({
                     "Nome": cli_data["nome"],
                     "Telefone": cli_data["telefone"],
@@ -467,7 +465,6 @@ def area_caixa():
                 })
                 
                 st.success(f"Fatura fechada com sucesso via {tipo_pagamento}! Dados guardados permanentemente no Admin.")
-                # Limpa a mesa e volta tudo ao zero
                 st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
                 if m_ativa in st.session_state.clientes_mesa:
                     del st.session_state.clientes_mesa[m_ativa]
@@ -500,42 +497,45 @@ def area_caixa():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR
+# ÁREA: ADMINISTRADOR (SEM GESTÃO DE MESAS, APENAS CONTROLOS GLOBAIS)
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
-    st.info("Controlo geral do sistema, links diretos, stock, histórico de clientes e caixa de remoções.")
+    st.info("Controlo de abertura/fecho de caixa, faturação do dia, histórico definitivo, caixa de remoções, stock e RH.")
     
     with st.expander("🔗 Links Oficiais do Sistema", expanded=True):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
         st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
         
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["💰 Caixa", "📊 Histórico Definitivo de Clientes", "🗑️ Caixa de Remoções", "📦 Stock", "👥 RH"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["💰 Controlo de Caixa", "📊 Faturação & Histórico de Clientes", "🗑️ Caixa de Remoções", "📦 Stock", "👥 RH"])
     
     with tab1:
+        st.subheader("Estado do Caixa")
         if st.session_state.caixa_aberto:
-            st.success("Caixa Aberto")
-            if st.button("Fechar Caixa"):
+            st.success("O Caixa encontra-se atualmente **ABERTO**.")
+            if st.button("🔴 Fechar o Caixa"):
                 st.session_state.caixa_aberto = False
                 st.rerun()
         else:
-            st.error("Caixa Fechado")
-            if st.button("Abrir Caixa"):
+            st.error("O Caixa encontra-se atualmente **FECHADO**.")
+            if st.button("🟢 Abrir o Caixa"):
                 st.session_state.caixa_aberto = True
                 st.rerun()
                 
     with tab2:
-        st.subheader("📋 Registo Permanente de Clientes (Pagamentos Concluídos)")
-        st.write("Esta informação nunca é perdida e regista o histórico de consumo.")
+        st.subheader("📋 Faturação do Dia e Registo Permanente de Clientes")
+        st.write("Histórico definitivo de faturas pagas (nunca perdido).")
         if len(st.session_state.historico_vendas_definitivo) == 0:
             st.info("Ainda não há registos de vendas fechadas.")
         else:
             df_hist = pd.DataFrame(st.session_state.historico_vendas_definitivo)
             st.dataframe(df_hist, use_container_width=True)
+            total_faturado_dia = df_hist["Valor"].sum()
+            st.markdown(f"### Total Faturado Geral: **{total_faturado_dia:,.2f} Kz**")
             
     with tab3:
         st.subheader("⚠️ Caixa de Remoção de Pedidos")
-        st.write("Registo de todos os itens cancelados/removidos com respetiva justificativa.")
+        st.write("Registo de auditoria de itens cancelados e respetivas justificativas.")
         if len(st.session_state.remocoes_log) == 0:
             st.success("Nenhum item removido até o momento.")
         else:
