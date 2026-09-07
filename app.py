@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import qrcode
 from io import BytesIO
+import os
 
 # Configuração da Página
 st.set_page_config(
@@ -10,6 +11,25 @@ st.set_page_config(
     page_icon="🍽️",
     layout="wide"
 )
+
+# Ficheiro local simples para partilhar o estado do caixa entre abas no mesmo servidor Streamlit Cloud
+ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
+
+def ler_estado_caixa_disco():
+    if os.path.exists(ARQUIVO_ESTADO_CAIXA):
+        try:
+            with open(ARQUIVO_ESTADO_CAIXA, "r") as f:
+                return f.read().strip() == "aberto"
+        except:
+            pass
+    return False
+
+def gravar_estado_caixa_disco(aberto: bool):
+    try:
+        with open(ARQUIVO_ESTADO_CAIXA, "w") as f:
+            f.write("aberto" if aberto else "fechado")
+    except:
+        pass
 
 # Estilo CSS para Animações, Espaçamentos e Alertas
 st.markdown("""
@@ -68,11 +88,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CAPTURA DE PARÂMETROS DA URL (ESTADO GLOBAL)
+# 1. CAPTURA DE PARÂMETROS E ESTADO GLOBAL
 # ==========================================
 mesa_detectada = None
 perfil_url = None
-caixa_url_param = False
 
 try:
     query_params = st.query_params
@@ -80,10 +99,6 @@ try:
         mesa_detectada = int(query_params.get("mesa"))
     if "perfil" in query_params:
         perfil_url = query_params.get("perfil")
-    if query_params.get("caixa") == "aberto":
-        caixa_url_param = True
-    elif query_params.get("caixa") == "fechado":
-        caixa_url_param = False
 except Exception:
     try:
         old_params = st.experimental_get_query_params()
@@ -91,23 +106,17 @@ except Exception:
             mesa_detectada = int(old_params["mesa"][0])
         if "perfil" in old_params:
             perfil_url = old_params["perfil"][0]
-        if "caixa" in old_params:
-            if old_params["caixa"][0] == "aberto":
-                caixa_url_param = True
-            elif old_params["caixa"][0] == "fechado":
-                caixa_url_param = False
     except Exception:
         pass
 
-# ==========================================
-# 2. INICIALIZAÇÃO DE ESTADOS DA SESSÃO
-# ==========================================
+# Sincroniza o estado com o disco para que todas as abas vejam se o caixa abriu/fechou
+estado_atual_disco = ler_estado_caixa_disco()
+
 if "caixa_aberto" not in st.session_state:
-    # Se houver parâmetro explícito na URL, respeita-o. Caso contrário, começa fechado.
-    if "caixa" in st.query_params or (try_has_caixa := True): # segurança
-        st.session_state.caixa_aberto = caixa_url_param
-    else:
-        st.session_state.caixa_aberto = False
+    st.session_state.caixa_aberto = estado_atual_disco
+else:
+    # Atualiza automaticamente com base no servidor/disco
+    st.session_state.caixa_aberto = estado_atual_disco
 
 if "mesas" not in st.session_state:
     st.session_state.mesas = {
@@ -152,7 +161,7 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Sidebar dinâmica
+# Sidebar dinâmica com indicador automático
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 st.sidebar.divider()
@@ -269,9 +278,9 @@ def area_cliente():
 def area_cozinha():
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
     
-    # Validação do Estado do Caixa na Cozinha também
+    # Validação automática do estado do caixa
     if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** A cozinha aguarda a abertura do caixa pelo Administrador.")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** A cozinha foi encerrada automaticamente porque o Administrador fechou o caixa.")
         return
 
     st.info("O Chef gere as refeições solicitadas, podendo Aprovar, Recusar ou marcar como Feito.")
@@ -323,13 +332,10 @@ def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
     st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH). É aqui que se faz a Abertura e Fecho do Caixa.")
     
-    # Links dinâmicos atualizados conforme o estado exato do caixa
-    estado_param = "aberto" if st.session_state.caixa_aberto else "fechado"
-    
-    with st.expander("🔗 Links Oficiais do Sistema (Copie estes links atualizados)", expanded=True):
-        st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa&caixa={estado_param}")
-        st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha&caixa={estado_param}")
-        st.caption("ℹ️ Nota: Ao abrir ou fechar o caixa, estes links mudam de estado. Se atualizar a aba do caixa ou cozinha com estes links, elas reagirão imediatamente.")
+    with st.expander("🔗 Links Oficiais do Sistema (Fixo e Automático)", expanded=True):
+        st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
+        st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
+        st.caption("ℹ️ Nota: Os links agora são fixos e limpos. Ao abrir ou fechar o caixa abaixo, o sistema atualiza automaticamente o estado para todas as abas.")
         
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
@@ -349,10 +355,14 @@ def area_administrador():
             if st.session_state.caixa_aberto:
                 if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
                     st.session_state.caixa_aberto = False
+                    gravar_estado_caixa_disco(False) # Fecha automaticamente para o Caixa e Cozinha
+                    st.success("Caixa fechado com sucesso! Cozinha e Caixa foram encerrados.")
                     st.rerun()
             else:
                 if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_adm"):
                     st.session_state.caixa_aberto = True
+                    gravar_estado_caixa_disco(True) # Abre automaticamente para o Caixa e Cozinha
+                    st.success("Caixa aberto com sucesso! Cozinha e Caixa foram ativados.")
                     st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -406,9 +416,9 @@ def area_administrador():
 def area_caixa_mesas():
     st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
-    # Validação rigorosa do Estado do Caixa
+    # Validação automática do estado do caixa
     if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador precisa de abrir o caixa no Painel de Administração para que possa gerir as mesas e efetuar pagamentos.")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador fechou o caixa no Painel de Administração, pelo que esta secção foi bloqueada automaticamente.")
         return
 
     st.success("🟢 Caixa Aberto e Operacional. Pode gerir as mesas e faturar abaixo.")
@@ -563,6 +573,6 @@ if mesa_detectada and 1 <= mesa_detectada <= 30:
 elif perfil_url == "cozinha":
     area_cozinha()
 elif perfil_url == "caixa":
-    area_ca_mesas = area_caixa_mesas()
+    area_caixa_mesas()
 else:
     area_administrador()
