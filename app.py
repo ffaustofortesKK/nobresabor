@@ -477,6 +477,17 @@ def area_caixa_mesas():
         st.header(f"🎛️ Gestão da Mesa {m_ativa}")
         dados_mesa = mesas_data[str_m_ativa]
         
+        # Se a fatura já foi emitida, dar opção de limpar a mesa para o próximo cliente
+        if dados_mesa.get("fatura_emitida"):
+            st.success("✅ Esta mesa já teve a conta fechada e a fatura foi emitida para o cliente.")
+            st.warning("O cliente ainda está a ver a fatura no telemóvel. Quando ele sair, clique no botão abaixo para liberar a mesa.")
+            if st.button("🧹 Limpar e Liberar Mesa para Novo Cliente", type="primary", key=f"btn_limpar_{m_ativa}"):
+                mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None}
+                salvar_mesas_disco(mesas_data)
+                del st.session_state.mesa_ativa
+                st.rerun()
+            return
+
         total_calculado = sum(
             float(p['quantidade']) * float(p['preco']) 
             for p in dados_mesa['pedidos'] 
@@ -561,13 +572,23 @@ def area_caixa_mesas():
                     "pagamento_detalhe": str(detalhe_pag)
                 }
                 
+                # Altera o status da mesa para "Fechada"
+                dados_mesa["status"] = "Fechada"
+                
                 salvar_mesas_disco(mesas_data)
                 st.success("Conta fechada, fatura emitida e enviada para o cliente com sucesso!")
-                if "mesa_ativa" in st.session_state:
-                    del st.session_state.mesa_ativa
+                del st.session_state.mesa_ativa
                 st.rerun()
         else:
             st.warning("A mesa não tem valor a faturar.")
+            
+            # Permitir cancelar uma mesa que foi aberta sem querer (consumo 0)
+            if dados_mesa.get("cliente"):
+                if st.button("❌ Cancelar / Limpar Mesa (Sem Consumo)", key=f"btn_cancela_{m_ativa}"):
+                    mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None}
+                    salvar_mesas_disco(mesas_data)
+                    del st.session_state.mesa_ativa
+                    st.rerun()
     else:
         cols_por_linha = 6
         for linha in range(5):
