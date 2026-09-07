@@ -137,21 +137,14 @@ except Exception:
     except Exception:
         pass
 
-# Sidebar limpa com controlo rápido de estado do caixa
+# Sidebar limpa
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 st.sidebar.divider()
-st.sidebar.write("### Estado do Caixa")
 if st.session_state.caixa_aberto:
-    st.sidebar.success("🟢 Caixa Aberto")
-    if st.sidebar.button("Fechar Caixa Agora", use_container_width=True):
-        st.session_state.caixa_aberto = False
-        st.rerun()
+    st.sidebar.success("🟢 Caixa Aberto (Administrador)")
 else:
-    st.sidebar.error("🔴 Caixa Fechado")
-    if st.sidebar.button("Abrir Caixa Agora", use_container_width=True, type="primary"):
-        st.session_state.caixa_aberto = True
-        st.rerun()
+    st.sidebar.error("🔴 Caixa Fechado (Administrador)")
 
 # ==========================================
 # ÁREA: CLIENTE (QR CODE)
@@ -307,7 +300,7 @@ def area_cozinha():
 def area_administrador():
     st.markdown("<hr style='margin-top: 40px; margin-bottom: 40px;'>", unsafe_allow_html=True)
     st.title("👑 Painel do Administrador - NobreSabor")
-    st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH).")
+    st.info("Painel Mestre: Controlo Financeiro, Stock e Recursos Humanos (DCH). É aqui que se faz a Abertura e Fecho do Caixa.")
     
     with st.expander("🔗 Links Oficiais do Sistema", expanded=False):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
@@ -319,14 +312,14 @@ def area_administrador():
     
     with tab_fin:
         st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("💰 Gestão de Caixa e Finanças")
+        st.subheader("💰 Gestão de Abertura de Caixa e Finanças")
         
         col_cx_status, col_cx_btn = st.columns([3, 1])
         with col_cx_status:
             if st.session_state.caixa_aberto:
-                st.success("🟢 O Caixa encontra-se ABERTO e operacional.")
+                st.success("🟢 O Caixa encontra-se ABERTO e operacional para faturação.")
             else:
-                st.error("🔴 O Caixa encontra-se FECHADO. Clique ao lado para abrir o caixa.")
+                st.error("🔴 O Caixa encontra-se FECHADO. Clique no botão ao lado para abrir o registo do dia.")
         with col_cx_btn:
             if st.session_state.caixa_aberto:
                 if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
@@ -386,25 +379,14 @@ def area_administrador():
 # ÁREA: CAIXA / GESTÃO DE MESAS (?perfil=caixa)
 # ==========================================
 def area_caixa_mesas():
-    st.title("💻 Controlo Geral de Mesas e Pagamentos")
+    st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
     
-    # Barra de estado do caixa no topo da página do Caixa
-    col_st_1, col_st_2 = st.columns([3, 1])
-    with col_st_1:
-        if st.session_state.caixa_aberto:
-            st.success("🟢 O Caixa encontra-se ABERTO e operacional.")
-        else:
-            st.error("⚠️ O Caixa encontra-se atualmente FECHADO. Pode abri-lo clicando no botão ao lado.")
-    with col_st_2:
-        if st.session_state.caixa_aberto:
-            if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_link"):
-                st.session_state.caixa_aberto = False
-                st.rerun()
-        else:
-            if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_link"):
-                st.session_state.caixa_aberto = True
-                st.rerun()
-    
+    # Validação do Estado do Caixa (Controlado exclusivamente pelo Administrador)
+    if not st.session_state.caixa_aberto:
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador precisa de abrir o caixa no Painel de Administração para que possa gerir as mesas e efetuar pagamentos.")
+        return
+
+    st.success("🟢 Caixa Aberto e Operacional. Pode gerir as mesas e faturar abaixo.")
     st.markdown("<br>", unsafe_allow_html=True)
 
     if "mesa_ativa" in st.session_state:
@@ -496,25 +478,22 @@ def area_caixa_mesas():
                 st.divider()
 
             st.subheader("💳 Fechar Fatura")
-            if not st.session_state.caixa_aberto:
-                st.error("⚠️ O caixa está fechado. Abra o caixa para poder concluir pagamentos.")
-            else:
-                tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Monetário (Dinheiro)", "Pagamento Automático TPA"])
-                if st.button("💰 Concluir Pagamento e Fechar Mesa", type="primary"):
-                    cli_data = st.session_state.clientes_mesa.get(m_ativa, {"nome": "Cliente Balcão", "telefone": "N/A"})
-                    st.session_state.historico_vendas_definitivo.append({
-                        "Nome": cli_data["nome"],
-                        "Telefone": cli_data["telefone"],
-                        "Mesa": m_ativa,
-                        "Valor": dados_mesa["total"],
-                        "Dia": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "Pagamento": tipo_pagamento
-                    })
-                    st.success("Fatura fechada com sucesso!")
-                    st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
-                    if m_ativa in st.session_state.clientes_mesa:
-                        del st.session_state.clientes_mesa[m_ativa]
-                    st.rerun()
+            tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Monetário (Dinheiro)", "Pagamento Automático TPA"])
+            if st.button("💰 Concluir Pagamento e Fechar Mesa", type="primary"):
+                cli_data = st.session_state.clientes_mesa.get(m_ativa, {"nome": "Cliente Balcão", "telefone": "N/A"})
+                st.session_state.historico_vendas_definitivo.append({
+                    "Nome": cli_data["nome"],
+                    "Telefone": cli_data["telefone"],
+                    "Mesa": m_ativa,
+                    "Valor": dados_mesa["total"],
+                    "Dia": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Pagamento": tipo_pagamento
+                })
+                st.success("Fatura fechada com sucesso!")
+                st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
+                if m_ativa in st.session_state.clientes_mesa:
+                    del st.session_state.clientes_mesa[m_ativa]
+                st.rerun()
 
     else:
         st.subheader("Painel de Mesas")
