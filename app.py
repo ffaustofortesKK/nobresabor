@@ -52,9 +52,6 @@ if "mesas" not in st.session_state:
         i: {"status": "Fechada", "pedidos": [], "total": 0.0} for i in range(1, 31)
     }
 
-if "caixa_aberto" not in st.session_state:
-    st.session_state.caixa_aberto = False
-
 if "stock" not in st.session_state:
     st.session_state.stock = pd.DataFrame([
         ["Água 0.5L", "Bebidas", 50, 300.0],
@@ -96,7 +93,7 @@ menu_opcoes = [
     "📱 Cliente / QR Code (Mesa)", 
     "👨‍🍳 Garçon / Pedidos", 
     "💻 Caixa Central (30 Mesas)", 
-    "👑 Administrador (Stock & Caixa / QR)",
+    "👑 Administrador (Stock / QR Codes)",
     "👥 Recursos Humanos (DCH)"
 ]
 
@@ -106,288 +103,252 @@ menu = st.sidebar.selectbox("Navegação:", menu_opcoes)
 if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
     st.title("📱 Bem-vindo ao Nosso Restaurante 🍽️")
     
-    if not st.session_state.caixa_aberto:
-        st.warning("⚠️ O sistema de pedidos via QR Code está temporariamente fechado. O Caixa ainda não foi aberto.")
+    if mesa_qr and str(mesa_qr).isdigit():
+        num_mesa = int(mesa_qr)
+        if not (1 <= num_mesa <= 30):
+            num_mesa = 1
     else:
-        if mesa_qr and str(mesa_qr).isdigit():
-            num_mesa = int(mesa_qr)
-            if not (1 <= num_mesa <= 30):
-                num_mesa = 1
-        else:
-            num_mesa = st.selectbox("Selecione a sua Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+        num_mesa = st.selectbox("Selecione a sua Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+    
+    st.info(f"📍 Está conectado à **Mesa {num_mesa}**.")
+    
+    # Registo inicial do cliente na mesa
+    if num_mesa not in st.session_state.clientes_mesa:
+        st.subheader("📝 Registo de Acolhimento do Cliente")
+        st.write("Por favor, preencha os seus dados para iniciar o atendimento e abrir a faturação da mesa:")
         
-        st.info(f"📍 Está conectado à **Mesa {num_mesa}**.")
-        
-        # Registo inicial do cliente na mesa
-        if num_mesa not in st.session_state.clientes_mesa:
-            st.subheader("📝 Registo de Acolhimento")
-            st.write("Por favor, preencha os seus dados para iniciar o atendimento:")
+        with st.form(f"form_cliente_{num_mesa}"):
+            nome_cli = st.text_input("Nome Completo:")
+            tel_cli = st.text_input("Número de Telefone / WhatsApp:")
+            whatsapp_opt = st.checkbox("Deseja fazer parte do Grupo de WhatsApp do Restaurante?")
             
-            with st.form(f"form_cliente_{num_mesa}"):
-                nome_cli = st.text_input("Nome Completo:")
-                tel_cli = st.text_input("Número de Telefone / WhatsApp:")
-                whatsapp_opt = st.checkbox("Deseja fazer parte do Grupo de WhatsApp do Restaurante?")
+            btn_reg = st.form_submit_button("Entrar e Ver Menu")
+            if btn_reg and nome_cli and tel_cli:
+                st.session_state.clientes_mesa[num_mesa] = {
+                    "nome": nome_cli,
+                    "telefone": tel_cli,
+                    "whatsapp": whatsapp_opt
+                }
+                st.success("Registo efetuado com sucesso! Já pode aceder ao menu e efetuar pedidos.")
+                st.rerun()
+            elif btn_reg:
+                st.warning("Por favor, preencha o seu nome e telefone.")
+    else:
+        cli = st.session_state.clientes_mesa[num_mesa]
+        st.success(f"Olá, **{cli['nome']}**! Mesa {num_mesa} ativa.")
+        
+        tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo", "🎉 Eventos"])
+        
+        with tab_menu:
+            if not st.session_state.stock.empty:
+                opcoes = st.session_state.stock['Produto'].tolist()
+                item_escolhido = st.selectbox("Escolha o Item:", opcoes)
                 
-                btn_reg = st.form_submit_button("Entrar e Ver Menu")
-                if btn_reg and nome_cli and tel_cli:
-                    st.session_state.clientes_mesa[num_mesa] = {
-                        "nome": nome_cli,
-                        "telefone": tel_cli,
-                        "whatsapp": whatsapp_opt
-                    }
+                row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_escolhido].iloc[0]
+                tipo_item = row_prod['Categoria']
+                preco_item = row_prod['Preço Unitário']
+                
+                qtd = st.number_input("Quantidade:", min_value=1, value=1, step=1)
+                obs = st.text_input("Observações (ex: Sem gelo):")
+                
+                if st.button("Enviar Primeiro Pedido / Faturar"):
+                    # Ao fazer o primeiro pedido, a mesa abre automaticamente no sistema do Caixa
                     st.session_state.mesas[num_mesa]["status"] = "Aberta"
-                    st.success("Registo efetuado com sucesso! Mesa aberta.")
-                    st.rerun()
-                elif btn_reg:
-                    st.warning("Por favor, preencha o seu nome e telefone.")
-        else:
-            cli = st.session_state.clientes_mesa[num_mesa]
-            st.success(f"Olá, **{cli['nome']}**! Mesa {num_mesa} ativa.")
-            
-            tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo", "🎉 Eventos"])
-            
-            with tab_menu:
-                if not st.session_state.stock.empty:
-                    opcoes = st.session_state.stock['Produto'].tolist()
-                    item_escolhido = st.selectbox("Escolha o Item:", opcoes)
                     
-                    row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_escolhido].iloc[0]
-                    tipo_item = row_prod['Categoria']
-                    preco_item = row_prod['Preço Unitário']
+                    novo_pedido = {
+                        "item": item_escolhido,
+                        "tipo": tipo_item,
+                        "quantidade": qtd,
+                        "preco": preco_item,
+                        "origem": f"Cliente ({cli['nome']})",
+                        "obs": obs,
+                        "status": "Pendente",
+                        "hora": datetime.now().strftime("%H:%M:%S")
+                    }
+                    st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
+                    st.success("🎉 Pedido enviado com sucesso! A faturação e o caixa da mesa foram abertos.")
+                    st.balloons()
+            else:
+                st.warning("Cardápio indisponível.")
+                
+        with tab_consumo:
+            st.subheader("📊 Controlo do seu Consumo Atual")
+            pedidos_mesa = st.session_state.mesas[num_mesa]["pedidos"]
+            if not pedidos_mesa:
+                st.info("Ainda não tem pedidos registados.")
+            else:
+                subtotal_geral = 0
+                for p in pedidos_mesa:
+                    total_item = p['quantidade'] * p['preco']
+                    if p['status'] != "Anulado":
+                        subtotal_geral += total_item
                     
-                    qtd = st.number_input("Quantidade:", min_value=1, value=1, step=1)
-                    obs = st.text_input("Observações (ex: Sem gelo):")
-                    
-                    if st.button("Enviar Pedido"):
-                        st.session_state.mesas[num_mesa]["status"] = "Aberta"
-                        
-                        novo_pedido = {
-                            "item": item_escolhido,
-                            "tipo": tipo_item,
-                            "quantidade": qtd,
-                            "preco": preco_item,
-                            "origem": f"Cliente ({cli['nome']})",
-                            "obs": obs,
-                            "status": "Pendente",
-                            "hora": datetime.now().strftime("%H:%M:%S")
-                        }
-                        st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-                        st.success("🎉 Pedido enviado com sucesso para o Caixa!")
-                        st.balloons()
-                else:
-                    st.warning("Cardápio indisponível.")
-                    
-            with tab_consumo:
-                st.subheader("📊 Controlo do seu Consumo Atual")
-                pedidos_mesa = st.session_state.mesas[num_mesa]["pedidos"]
-                if not pedidos_mesa:
-                    st.info("Ainda não tem pedidos registados.")
-                else:
-                    subtotal_geral = 0
-                    for p in pedidos_mesa:
-                        total_item = p['quantidade'] * p['preco']
-                        if p['status'] != "Anulado":
-                            subtotal_geral += total_item
-                        
-                        estado_txt = f"✅ {p['status']}" if p['status'] == "Confirmado" else (f"❌ {p['status']}" if p['status'] == "Anulado" else f"⏳ {p['status']}")
-                        st.write(f"- **{p['quantidade']}x {p['item']}** ({p['tipo']}) | Preço Unit.: {p['preco']:,.2f} Kz | Subtotal: {total_item:,.2f} Kz | Estado: {estado_txt}")
-                    
-                    st.divider()
-                    st.markdown(f"### Total Consumido: **{subtotal_geral:,.2f} Kz**")
-                    
-            with tab_eventos:
-                st.subheader("🎵 Programação de Eventos")
-                st.markdown("""
-                * **Sexta-Feira de Serão:** Música ao vivo a partir das 20h.
-                * **Sábado de Karaoke:** Com o Grupo FF Karaoke!
-                * **Domingo em Família:** Almoços especiais e cinema comunitário.
-                """)
+                    estado_txt = f"✅ {p['status']}" if p['status'] == "Confirmado" else (f"❌ {p['status']}" if p['status'] == "Anulado" else f"⏳ {p['status']}")
+                    st.write(f"- **{p['quantidade']}x {p['item']}** ({p['tipo']}) | Preço Unit.: {p['preco']:,.2f} Kz | Subtotal: {total_item:,.2f} Kz | Estado: {estado_txt}")
+                
+                st.divider()
+                st.markdown(f"### Total Consumido: **{subtotal_geral:,.2f} Kz**")
+                
+        with tab_eventos:
+            st.subheader("🎵 Programação de Eventos")
+            st.markdown("""
+            * **Sexta-Feira de Serão:** Música ao vivo a partir das 20h.
+            * **Sábado de Karaoke:** Com o Grupo FF Karaoke!
+            * **Domingo em Família:** Almoços especiais e cinema comunitário.
+            """)
 
 # 2. GARÇON
 elif menu == "👨‍🍳 Garçon / Pedidos":
     st.title("👨‍🍳 Painel do Garçon (Validação por Código DCH)")
     
-    if not st.session_state.caixa_aberto:
-        st.warning("⚠️ O Caixa está fechado. Os garçons não podem registar pedidos.")
-    else:
-        codigo_garcon = st.text_input("Insira o seu Código de Colaborador (DCH):", type="password")
+    codigo_garcon = st.text_input("Insira o seu Código de Colaborador (DCH):", type="password")
+    
+    if codigo_garcon:
+        validar_colab = st.session_state.rh[st.session_state.rh['Código'] == codigo_garcon]
         
-        if codigo_garcon:
-            validar_colab = st.session_state.rh[st.session_state.rh['Código'] == codigo_garcon]
+        if validar_colab.empty:
+            st.error("❌ Código de colaborador inválido ou não registado.")
+        else:
+            nome_g = validar_colab.iloc[0]['Nome']
+            cat_g = validar_colab.iloc[0]['Categoria']
+            st.success(f"✅ Colaborador validado: **{nome_g}** ({cat_g})")
             
-            if validar_colab.empty:
-                st.error("❌ Código de colaborador inválido ou não registado.")
-            else:
-                nome_g = validar_colab.iloc[0]['Nome']
-                cat_g = validar_colab.iloc[0]['Categoria']
-                st.success(f"✅ Colaborador validado: **{nome_g}** ({cat_g})")
+            mesa_garcon = st.selectbox("Selecione a Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+            
+            if not st.session_state.stock.empty:
+                opcoes = st.session_state.stock['Produto'].tolist()
+                item_g = st.selectbox("Item solicitado:", opcoes)
                 
-                mesa_garcon = st.selectbox("Selecione a Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+                row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_g].iloc[0]
+                tipo_item = row_prod['Categoria']
+                preco_item = row_prod['Preço Unitário']
                 
-                if not st.session_state.stock.empty:
-                    opcoes = st.session_state.stock['Produto'].tolist()
-                    item_g = st.selectbox("Item solicitado:", opcoes)
+                qtd_g = st.number_input("Quantidade:", min_value=1, value=1, step=1, key="qtd_g")
+                obs_g = st.text_input("Observações:", key="obs_g")
+                
+                if st.button("Registar Pedido na Mesa"):
+                    st.session_state.mesas[mesa_garcon]["status"] = "Aberta"
                     
-                    row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_g].iloc[0]
-                    tipo_item = row_prod['Categoria']
-                    preco_item = row_prod['Preço Unitário']
-                    
-                    qtd_g = st.number_input("Quantidade:", min_value=1, value=1, step=1, key="qtd_g")
-                    obs_g = st.text_input("Observações:", key="obs_g")
-                    
-                    if st.button("Registar Pedido na Mesa"):
-                        st.session_state.mesas[mesa_garcon]["status"] = "Aberta"
-                        
-                        novo_pedido = {
-                            "item": item_g,
-                            "tipo": tipo_item,
-                            "quantidade": qtd_g,
-                            "preco": preco_item,
-                            "origem": f"Garçon ({nome_g})",
-                            "obs": obs_g,
-                            "status": "Pendente",
-                            "hora": datetime.now().strftime("%H:%M:%S")
-                        }
-                        st.session_state.mesas[mesa_garcon]["pedidos"].append(novo_pedido)
-                        st.success(f"Pedido registado para a Mesa {mesa_garcon}!")
+                    novo_pedido = {
+                        "item": item_g,
+                        "tipo": tipo_item,
+                        "quantidade": qtd_g,
+                        "preco": preco_item,
+                        "origem": f"Garçon ({nome_g})",
+                        "obs": obs_g,
+                        "status": "Pendente",
+                        "hora": datetime.now().strftime("%H:%M:%S")
+                    }
+                    st.session_state.mesas[mesa_garcon]["pedidos"].append(novo_pedido)
+                    st.success(f"Pedido registado para a Mesa {mesa_garcon} e caixa aberto!")
 
 # 3. CAIXA CENTRAL
 elif menu == "💻 Caixa Central (30 Mesas)":
     st.title("💻 Caixa Central - Controlo de Mesas, Pedidos e Faturação")
+    st.info("As mesas com novos pedidos piscam a vermelho. Clique numa mesa para ver pedidos, adicionar, anular ou fechar a conta.")
     
-    if not st.session_state.caixa_aberto:
-        st.warning("🔒 O Caixa encontra-se FECHADO. Abra o caixa na aba de Administrador para gerir as operações.")
-    else:
-        st.info("As mesas com novos pedidos piscam a vermelho. Clique numa mesa para ver pedidos, adicionar, anular ou fechar a conta.")
+    cols = st.columns(6)
+    for i in range(1, 31):
+        mesa_info = st.session_state.mesas[i]
+        tem_pendentes = any(p["status"] == "Pendente" for p in mesa_info["pedidos"])
         
-        cols = st.columns(6)
-        for i in range(1, 31):
-            mesa_info = st.session_state.mesas[i]
-            tem_pendentes = any(p["status"] == "Pendente" for p in mesa_info["pedidos"])
-            
-            with cols[(i - 1) % 6]:
-                if tem_pendentes:
-                    st.markdown(f'<div class="mesa-alerta">MESA {i}<br>🔔 NOVO PEDIDO!</div>', unsafe_allow_html=True)
-                elif mesa_info["status"] == "Aberta":
-                    st.markdown(f'<div class="mesa-aberta">Mesa {i}<br>Aberta ({mesa_info["total"]:,.2f} Kz)</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="mesa-fechada">Mesa {i}<br>Fechada</div>', unsafe_allow_html=True)
-                    
-                if st.button(f"Gerir Mesa {i}", key=f"btn_m_{i}p"):
-                    st.session_state.mesa_ativa = i
-
-        st.divider()
-
-        if "mesa_ativa" in st.session_state:
-            m_ativa = st.session_state.mesa_ativa
-            st.subheader(f"📋 Gestão Completa da Mesa {m_ativa}")
-            
-            dados_mesa = st.session_state.mesas[m_ativa]
-            st.write(f"**Estado da Mesa:** {dados_mesa['status']} | **Total Atual:** {dados_mesa['total']:,.2f} Kz")
-            
-            # Secção para Adicionar Pedido Manualmente pelo Caixa
-            with st.expander("➕ Adicionar Pedido Manualmente a esta Mesa"):
-                if not st.session_state.stock.empty:
-                    prod_cx = st.selectbox("Produto:", st.session_state.stock['Produto'].tolist(), key=f"prod_cx_{m_ativa}")
-                    row_p_cx = st.session_state.stock[st.session_state.stock['Produto'] == prod_cx].iloc[0]
-                    qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_ativa}")
-                    obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_ativa}")
-                    
-                    if st.button("Lançar na Mesa", key=f"btn_lanca_cx_{m_ativa}"):
-                        novo_ped_cx = {
-                            "item": prod_cx,
-                            "tipo": row_p_cx['Categoria'],
-                            "quantidade": qtd_cx,
-                            "preco": row_p_cx['Preço Unitário'],
-                            "origem": "Caixa",
-                            "obs": obs_cx,
-                            "status": "Confirmado",
-                            "hora": datetime.now().strftime("%H:%M:%S")
-                        }
-                        st.session_state.mesas[m_ativa]["status"] = "Aberta"
-                        st.session_state.mesas[m_ativa]["pedidos"].append(novo_ped_cx)
-                        st.session_state.mesas[m_ativa]["total"] += (qtd_cx * row_p_cx['Preço Unitário'])
-                        st.success("Pedido lançado e confirmado pelo Caixa!")
-                        st.rerun()
-
-            if not dados_mesa["pedidos"]:
-                st.info("Nenhum pedido registado nesta mesa.")
+        with cols[(i - 1) % 6]:
+            if tem_pendentes:
+                st.markdown(f'<div class="mesa-alerta">MESA {i}<br>🔔 NOVO PEDIDO!</div>', unsafe_allow_html=True)
+            elif mesa_info["status"] == "Aberta":
+                st.markdown(f'<div class="mesa-aberta">Mesa {i}<br>Aberta ({mesa_info["total"]:,.2f} Kz)</div>', unsafe_allow_html=True)
             else:
-                st.write("### 🛍️ Lista de Pedidos / Consumo:")
-                for idx, ped in enumerate(dados_mesa["pedidos"]):
-                    col_d1, col_d2, col_d3, col_d4 = st.columns([3, 2, 2, 2])
-                    with col_d1:
-                        st.write(f"**{ped['quantidade']}x {ped['item']}** ({ped['tipo']})")
-                        st.write(f"Origem: _{ped['origem']}_ | Obs: {ped['obs']} | ⏰ {ped['hora']}")
-                    with col_d2:
-                        st.write(f"Estado: **{ped['status']}**")
-                        st.write(f"Subtotal: {ped['quantidade'] * ped['preco']:,.2f} Kz")
-                    with col_d3:
-                        if ped["status"] == "Pendente":
-                            if st.button(f"Confirmar #{idx}", key=f"conf_ped_{m_ativa}_{idx}"):
-                                if ped["tipo"] == "Bebidas":
-                                    idx_st = st.session_state.stock[st.session_state.stock['Produto'] == ped['item']].index
-                                    if not idx_st.empty:
-                                        qtd_atual = st.session_state.stock.at[idx_st[0], 'Quantidade']
-                                        if qtd_atual >= ped['quantidade']:
-                                            st.session_state.stock.at[idx_st[0], 'Quantidade'] = qtd_atual - ped['quantidade']
-                                        else:
-                                            st.error("⚠️ Stock insuficiente de bebidas!")
-                                            continue
-                                
-                                st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Confirmado"
-                                st.session_state.mesas[m_ativa]["total"] += (ped['quantidade'] * ped['preco'])
-                                st.success("Pedido confirmado!")
-                                st.rerun()
-                    with col_d4:
-                        if ped["status"] != "Anulado":
-                            if st.button(f"❌ Anular #{idx}", key=f"anular_ped_{m_ativa}_{idx}"):
-                                if ped["status"] == "Confirmado":
-                                    st.session_state.mesas[m_ativa]["total"] -= (ped['quantidade'] * ped['preco'])
-                                st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Anulado"
-                                st.warning("Pedido anulado com sucesso.")
-                                st.rerun()
+                st.markdown(f'<div class="mesa-fechada">Mesa {i}<br>Fechada</div>', unsafe_allow_html=True)
                 
-                st.divider()
-                if st.button("🔓 Fechar Conta / Liquidar Fatura da Mesa"):
-                    st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
-                    if m_ativa in st.session_state.clientes_mesa:
-                        del st.session_state.clientes_mesa[m_ativa]
-                    st.success(f"Conta da Mesa {m_ativa} fechada e liquidada com sucesso!")
+            if st.button(f"Gerir Mesa {i}", key=f"btn_m_{i}p"):
+                st.session_state.mesa_ativa = i
+
+    st.divider()
+
+    if "mesa_ativa" in st.session_state:
+        m_ativa = st.session_state.mesa_ativa
+        st.subheader(f"📋 Gestão Completa da Mesa {m_ativa}")
+        
+        dados_mesa = st.session_state.mesas[m_ativa]
+        st.write(f"**Estado da Mesa:** {dados_mesa['status']} | **Total Atual:** {dados_mesa['total']:,.2f} Kz")
+        
+        # Secção para Adicionar Pedido Manualmente pelo Caixa
+        with st.expander("➕ Adicionar Pedido Manualmente a esta Mesa"):
+            if not st.session_state.stock.empty:
+                prod_cx = st.selectbox("Produto:", st.session_state.stock['Produto'].tolist(), key=f"prod_cx_{m_ativa}")
+                row_p_cx = st.session_state.stock[st.session_state.stock['Produto'] == prod_cx].iloc[0]
+                qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_ativa}")
+                obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_ativa}")
+                
+                if st.button("Lançar na Mesa", key=f"btn_lanca_cx_{m_ativa}"):
+                    novo_ped_cx = {
+                        "item": prod_cx,
+                        "tipo": row_p_cx['Categoria'],
+                        "quantidade": qtd_cx,
+                        "preco": row_p_cx['Preço Unitário'],
+                        "origem": "Caixa",
+                        "obs": obs_cx,
+                        "status": "Confirmado",
+                        "hora": datetime.now().strftime("%H:%M:%S")
+                    }
+                    st.session_state.mesas[m_ativa]["status"] = "Aberta"
+                    st.session_state.mesas[m_ativa]["pedidos"].append(novo_ped_cx)
+                    st.session_state.mesas[m_ativa]["total"] += (qtd_cx * row_p_cx['Preço Unitário'])
+                    st.success("Pedido lançado e confirmado pelo Caixa!")
                     st.rerun()
 
-# 4. ADMINISTRADOR (STOCK & ABERTURA DE CAIXA / QR CODES)
-elif menu == "👑 Administrador (Stock & Caixa / QR)":
-    st.title("👑 Painel do Administrador - Abertura de Caixa e QR Codes")
-    st.info("O Administrador faz a abertura do caixa, gerando automaticamente os QR codes das 30 mesas, além de gerir o armazém.")
-    
-    col_adm1, col_adm2 = st.columns(2)
-    with col_adm1:
-        st.subheader("Controlo de Abertura do Caixa")
-        if not st.session_state.caixa_aberto:
-            st.error("Estado Atual: CAIXA FECHADO 🔴")
-            if st.button("🔓 Abrir Caixa (Gerar QR Codes e Iniciar Sistema)"):
-                st.session_state.caixa_aberto = True
-                st.success("Caixa aberto com sucesso! QR codes e sistema ativos.")
-                st.rerun()
+        if not dados_mesa["pedidos"]:
+            st.info("Nenhum pedido registado nesta mesa.")
         else:
-            st.success("Estado Atual: CAIXA ABERTO 🟢")
-            if st.button("🔒 Fechar Caixa"):
-                st.session_state.caixa_aberto = False
-                st.warning("Caixa fechado.")
-                st.rerun()
-                
-    with col_adm2:
-        st.subheader("Estado dos QR Codes")
-        if st.session_state.caixa_aberto:
-            st.success("QR Codes ativos para leitura dos clientes!")
-        else:
-            st.warning("Abra o caixa para ativar os links QR.")
+            st.write("### 🛍️ Lista de Pedidos / Consumo:")
+            for idx, ped in enumerate(dados_mesa["pedidos"]):
+                col_d1, col_d2, col_d3, col_d4 = st.columns([3, 2, 2, 2])
+                with col_d1:
+                    st.write(f"**{ped['quantidade']}x {ped['item']}** ({ped['tipo']})")
+                    st.write(f"Origem: _{ped['origem']}_ | Obs: {ped['obs']} | ⏰ {ped['hora']}")
+                with col_d2:
+                    st.write(f"Estado: **{ped['status']}**")
+                    st.write(f"Subtotal: {ped['quantidade'] * ped['preco']:,.2f} Kz")
+                with col_d3:
+                    if ped["status"] == "Pendente":
+                        if st.button(f"Confirmar #{idx}", key=f"conf_ped_{m_ativa}_{idx}"):
+                            if ped["tipo"] == "Bebidas":
+                                idx_st = st.session_state.stock[st.session_state.stock['Produto'] == ped['item']].index
+                                if not idx_st.empty:
+                                    qtd_atual = st.session_state.stock.at[idx_st[0], 'Quantidade']
+                                    if qtd_atual >= ped['quantidade']:
+                                        st.session_state.stock.at[idx_st[0], 'Quantidade'] = qtd_atual - ped['quantidade']
+                                    else:
+                                        st.error("⚠️ Stock insuficiente de bebidas!")
+                                        continue
+                            
+                            st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Confirmado"
+                            st.session_state.mesas[m_ativa]["total"] += (ped['quantidade'] * ped['preco'])
+                            st.success("Pedido confirmado!")
+                            st.rerun()
+                with col_d4:
+                    if ped["status"] != "Anulado":
+                        if st.button(f"❌ Anular #{idx}", key=f"anular_ped_{m_ativa}_{idx}"):
+                            if ped["status"] == "Confirmado":
+                                st.session_state.mesas[m_ativa]["total"] -= (ped['quantidade'] * ped['preco'])
+                            st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Anulado"
+                            st.warning("Pedido anulado com sucesso.")
+                            st.rerun()
             
-    st.divider()
+            st.divider()
+            if st.button("🔓 Fechar Conta / Liquidar Fatura da Mesa"):
+                st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
+                if m_ativa in st.session_state.clientes_mesa:
+                    del st.session_state.clientes_mesa[m_ativa]
+                st.success(f"Conta da Mesa {m_ativa} fechada e liquidada com sucesso!")
+                st.rerun()
+
+# 4. ADMINISTRADOR (STOCK / QR CODES)
+elif menu == "👑 Administrador (Stock / QR Codes)":
+    st.title("👑 Painel do Administrador - Geração de QR Codes e Stock")
+    st.info("Aqui pode gerar e visualizar os QR Codes de acesso direto para cada uma das 30 mesas, além de gerir o armazém.")
     
-    st.subheader("📱 Geração de Códigos QR para as 30 Mesas")
-    url_base = st.text_input("URL base da Aplicação (ex: http://192.168.1.15:8501 ou link do Streamlit Cloud)", "http://localhost:8501")
+    url_base = st.text_input("URL base da Aplicação (ex: http://192.168.X.X:8501 ou link do Streamlit Cloud)", "http://localhost:8501")
     
     cols_qr = st.columns(3)
     for i in range(1, 31):
