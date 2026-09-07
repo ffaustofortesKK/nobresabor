@@ -6,7 +6,7 @@ from io import BytesIO
 
 # Configuração da Página
 st.set_page_config(
-    page_title="Sistema de Gestão - Restaurante",
+    page_title="NobreSabor - Sistema de Gestão",
     page_icon="🍽️",
     layout="wide"
 )
@@ -83,52 +83,68 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Detecção de Mesa via Parâmetros de URL (Suporta formato ?mesa=X e rotas simuladas)
+# ==========================================
+# 2. CAPTURA AUTOMÁTICA DA MESA VIA URL / QR CODE
+# ==========================================
 query_params = st.query_params
-mesa_qr = query_params.get("mesa", None)
+mesa_detectada = None
 
-# Se não vier via ?mesa= mas houver navegação por rota simulada no ambiente
-if not mesa_qr and "path" in query_params:
+# Verifica se existe parâmetro ?mesa=X
+if "mesa" in query_params:
+    try:
+        mesa_detectada = int(query_params.get("mesa"))
+    except:
+        pass
+
+# Suporte a rotas limpas simuladas (ex: ?path=cliente/mesa1/qr)
+if not mesa_detectada and "path" in query_params:
     path_val = query_params.get("path", "")
-    if "cliente/mesa" in path_val:
+    if "mesa" in path_val:
         try:
-            mesa_qr = path_val.split("mesa")[1].split("/")[0]
+            # Extrai o número da mesa da string (ex: 'cliente/mesa1/qr' -> 1)
+            partes = path_val.split("mesa")
+            num_str = partes[1].split("/")[0]
+            mesa_detectada = int(num_str)
         except:
             pass
 
+
 # ==========================================
-# MENU LATERAL (NAVEGAÇÃO POR MÓDULOS)
+# 3. MENU LATERAL E ROTEAMENTO INTELIGENTE
 # ==========================================
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
-st.sidebar.title("Módulos do Sistema")
+st.sidebar.title("NobreSabor - Gestão")
 
-menu_opcoes = [
-    "📱 Módulo: Cliente", 
-    "👨‍🍳 Módulo: Garçon", 
-    "💻 Módulo: Caixa", 
-    "📦 Módulo: Stock",
-    "👑 Módulo: Administrador",
-    "👥 Módulo: Recursos Humanos"
-]
-
-modulo_atual = st.sidebar.selectbox("Selecione o Módulo:", menu_opcoes)
+# Se o cliente aceder via QR Code de uma mesa específica, o sistema bloqueia no Módulo Cliente da respetiva mesa automaticamente!
+if mesa_detectada and 1 <= mesa_detectada <= 30:
+    st.sidebar.success(modo_qr_txt := f"📱 Modo Cliente Ativo (Mesa {mesa_detectada})")
+    modulo_atual = "📱 Módulo: Cliente"
+else:
+    menu_opcoes = [
+        "💻 Módulo: Caixa", 
+        "👨‍🍳 Módulo: Garçon", 
+        "📦 Módulo: Stock",
+        "👑 Módulo: Administrador",
+        "👥 Módulo: Recursos Humanos",
+        "📱 Módulo: Cliente (Manual)"
+    ]
+    modulo_atual = st.sidebar.selectbox("Selecione o Módulo:", menu_opcoes)
 
 
 # ==========================================
-# MÓDULO: CLIENTE
+# MÓDULO: CLIENTE (AUTOMATIZADO POR QR CODE)
 # ==========================================
 def modulo_cliente():
-    st.title("📱 Módulo do Cliente - Pedidos via QR Code 🍽️")
-    
-    if mesa_qr and str(mesa_qr).isdigit():
-        num_mesa = int(mesa_qr)
-        if not (1 <= num_mesa <= 30):
-            num_mesa = 1
+    # Se foi detetado por QR Code, usa essa mesa. Caso contrário, deixa escolher.
+    if mesa_detectada and 1 <= mesa_detectada <= 30:
+        num_mesa = mesa_detectada
     else:
         num_mesa = st.selectbox("Selecione a sua Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
     
-    st.info(f"📍 Conectado à **Mesa {num_mesa}**.")
+    st.title(f"📱 NobreSabor - Atendimento Digital | Mesa {num_mesa} 🍽️")
+    st.info(f"📍 Conexão direta estabelecida com sucesso para a **Mesa {num_mesa}**.")
     
+    # Registo inicial do cliente na mesa
     if num_mesa not in st.session_state.clientes_mesa:
         st.subheader("📝 Registo Inicial do Cliente")
         with st.form(f"form_cli_{num_mesa}"):
@@ -150,23 +166,23 @@ def modulo_cliente():
                 st.warning("Preencha o seu nome e telefone.")
     else:
         cli = st.session_state.clientes_mesa[num_mesa]
-        st.success(f"Bem-vindo, **{cli['nome']}**! Mesa {num_mesa} ativa.")
+        st.success(f"Bem-vindo, **{cli['nome']}**! A sua mesa está pronta a receber pedidos.")
         
         tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo", "🎉 Eventos"])
         
         with tab_menu:
             if not st.session_state.stock.empty:
                 opcoes = st.session_state.stock['Produto'].tolist()
-                item_escolhido = st.selectbox("Escolha o Item:", opcoes)
+                item_escolhido = st.selectbox("Escolha o Item do Cardápio:", opcoes)
                 
                 row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_escolhido].iloc[0]
                 tipo_item = row_prod['Categoria']
                 preco_item = row_prod['Preço Unitário']
                 
                 qtd = st.number_input("Quantidade:", min_value=1, value=1, step=1)
-                obs = st.text_input("Observações (ex: Sem gelo):")
+                obs = st.text_input("Observações (ex: Sem gelo, carne bem passada):")
                 
-                if st.button("Enviar Pedido"):
+                if st.button("🚀 Enviar Pedido para o Caixa"):
                     st.session_state.mesas[num_mesa]["status"] = "Aberta"
                     novo_pedido = {
                         "item": item_escolhido,
@@ -178,11 +194,12 @@ def modulo_cliente():
                         "status": "Pendente",
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
+                    # O pedido vai direto para a lista desta mesa exata!
                     st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-                    st.success("🎉 Pedido enviado com sucesso!")
+                    st.success("🎉 Pedido enviado com sucesso para o Caixa da Mesa!")
                     st.balloons()
             else:
-                st.warning("Cardápio indisponível.")
+                st.warning("Cardápio indisponível no momento.")
                 
         with tab_consumo:
             st.subheader("📊 Controlo do seu Consumo Atual")
@@ -201,7 +218,7 @@ def modulo_cliente():
                 st.markdown(f"### Total Consumido: **{subtotal_geral:,.2f} Kz**")
                 
         with tab_eventos:
-            st.subheader("🎵 Programação de Eventos")
+            st.subheader("🎵 Programação de Eventos - NobreSabor")
             st.markdown("""
             * **Sexta-Feira de Serão:** Música ao vivo a partir das 20h.
             * **Sábado de Karaoke:** Com o Grupo FF Karaoke!
@@ -214,7 +231,6 @@ def modulo_cliente():
 # ==========================================
 def modulo_garcon():
     st.title("👨‍🍳 Módulo do Garçon - Lançamento de Pedidos")
-    
     codigo_garcon = st.text_input("Insira o seu Código de Colaborador (DCH):", type="password")
     
     if codigo_garcon:
@@ -227,7 +243,7 @@ def modulo_garcon():
             cat_g = validar_colab.iloc[0]['Categoria']
             st.success(f"✅ Colaborador validado: **{nome_g}** ({cat_g})")
             
-            mesa_garcon = st.selectbox("Selecione a Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+            mesa_garcon = st.selectbox("Selecione a Mesa de Destino:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
             
             if not st.session_state.stock.empty:
                 opcoes = st.session_state.stock['Produto'].tolist()
@@ -253,11 +269,11 @@ def modulo_garcon():
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     st.session_state.mesas[mesa_garcon]["pedidos"].append(novo_pedido)
-                    st.success(f"Pedido registado para a Mesa {mesa_garcon}!")
+                    st.success(f"Pedido lançado com sucesso para a Mesa {mesa_garcon}!")
 
 
 # ==========================================
-# MÓDULO: CAIXA
+# MÓDULO: CAIXA (INTEGRAÇÃO DIRETA COM AS MESAS)
 # ==========================================
 def modulo_caixa():
     if "mesa_ativa" in st.session_state:
@@ -287,7 +303,7 @@ def modulo_caixa():
 
         st.divider()
 
-        with st.expander("➕ Adicionar Novo Pedido a esta Mesa"):
+        with st.expander("➕ Adicionar Novo Pedido Manualmente a esta Mesa"):
             if not st.session_state.stock.empty:
                 prod_cx = st.selectbox("Selecione o Produto:", st.session_state.stock['Produto'].tolist(), key=f"prod_cx_{m_ativa}")
                 row_p_cx = st.session_state.stock[st.session_state.stock['Produto'] == prod_cx].iloc[0]
@@ -359,7 +375,7 @@ def modulo_caixa():
 
     else:
         st.title("💻 Módulo Caixa - Controlo Geral das 30 Mesas")
-        st.info("As mesas com novos pedidos piscam a vermelho. Clique em 'Gerir Mesa' para abrir o painel de atendimento e faturação.")
+        st.info("As mesas com pedidos pendentes piscam a vermelho automaticamente. Clique em 'Gerir Mesa' para ver os itens enviados pelo QR Code do cliente.")
         
         cols = st.columns(6)
         for i in range(1, 31):
@@ -384,8 +400,6 @@ def modulo_caixa():
 # ==========================================
 def modulo_stock():
     st.title("📦 Módulo de Stock - Gestão de Armazém")
-    st.info("Consulte e adicione novos produtos ao inventário do restaurante.")
-    
     with st.form("form_reg_stock"):
         st.write("Registar Novo Produto")
         novo_prod = st.text_input("Nome do Produto")
@@ -404,27 +418,27 @@ def modulo_stock():
 
 
 # ==========================================
-# MÓDULO: ADMINISTRADOR (QR CODES FORMATO NOBRESABOR)
+# MÓDULO: ADMINISTRADOR (GOP / QR CODES LIMPOS)
 # ==========================================
 def modulo_administrador():
     st.title("👑 Módulo do Administrador - Configuração de Rotas e QR Codes")
-    st.info("Gere os QR Codes personalizados no formato amigável (ex: nobresabor/cliente/mesaX) para cada uma das 30 mesas.")
+    st.info("Gere os QR Codes personalizados no formato exacto solicitado (`nobresabor/cliente/mesaX/qr`) para cada uma das 30 mesas.")
     
-    dominio_base = st.text_input("Domínio / URL base do Sistema (ex: http://localhost:8501 ou https://nobresabor.app)", "http://localhost:8501")
+    dominio_base = st.text_input("Domínio / URL base do Sistema", "http://localhost:8501")
     
     cols_qr = st.columns(3)
     for i in range(1, 31):
-        # Formato de link personalizado sugerido
-        link_mesa = f"{dominio_base.rstrip('/')}/cliente/mesa{i}/qr"
-        # Mantém compatibilidade com o parâmetro interno do Streamlit caso necessário
-        link_compativel = f"{dominio_base.rstrip('/')}/?mesa={i}"
+        # Link amigável para o QR Code mapeado exatamente para a mesa correspondente
+        link_mesa_limpo = f"{dominio_base.rstrip('/')}/cliente/mesa{i}/qr"
+        # Link de redirecionamento interno em query param compatível com o Streamlit
+        link_qrcode_executavel = f"{dominio_base.rstrip('/')}/?mesa={i}"
         
         with cols_qr[(i - 1) % 3]:
             st.markdown(f"**Mesa {i}**")
-            st.code(link_mesa, language="text")
+            st.code(link_mesa_limpo, language="text")
             
-            # Gera o QR Code com o link personalizado
-            img_bytes = gerar_qrcode_bytes(link_mesa)
+            # Gera o QR Code codificando a rota da mesa
+            img_bytes = gerar_qrcode_bytes(link_qrcode_executavel)
             st.image(img_bytes, width=140, caption=f"QR Code Mesa {i}")
             st.divider()
 
@@ -434,8 +448,6 @@ def modulo_administrador():
 # ==========================================
 def modulo_recursos_humanos():
     st.title("👥 Módulo de Recursos Humanos (DCH)")
-    st.info("Registo de colaboradores e garçons com código único de validação.")
-    
     with st.form("form_dch"):
         cod_colab = st.text_input("Código do Colaborador (ex: G003)")
         nome_colab = st.text_input("Nome Completo")
@@ -454,17 +466,19 @@ def modulo_recursos_humanos():
 
 
 # ==========================================
-# ROTEAMENTO DE MÓDULOS
+# EXECUÇÃO DO ROTEADOR PRINCIPAL
 # ==========================================
-if modulo_atual == "📱 Módulo: Cliente" or mesa_qr:
+if modulo_atual == "📱 Módulo: Cliente" or mesa_detectada:
     modulo_cliente()
-elif modulo_atual == "👨‍🍳 Módulo: Garçon":
-    modulo_garcon()
 elif modulo_atual == "💻 Módulo: Caixa":
     modulo_caixa()
+elif modulo_atual == "👨‍🍳 Módulo: Garçon":
+    modulo_garcon()
 elif modulo_atual == "📦 Módulo: Stock":
     modulo_stock()
 elif modulo_atual == "👑 Módulo: Administrador":
     modulo_administrador()
 elif modulo_atual == "👥 Módulo: Recursos Humanos":
     modulo_recursos_humanos()
+else:
+    modulo_cliente()
