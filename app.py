@@ -238,7 +238,6 @@ def area_cliente():
             itens_cat = stock_df[stock_df['Categoria'] == cat_escolhida]
             
             if not itens_cat.empty:
-                # Usamos um formulário com clear_on_submit=True para limpar os campos após o envio
                 with st.form(key=f"form_pedido_{num_mesa}", clear_on_submit=True):
                     item_escolhido = st.selectbox("Item:", itens_cat['Produto'].tolist())
                     qtd = st.number_input("Quantidade:", min_value=1, value=1)
@@ -273,19 +272,16 @@ def area_cliente():
                         
                         salvar_mesas_disco(mesas_data)
                         
-                        # Ativa flag na sessão para exibir a notificação de sucesso após o submit
                         st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado com sucesso! Já pode solicitar outro item."
                         st.rerun()
 
-            # Exibe a notificação de sucesso logo abaixo do formulário se ela existir
             chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
             if chave_aviso in st.session_state:
                 st.success(st.session_state[chave_aviso])
-                # Remove o aviso para não ficar preso na tela permanentemente
                 del st.session_state[chave_aviso]
                 
         with tab_consumo:
-            st.subheader("O Meu Consumo")
+            st.subheader("O Meu Consumo & Estado dos Pedidos")
             pedidos_mesa = dados_m["pedidos"]
             if not pedidos_mesa:
                 st.info("Ainda não tem pedidos.")
@@ -295,7 +291,16 @@ def area_cliente():
                     total_item = p['quantidade'] * p['preco']
                     if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                         subtotal_geral += total_item
-                    st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz ({p['status']})")
+                    
+                    # Mostra indicador claro na visão do cliente se a refeição ficou pronta
+                    status_txt = p['status']
+                    if p.get('cozinha_status') == "Feito":
+                        status_txt = "🍽️ Refeição Pronta!"
+                    elif p.get('cozinha_status') == "Aprovado":
+                        status_txt = "Preparando na Cozinha 🍳"
+                        
+                    st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — Estado: **{status_txt}**")
+                    
                 st.markdown(f"### Total: {subtotal_geral:,.2f} Kz")
                 
         with tab_eventos:
@@ -490,7 +495,6 @@ def area_caixa_mesas():
         st.header(f"🎛️ Gestão da Mesa {m_ativa}")
         dados_mesa = mesas_data[str_m_ativa]
         
-        # Se a fatura já foi emitida, dar opção de limpar a mesa para o próximo cliente
         if dados_mesa.get("fatura_emitida"):
             st.success("✅ Esta mesa já teve a conta fechada e a fatura foi emitida para o cliente.")
             st.warning("O cliente ainda está a ver a fatura no telemóvel. Quando ele sair, clique no botão abaixo para liberar a mesa.")
@@ -531,7 +535,12 @@ def area_caixa_mesas():
                 with col_p2:
                     st.write(f"**{(float(p['quantidade']) * float(p['preco'])):,.2f} Kz**")
                 with col_p3:
-                    st.write(f"Estado: `{p['status']}`")
+                    # Exibe o status da cozinha de forma clara nos detalhes da mesa
+                    c_status = p.get('cozinha_status', 'N/A')
+                    if c_status == "Feito":
+                        st.markdown("🍽️ **Refeição Pronta**")
+                    else:
+                        st.write(f"Estado: `{p['status']}`")
 
         st.markdown(f"### Total a Pagar: **{float(dados_mesa['total']):,.2f} Kz**")
 
@@ -561,7 +570,6 @@ def area_caixa_mesas():
                 
                 detalhe_pag = f"Dinheiro: {val_dinheiro:,.2f} Kz | TPA: {val_tpa:,.2f} Kz" if tipo_pagamento == "Ambos (Dinheiro + TPA)" else tipo_pagamento
 
-                # Registo seguro no histórico de vendas central
                 novo_registo_venda = {
                     "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Mesa": int(m_ativa),
@@ -575,7 +583,6 @@ def area_caixa_mesas():
                 hist_vendas.append(novo_registo_venda)
                 salvar_historico_vendas(hist_vendas)
 
-                # Prepara a fatura para o cliente visualizar no telemóvel
                 dados_mesa["fatura_emitida"] = {
                     "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "cliente": str(nome_c_fatura),
@@ -585,7 +592,6 @@ def area_caixa_mesas():
                     "pagamento_detalhe": str(detalhe_pag)
                 }
                 
-                # Altera o status da mesa para "Fechada"
                 dados_mesa["status"] = "Fechada"
                 
                 salvar_mesas_disco(mesas_data)
@@ -595,7 +601,6 @@ def area_caixa_mesas():
         else:
             st.warning("A mesa não tem valor a faturar.")
             
-            # Permitir cancelar uma mesa que foi aberta sem querer (consumo 0)
             if dados_mesa.get("cliente"):
                 if st.button("❌ Cancelar / Limpar Mesa (Sem Consumo)", key=f"btn_cancela_{m_ativa}"):
                     mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None}
@@ -620,12 +625,23 @@ def area_caixa_mesas():
                     )
                     dados_m['total'] = float(total_m)
                     
+                    # Verifica se existe algum pedido de refeição marcado como "Feito" nesta mesa
+                    tem_refeicao_pronta = any(
+                        p.get("tipo") == "Refeições" and p.get("cozinha_status") == "Feito" 
+                        for p in dados_m['pedidos']
+                    )
+                    
                     classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
                     
                     with cols[c]:
+                        # Alerta visual em cima com o emoji de prato e escrito "refeição pronta" se aplicável
+                        alerta_pronto_html = "<div style='color: #0d6efd; font-size: 0.85em; font-weight: bold; margin-bottom: 2px;'>🍽️ Refeição Pronta</div>" if tem_refeicao_pronta else ""
+                        
                         nome_cliente_txt = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
+                        
                         st.markdown(f"""
                             <div class="{classe_css}">
+                                {alerta_pronto_html}
                                 Mesa {num_mesa}<br>{status_m}{nome_cliente_txt}<br>
                                 <span style="font-size: 0.8em;">{dados_m['total']:,.2f} Kz</span>
                             </div>
