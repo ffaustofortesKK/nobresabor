@@ -137,9 +137,21 @@ except Exception:
     except Exception:
         pass
 
-# Sidebar limpa
+# Sidebar limpa com controlo rápido de estado do caixa
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
+st.sidebar.divider()
+st.sidebar.write("### Estado do Caixa")
+if st.session_state.caixa_aberto:
+    st.sidebar.success("🟢 Caixa Aberto")
+    if st.sidebar.button("Fechar Caixa Agora", use_container_width=True):
+        st.session_state.caixa_aberto = False
+        st.rerun()
+else:
+    st.sidebar.error("🔴 Caixa Fechado")
+    if st.sidebar.button("Abrir Caixa Agora", use_container_width=True, type="primary"):
+        st.session_state.caixa_aberto = True
+        st.rerun()
 
 # ==========================================
 # ÁREA: CLIENTE (QR CODE)
@@ -317,11 +329,11 @@ def area_administrador():
                 st.error("🔴 O Caixa encontra-se FECHADO. Clique ao lado para abrir o caixa.")
         with col_cx_btn:
             if st.session_state.caixa_aberto:
-                if st.button("Fechar Caixa", type="secondary"):
+                if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
                     st.session_state.caixa_aberto = False
                     st.rerun()
             else:
-                if st.button("Abrir Caixa", type="primary"):
+                if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_adm"):
                     st.session_state.caixa_aberto = True
                     st.rerun()
 
@@ -376,8 +388,22 @@ def area_administrador():
 def area_caixa_mesas():
     st.title("💻 Controlo Geral de Mesas e Pagamentos")
     
-    if not st.session_state.caixa_aberto:
-        st.warning("⚠️ O Caixa encontra-se atualmente FECHADO. Pode abrir o caixa logo abaixo na aba **Finanças** do Painel de Administrador.")
+    # Barra de estado do caixa no topo da página do Caixa
+    col_st_1, col_st_2 = st.columns([3, 1])
+    with col_st_1:
+        if st.session_state.caixa_aberto:
+            st.success("🟢 O Caixa encontra-se ABERTO e operacional.")
+        else:
+            st.error("⚠️ O Caixa encontra-se atualmente FECHADO. Pode abri-lo clicando no botão ao lado.")
+    with col_st_2:
+        if st.session_state.caixa_aberto:
+            if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_link"):
+                st.session_state.caixa_aberto = False
+                st.rerun()
+        else:
+            if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_link"):
+                st.session_state.caixa_aberto = True
+                st.rerun()
     
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -471,7 +497,7 @@ def area_caixa_mesas():
 
             st.subheader("💳 Fechar Fatura")
             if not st.session_state.caixa_aberto:
-                st.error("⚠️ O caixa está fechado. Abra o caixa na aba **Finanças** do painel abaixo para poder concluir pagamentos.")
+                st.error("⚠️ O caixa está fechado. Abra o caixa para poder concluir pagamentos.")
             else:
                 tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Monetário (Dinheiro)", "Pagamento Automático TPA"])
                 if st.button("💰 Concluir Pagamento e Fechar Mesa", type="primary"):
