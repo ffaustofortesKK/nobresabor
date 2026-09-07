@@ -26,7 +26,6 @@ st.markdown("""
         text-align: center;
         font-weight: bold;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        cursor: pointer;
     }
     .mesa-aberta {
         background-color: #d4edda;
@@ -49,7 +48,6 @@ st.markdown("""
 
 # Inicialização de Estados da Sessão
 if "mesas" not in st.session_state:
-    # Cada mesa guarda o seu estado, lista de pedidos e total acumulado
     st.session_state.mesas = {
         i: {"status": "Fechada", "pedidos": [], "total": 0.0} for i in range(1, 31)
     }
@@ -64,7 +62,7 @@ if "stock" not in st.session_state:
         ["Bife a Cavalo", "Alimentos", 15, 4000.0]
     ], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
 
-# Função para Gerar QR Code
+# Função para Gerar QR Code em Bytes
 def gerar_qrcode_bytes(url_texto):
     qr = qrcode.QRCode(version=1, box_size=5, border=2)
     qr.add_data(url_texto)
@@ -74,50 +72,45 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Detetar se foi acedido via link de QR Code (ex: ?mesa=5)
+# Capturar parâmetro de URL do QR Code (ex: ?mesa=5)
 query_params = st.query_params
 mesa_qr = query_params.get("mesa", None)
-
-if mesa_qr:
-    try:
-        num_mesa_qr = int(mesa_qr)
-        if 1 <= num_mesa_qr <= 30:
-            # Abre a mesa automaticamente ao aceder via QR Code
-            st.session_state.mesas[num_mesa_qr]["status"] = "Aberta"
-    except ValueError:
-        pass
 
 # Menu Lateral
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("Restaurante Gestão")
-menu = st.sidebar.selectbox("Navegação:", [
+
+menu_opcoes = [
     "📱 Cliente / QR Code (Mesa)", 
     "👨‍🍳 Garçon / Pedidos", 
     "💻 Caixa Central (30 Mesas)", 
     "📦 Administrador (Stock)",
     "👑 Gestão de Links e QR Codes"
-])
+]
+
+# Se o link tiver parâmetro de mesa, direciona direto para o cliente
+menu_inicial = 0 if mesa_qr else 0
+menu = st.sidebar.selectbox("Navegação:", menu_opcoes, index=menu_inicial)
 
 # 1. CLIENTE (QR CODE)
 if menu == "📱 Cliente / QR Code (Mesa)":
     st.title("📱 Pedido via QR Code do Cliente")
     
-    # Seleção da mesa (caso não venha direto pelo link)
-    default_mesa = int(mesa_qr) if mesa_qr and mesa_qr.isdigit() else 1
-    num_mesa = st.selectbox("Número da sua Mesa:", [i for i in range(1, 31)], index=default_mesa-1)
+    # Identificar a mesa pelo URL ou seleção manual
+    if mesa_qr and str(mesa_qr).isdigit():
+        num_mesa = int(mesa_qr)
+        if not (1 <= num_mesa <= 30):
+            num_mesa = 1
+    else:
+        num_mesa = st.selectbox("Número da sua Mesa:", [i for i in range(1, 31)])
     
-    # Abre a mesa automaticamente para o cliente
-    st.session_state.mesas[num_mesa]["status"] = "Aberta"
-    
-    st.success(f"✅ Mesa {num_mesa} ativa e aberta! Faça o seu pedido abaixo:")
+    st.success(f"✅ Conectado à **Mesa {num_mesa}**. Faça o seu pedido abaixo:")
     st.markdown("> *«Aproveite o melhor ambiente e saboreie a nossa culinária!»*")
     
-    # Formulário de Pedido
     if not st.session_state.stock.empty:
         opcoes = st.session_state.stock['Produto'].tolist()
         item_escolhido = st.selectbox("Escolha o Item:", opcoes)
         
-        # Obter dados do stock
         row_prod = st.session_state.stock[st.session_state.stock['Produto'] == item_escolhido].iloc[0]
         tipo_item = row_prod['Categoria']
         preco_item = row_prod['Preço Unitário']
@@ -126,18 +119,21 @@ if menu == "📱 Cliente / QR Code (Mesa)":
         obs = st.text_input("Observações (ex: Sem gelo, bem passado):")
         
         if st.button("Enviar Pedido para o Caixa"):
+            # Abertura automática da mesa ao submeter o pedido
+            st.session_state.mesas[num_mesa]["status"] = "Aberta"
+            
             novo_pedido = {
                 "item": item_escolhido,
                 "tipo": tipo_item,
                 "quantidade": qtd,
                 "preco": preco_item,
-                "origem": "Cliente (QR Code)",
+                "origem": f"Cliente (Mesa {num_mesa})",
                 "obs": obs,
                 "status": "Pendente",
                 "hora": datetime.now().strftime("%H:%M:%S")
             }
             st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-            st.success("🎉 Pedido enviado com sucesso! O Caixa já foi notificado.")
+            st.success("🎉 Pedido enviado com sucesso! A sua mesa foi aberta e o Caixa foi notificado.")
             st.balloons()
     else:
         st.warning("Armazém sem produtos registados.")
@@ -148,9 +144,6 @@ elif menu == "👨‍🍳 Garçon / Pedidos":
     
     nome_garcon = st.text_input("Identificação do Garçon (Nome / Código):")
     mesa_garcon = st.selectbox("Selecione a Mesa a Atender:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
-    
-    # Garante que a mesa abre ao ser atendida pelo garçon
-    st.session_state.mesas[mesa_garcon]["status"] = "Aberta"
     
     if nome_garcon and not st.session_state.stock.empty:
         opcoes = st.session_state.stock['Produto'].tolist()
@@ -164,6 +157,9 @@ elif menu == "👨‍🍳 Garçon / Pedidos":
         obs_g = st.text_input("Observações:", key="obs_g")
         
         if st.button("Registar Pedido na Mesa"):
+            # Abre a mesa automaticamente ao receber pedido do garçon
+            st.session_state.mesas[mesa_garcon]["status"] = "Aberta"
+            
             novo_pedido = {
                 "item": item_g,
                 "tipo": tipo_item,
@@ -182,9 +178,8 @@ elif menu == "👨‍🍳 Garçon / Pedidos":
 # 3. CAIXA CENTRAL
 elif menu == "💻 Caixa Central (30 Mesas)":
     st.title("💻 Caixa Central - Controlo das 30 Mesas e Vendas")
-    st.info("As mesas com pedidos pendentes piscam a vermelho. Clique numa mesa para ver os detalhes, confirmar e dar baixa no stock.")
+    st.info("As mesas com novos pedidos piscam a vermelho. Clique numa mesa para gerir os pedidos e liquidar a conta.")
     
-    # Exibir grelha das 30 mesas
     cols = st.columns(6)
     for i in range(1, 31):
         mesa_info = st.session_state.mesas[i]
@@ -203,10 +198,9 @@ elif menu == "💻 Caixa Central (30 Mesas)":
 
     st.divider()
 
-    # Gestão detalhada da Mesa selecionada pelo Caixa
     if "mesa_ativa" in st.session_state:
         m_ativa = st.session_state.mesa_ativa
-        st.subheader(f"📋 Gestão Detalhada da Mesa {m_ativa}")
+        st.subheader(f"📋 Gestão da Mesa {m_ativa}")
         
         dados_mesa = st.session_state.mesas[m_ativa]
         st.write(f"**Estado:** {dados_mesa['status']} | **Total Consumido:** {dados_mesa['total']:,.2f} Kz")
@@ -237,7 +231,6 @@ elif menu == "💻 Caixa Central (30 Mesas)":
                                         st.error("⚠️ Stock insuficiente de bebidas!")
                                         continue
                             
-                            # Atualiza status e soma ao total da mesa
                             st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Confirmado"
                             st.session_state.mesas[m_ativa]["total"] += (ped['quantidade'] * ped['preco'])
                             st.success("Pedido confirmado com sucesso!")
@@ -273,12 +266,10 @@ elif menu == "📦 Administrador (Stock)":
 # 5. GESTÃO DE LINKS E QR CODES
 elif menu == "👑 Gestão de Links e QR Codes":
     st.title("👑 Geração de Códigos QR para as 30 Mesas")
+    st.info("Copie ou utilize estes links/QR codes para colocar em cada uma das 30 mesas do restaurante.")
     
-    url_base = st.text_input("URL base da Aplicação (ex: https://teu-app.streamlit.app)", "http://localhost:8501")
+    url_base = st.text_input("URL base da Aplicação (ex: https://nobresabor.streamlit.app)", "http://localhost:8501")
     
-    if st.button("Gerar Códigos QR"):
-        st.success("Códigos QR gerados para todas as mesas!")
-        
     cols_qr = st.columns(3)
     for i in range(1, 31):
         link_mesa = f"{url_base}/?mesa={i}"
