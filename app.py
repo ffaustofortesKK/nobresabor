@@ -351,12 +351,26 @@ def area_garcon():
 def area_caixa():
     st.title("💻 Caixa - Controlo Geral e Mesas")
     
+    # Controlo de abertura/fecho do caixa diretamente no topo da tela de caixa
+    col_cx_status, col_cx_btn = st.columns([3, 1])
+    with col_cx_status:
+        if st.session_state.caixa_aberto:
+            st.success("🟢 O Caixa encontra-se ABERTO e operacional.")
+        else:
+            st.error("🔴 O Caixa encontra-se FECHADO.")
+    with col_cx_btn:
+        if st.session_state.caixa_aberto:
+            if st.button("Fechar Caixa", type="secondary"):
+                st.session_state.caixa_aberto = False
+                st.rerun()
+        else:
+            if st.button("Abrir Caixa", type="primary"):
+                st.session_state.caixa_aberto = True
+                st.rerun()
+
     if not st.session_state.caixa_aberto:
-        st.error("🔴 O CAIXA ENCONTRA-SE ATUALMENTE FECHADO.")
-        st.warning("O Administrador deve abrir o caixa no painel administrativo.")
+        st.warning("Abra o caixa para poder aceder à gestão das mesas e pagamentos.")
         return
-    else:
-        st.success("🟢 Caixa Aberto e Operacional")
 
     st.divider()
 
@@ -495,31 +509,17 @@ def area_caixa():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (APENAS CONTROLO, FATURAÇÃO, STOCK E RH)
+# ÁREA: ADMINISTRADOR (EXCLUSIVAMENTE GESTÃO MESTRE, SEM CAIXA)
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
-    st.info("Painel de Controlo Mestre: Abertura/Fecho de Caixa, Faturação do Dia, Remoções, Stock e Recursos Humanos.")
+    st.info("Painel de Controlo Mestre: Faturação do Dia, Histórico de Clientes, Remoções, Stock e Recursos Humanos.")
     
     with st.expander("🔗 Links Oficiais do Sistema", expanded=True):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
         st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
         
-    tab1, tab2, tab3, tab4 = st.tabs(["💰 Controlo de Caixa", "📊 Faturação & Histórico de Clientes", "📦 Stock", "👥 RH"])
-    
-    with tab1:
-        st.subheader("Estado do Caixa (Abertura / Fecho)")
-        if st.session_state.caixa_aberto:
-            st.success("O Caixa encontra-se atualmente **ABERTO** e operacional para o operador.")
-            if st.button("🔴 Fechar o Caixa"):
-                st.session_state.caixa_aberto = False
-                st.rerun()
-        else:
-            st.error("O Caixa encontra-se atualmente **FECHADO**.")
-            if st.button("🟢 Abrir o Caixa"):
-                st.session_state.caixa_aberto = True
-                st.success("Caixa aberto com sucesso! O painel do caixa em `/?perfil=caixa` já está operacional.")
-                st.rerun()
+    tab2, tab3, tab4, tab5 = st.tabs(["📊 Faturação & Histórico de Clientes", "⚠️ Caixa de Remoções", "📦 Stock", "👥 RH"])
                 
     with tab2:
         st.subheader("📋 Faturação do Dia e Registo Permanente de Clientes")
@@ -531,7 +531,7 @@ def area_administrador():
             total_faturado_dia = df_hist["Valor"].sum()
             st.markdown(f"### Total Faturado Geral: **{total_faturado_dia:,.2f} Kz**")
             
-        st.divider()
+    with tab3:
         st.subheader("⚠️ Caixa de Remoção de Pedidos")
         if len(st.session_state.remocoes_log) == 0:
             st.success("Nenhum item removido até o momento.")
@@ -539,7 +539,7 @@ def area_administrador():
             df_rem = pd.DataFrame(st.session_state.remocoes_log)
             st.dataframe(df_rem, use_container_width=True)
             
-    with tab3:
+    with tab4:
         st.subheader("📦 Gestão de Stock")
         with st.form("form_stock"):
             np = st.text_input("Nome do Produto")
@@ -552,7 +552,7 @@ def area_administrador():
                 st.success("Produto adicionado!")
         st.dataframe(st.session_state.stock, use_container_width=True)
         
-    with tab4:
+    with tab5:
         st.subheader("👥 Recursos Humanos")
         with st.form("form_rh"):
             cc = st.text_input("Código")
