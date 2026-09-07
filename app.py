@@ -81,7 +81,7 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Detetar parâmetro de QR Code na URL (ex: /?mesa=5)
+# Detetar parâmetro de QR Code na URL
 query_params = st.query_params
 mesa_qr = query_params.get("mesa", None)
 
@@ -92,7 +92,7 @@ st.sidebar.title("Restaurante Gestão")
 menu_opcoes = [
     "📱 Cliente / QR Code (Mesa)", 
     "👨‍🍳 Garçon / Pedidos", 
-    "💻 Caixa Central (30 Mesas)", 
+    "💻 Caixa Central (Gestão Total)", 
     "👑 Administrador (Stock / QR Codes)",
     "👥 Recursos Humanos (DCH)"
 ]
@@ -112,10 +112,9 @@ if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
     
     st.info(f"📍 Está conectado à **Mesa {num_mesa}**.")
     
-    # Registo inicial do cliente na mesa
     if num_mesa not in st.session_state.clientes_mesa:
         st.subheader("📝 Registo de Acolhimento do Cliente")
-        st.write("Por favor, preencha os seus dados para iniciar o atendimento e abrir a faturação da mesa:")
+        st.write("Por favor, preencha os seus dados para iniciar o atendimento:")
         
         with st.form(f"form_cliente_{num_mesa}"):
             nome_cli = st.text_input("Nome Completo:")
@@ -129,10 +128,11 @@ if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
                     "telefone": tel_cli,
                     "whatsapp": whatsapp_opt
                 }
-                st.success("Registo efetuado com sucesso! Já pode aceder ao menu e efetuar pedidos.")
+                st.session_state.mesas[num_mesa]["status"] = "Aberta"
+                st.success("Registo efetuado com sucesso!")
                 st.rerun()
             elif btn_reg:
-                st.warning("Por favor, preencha o seu nome e telefone.")
+                st.warning("Preencha o seu nome e telefone.")
     else:
         cli = st.session_state.clientes_mesa[num_mesa]
         st.success(f"Olá, **{cli['nome']}**! Mesa {num_mesa} ativa.")
@@ -151,8 +151,7 @@ if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
                 qtd = st.number_input("Quantidade:", min_value=1, value=1, step=1)
                 obs = st.text_input("Observações (ex: Sem gelo):")
                 
-                if st.button("Enviar Primeiro Pedido / Faturar"):
-                    # Ao fazer o primeiro pedido, a mesa abre automaticamente no sistema do Caixa
+                if st.button("Enviar Pedido"):
                     st.session_state.mesas[num_mesa]["status"] = "Aberta"
                     
                     novo_pedido = {
@@ -166,7 +165,7 @@ if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-                    st.success("🎉 Pedido enviado com sucesso! A faturação e o caixa da mesa foram abertos.")
+                    st.success("🎉 Pedido enviado com sucesso!")
                     st.balloons()
             else:
                 st.warning("Cardápio indisponível.")
@@ -182,10 +181,8 @@ if menu == "📱 Cliente / QR Code (Mesa)" or mesa_qr:
                     total_item = p['quantidade'] * p['preco']
                     if p['status'] != "Anulado":
                         subtotal_geral += total_item
-                    
                     estado_txt = f"✅ {p['status']}" if p['status'] == "Confirmado" else (f"❌ {p['status']}" if p['status'] == "Anulado" else f"⏳ {p['status']}")
-                    st.write(f"- **{p['quantidade']}x {p['item']}** ({p['tipo']}) | Preço Unit.: {p['preco']:,.2f} Kz | Subtotal: {total_item:,.2f} Kz | Estado: {estado_txt}")
-                
+                    st.write(f"- **{p['quantidade']}x {p['item']}** ({p['tipo']}) | Preço: {p['preco']:,.2f} Kz | Subtotal: {total_item:,.2f} Kz | Estado: {estado_txt}")
                 st.divider()
                 st.markdown(f"### Total Consumido: **{subtotal_geral:,.2f} Kz**")
                 
@@ -240,12 +237,12 @@ elif menu == "👨‍🍳 Garçon / Pedidos":
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     st.session_state.mesas[mesa_garcon]["pedidos"].append(novo_pedido)
-                    st.success(f"Pedido registado para a Mesa {mesa_garcon} e caixa aberto!")
+                    st.success(f"Pedido registado para a Mesa {mesa_garcon}!")
 
-# 3. CAIXA CENTRAL
-elif menu == "💻 Caixa Central (30 Mesas)":
-    st.title("💻 Caixa Central - Controlo de Mesas, Pedidos e Faturação")
-    st.info("As mesas com novos pedidos piscam a vermelho. Clique numa mesa para ver pedidos, adicionar, anular ou fechar a conta.")
+# 3. CAIXA CENTRAL (GESTÃO TOTAL VIA "GERIR MESA")
+elif menu == "💻 Caixa Central (Gestão Total)":
+    st.title("💻 Caixa Central - Controlo das 30 Mesas")
+    st.info("As mesas com novos pedidos piscam a vermelho. Clique em 'Gerir Mesa' para abrir o painel completo de atendimento, pedidos, adição, anulação e fecho de conta.")
     
     cols = st.columns(6)
     for i in range(1, 31):
@@ -265,22 +262,39 @@ elif menu == "💻 Caixa Central (30 Mesas)":
 
     st.divider()
 
+    # PAINEL INTEGRADO AO CLICAR EM "GERIR MESA"
     if "mesa_ativa" in st.session_state:
         m_ativa = st.session_state.mesa_ativa
-        st.subheader(f"📋 Gestão Completa da Mesa {m_ativa}")
+        st.header(f"🎛️ Painel de Gestão da Mesa {m_ativa}")
         
         dados_mesa = st.session_state.mesas[m_ativa]
-        st.write(f"**Estado da Mesa:** {dados_mesa['status']} | **Total Atual:** {dados_mesa['total']:,.2f} Kz")
         
-        # Secção para Adicionar Pedido Manualmente pelo Caixa
-        with st.expander("➕ Adicionar Pedido Manualmente a esta Mesa"):
+        # 1. Controlo de Abertura / Estado da Mesa
+        col_st1, col_st2 = st.columns([2, 2])
+        with col_st1:
+            st.write(f"**Estado Atual:** {dados_mesa['status']} | **Total da Conta:** **{dados_mesa['total']:,.2f} Kz**")
+        with col_st2:
+            if dados_mesa['status'] == "Fechada":
+                if st.button(f"🟢 Abrir Mesa {m_ativa} Manualmente"):
+                    st.session_state.mesas[m_ativa]["status"] = "Aberta"
+                    st.success(f"Mesa {m_ativa} aberta com sucesso!")
+                    st.rerun()
+            else:
+                if st.button(f"🔴 Fechar / Bloquear Mesa {m_ativa}"):
+                    st.session_state.mesas[m_ativa]["status"] = "Fechada"
+                    st.rerun()
+
+        st.divider()
+
+        # 2. Adicionar Pedido Diretamente pelo Caixa
+        with st.expander("➕ Adicionar Novo Pedido a esta Mesa"):
             if not st.session_state.stock.empty:
-                prod_cx = st.selectbox("Produto:", st.session_state.stock['Produto'].tolist(), key=f"prod_cx_{m_ativa}")
+                prod_cx = st.selectbox("Selecione o Produto:", st.session_state.stock['Produto'].tolist(), key=f"prod_cx_{m_ativa}")
                 row_p_cx = st.session_state.stock[st.session_state.stock['Produto'] == prod_cx].iloc[0]
                 qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_ativa}")
-                obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_ativa}")
+                obs_cx = st.text_input("Observações (opcional):", key=f"obs_cx_{m_ativa}")
                 
-                if st.button("Lançar na Mesa", key=f"btn_lanca_cx_{m_ativa}"):
+                if st.button("Lançar Pedido na Mesa", key=f"btn_lanca_cx_{m_ativa}"):
                     novo_ped_cx = {
                         "item": prod_cx,
                         "tipo": row_p_cx['Categoria'],
@@ -294,13 +308,14 @@ elif menu == "💻 Caixa Central (30 Mesas)":
                     st.session_state.mesas[m_ativa]["status"] = "Aberta"
                     st.session_state.mesas[m_ativa]["pedidos"].append(novo_ped_cx)
                     st.session_state.mesas[m_ativa]["total"] += (qtd_cx * row_p_cx['Preço Unitário'])
-                    st.success("Pedido lançado e confirmado pelo Caixa!")
+                    st.success("Pedido adicionado e confirmado com sucesso!")
                     st.rerun()
 
+        # 3. Gestão e Controlo de Pedidos Existentes
+        st.subheader("🛍️ Histórico de Consumo e Controlo de Pedidos")
         if not dados_mesa["pedidos"]:
-            st.info("Nenhum pedido registado nesta mesa.")
+            st.info("Nenhum pedido registado nesta mesa até o momento.")
         else:
-            st.write("### 🛍️ Lista de Pedidos / Consumo:")
             for idx, ped in enumerate(dados_mesa["pedidos"]):
                 col_d1, col_d2, col_d3, col_d4 = st.columns([3, 2, 2, 2])
                 with col_d1:
@@ -332,21 +347,23 @@ elif menu == "💻 Caixa Central (30 Mesas)":
                             if ped["status"] == "Confirmado":
                                 st.session_state.mesas[m_ativa]["total"] -= (ped['quantidade'] * ped['preco'])
                             st.session_state.mesas[m_ativa]["pedidos"][idx]["status"] = "Anulado"
-                            st.warning("Pedido anulado com sucesso.")
+                            st.warning("Pedido anulado.")
                             st.rerun()
             
             st.divider()
-            if st.button("🔓 Fechar Conta / Liquidar Fatura da Mesa"):
+            
+            # 4. Fecho da Conta / Liquidação Total
+            if st.button("🔓 Fechar Conta / Liquidar Fatura da Mesa", type="primary"):
                 st.session_state.mesas[m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0}
                 if m_ativa in st.session_state.clientes_mesa:
                     del st.session_state.clientes_mesa[m_ativa]
-                st.success(f"Conta da Mesa {m_ativa} fechada e liquidada com sucesso!")
+                st.success(f"Mesa {m_ativa} fechada e conta liquidada com sucesso!")
                 st.rerun()
 
 # 4. ADMINISTRADOR (STOCK / QR CODES)
 elif menu == "👑 Administrador (Stock / QR Codes)":
     st.title("👑 Painel do Administrador - Geração de QR Codes e Stock")
-    st.info("Aqui pode gerar e visualizar os QR Codes de acesso direto para cada uma das 30 mesas, além de gerir o armazém.")
+    st.info("Gere os QR Codes das 30 mesas e controle o armazém.")
     
     url_base = st.text_input("URL base da Aplicação (ex: http://192.168.X.X:8501 ou link do Streamlit Cloud)", "http://localhost:8501")
     
@@ -373,7 +390,7 @@ elif menu == "👑 Administrador (Stock / QR Codes)":
             item_df = pd.DataFrame([[novo_prod, cat_prod, qtd_prod, preco_prod]], 
                                    columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
             st.session_state.stock = pd.concat([st.session_state.stock, item_df], ignore_index=True)
-            st.success(f"Produto '{novo_prod}' adicionado com sucesso!")
+            st.success(f"Produto '{novo_prod}' adicionado!")
             
     st.dataframe(st.session_state.stock, use_container_width=True)
 
@@ -394,6 +411,6 @@ elif menu == "👥 Recursos Humanos (DCH)":
             novo_func = pd.DataFrame([[cod_colab, nome_colab, cat_colab, tel_colab, bi_colab]], 
                                      columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
             st.session_state.rh = pd.concat([st.session_state.rh, novo_func], ignore_index=True)
-            st.success(f"Colaborador {nome_colab} registado com sucesso!")
+            st.success(f"Colaborador {nome_colab} registado!")
             
     st.dataframe(st.session_state.rh, use_container_width=True)
