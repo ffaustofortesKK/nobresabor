@@ -100,7 +100,7 @@ def gerar_qrcode_bytes(url_texto):
     return buffered.getvalue()
 
 # ==========================================
-# 2. CAPTURA AUTOMÁTICA DA MESA VIA PARÂMETRO URL (QR CODE)
+# 2. CAPTURA AUTOMÁTICA DA MESA VIA URL (QR CODE)
 # ==========================================
 query_params = st.query_params
 mesa_detectada = None
@@ -141,31 +141,39 @@ def area_cliente():
     else:
         num_mesa = st.selectbox("Selecione a sua Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
     
-    st.title(f"📱 NobreSabor - Atendimento Digital | Mesa {num_mesa} 🍽️")
-    st.info(f"📍 Conexão direta estabelecida com sucesso para a **Mesa {num_mesa}**.")
-    
+    # Se o cliente ainda não estiver registado, mostra o ecrã de boas-vindas pedido
     if num_mesa not in st.session_state.clientes_mesa:
-        st.subheader("📝 Registo Inicial do Cliente")
-        with st.form(f"form_cli_{num_mesa}"):
-            nome_cli = st.text_input("Nome Completo:")
-            tel_cli = st.text_input("Número de Telefone / WhatsApp:")
-            whatsapp_opt = st.checkbox("Deseja participar do Grupo de WhatsApp do Restaurante?")
-            
-            btn_reg = st.form_submit_button("Entrar e Ver Menu")
-            if btn_reg and nome_cli and tel_cli:
-                st.session_state.clientes_mesa[num_mesa] = {
-                    "nome": nome_cli,
-                    "telefone": tel_cli,
-                    "whatsapp": whatsapp_opt
-                }
-                st.session_state.mesas[num_mesa]["status"] = "Aberta"
-                st.success("Registo efetuado com sucesso!")
-                st.rerun()
-            elif btn_reg:
-                st.warning("Preencha o seu nome e telefone.")
+        st.markdown("<h1 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center; color: gray;'>Atendimento Digital - Mesa {num_mesa}</h3>", unsafe_allow_html=True)
+        st.divider()
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.info("Por favor, faça o seu registo rápido para iniciar os pedidos.")
+            with st.form(f"form_cli_{num_mesa}"):
+                nome_cli = st.text_input("Nome Completo:")
+                tel_cli = st.text_input("Telefone:")
+                whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp do Restaurante?")
+                
+                btn_reg = st.form_submit_button("Entrar e Ver Menu", use_container_width=True)
+                if btn_reg and nome_cli and tel_cli:
+                    # Regista o cliente
+                    st.session_state.clientes_mesa[num_mesa] = {
+                        "nome": nome_cli,
+                        "telefone": tel_cli,
+                        "whatsapp": whatsapp_opt
+                    }
+                    # Abre automaticamente a mesa no sistema e caixa
+                    st.session_state.mesas[num_mesa]["status"] = "Aberta"
+                    st.success("Registo efetuado com sucesso! A abrir o menu...")
+                    st.rerun()
+                elif btn_reg:
+                    st.warning("Por favor, preencha o seu nome e telefone.")
     else:
+        # Cliente já registado, exibe o painel de pedidos e consumo
         cli = st.session_state.clientes_mesa[num_mesa]
-        st.success(f"Bem-vindo, **{cli['nome']}**! A sua mesa está pronta a receber pedidos.")
+        st.title(f"📱 NobreSabor | Mesa {num_mesa}")
+        st.success(f"Bem-vindo, **{cli['nome']}**! A sua mesa está aberta e pronta a receber pedidos.")
         
         tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo", "🎉 Eventos"])
         
@@ -195,7 +203,7 @@ def area_cliente():
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
-                    st.success("🎉 Pedido enviado com sucesso!")
+                    st.success("🎉 Pedido enviado com sucesso para a cozinha/caixa!")
                     st.balloons()
             else:
                 st.warning("Cardápio indisponível no momento.")
@@ -313,7 +321,7 @@ def area_garcon():
 
 
 # ==========================================
-# ÁREA: CAIXA & GESTÃO DE MESAS
+# ÁREA: CAIXA & GESTÃO DE MESAS (COM QR CODES INTERNOS)
 # ==========================================
 def area_caixa():
     st.title("💻 Caixa - Controlo Geral e Mesas")
@@ -339,6 +347,33 @@ def area_caixa():
         
         dados_mesa = st.session_state.mesas[m_ativa]
         
+        # Secção com o Link e QR Code Integrado de Cada Mesa específica
+        with st.expander(f"📷 Ver Link e Código QR da Mesa {m_ativa} (Para Impressão/Cliente)"):
+            dominio_base = st.text_input("URL base do Sistema (ex: http://localhost:8501 ou IP local):", "http://localhost:8501", key=f"url_base_{m_ativa}")
+            link_mesa = f"{dominio_base.rstrip('/')}/?mesa={m_ativa}"
+            
+            col_qr1, col_qr2 = st.columns([2, 1])
+            with col_qr1:
+                st.write("Link direto para esta mesa:")
+                st.code(link_mesa, language="text")
+                if m_ativa in st.session_state.clientes_mesa:
+                    cli_atual = st.session_state.clientes_mesa[m_ativa]
+                    st.info(f"👤 **Cliente Registado:** {cli_atual['nome']} | 📞 {cli_atual['telefone']} | Grupo WhatsApp: {'Sim ✅' if cli_atual['whatsapp'] else 'Não ❌'}")
+                else:
+                    st.warning("👤 Nenhum cliente registado nesta mesa ainda (aguardando leitura do QR code).")
+            with col_qr2:
+                img_bytes = gerar_qrcode_bytes(link_mesa)
+                st.image(img_bytes, width=150, caption=f"QR Code Mesa {m_ativa}")
+                st.download_button(
+                    label=f"📥 Baixar QR Mesa {m_ativa}",
+                    data=img_bytes,
+                    file_name=f"qrcode_mesa_{m_ativa}.png",
+                    mime="image/png",
+                    key=f"down_qr_{m_ativa}"
+                )
+
+        st.divider()
+
         col_st1, col_st2 = st.columns([2, 2])
         with col_st1:
             st.write(f"**Estado Atual:** {dados_mesa['status']} | **Total da Conta:** **{dados_mesa['total']:,.2f} Kz**")
@@ -351,6 +386,8 @@ def area_caixa():
             else:
                 if st.button(f"🔴 Fechar / Bloquear Mesa {m_ativa}"):
                     st.session_state.mesas[m_ativa]["status"] = "Fechada"
+                    if m_ativa in st.session_state.clientes_mesa:
+                        del st.session_state.clientes_mesa[m_ativa]
                     st.rerun()
 
         st.divider()
@@ -452,13 +489,13 @@ def area_caixa():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (CAIXA, STOCK, DRH, QR CODES)
+# ÁREA: ADMINISTRADOR (SEM QR CODES)
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador")
-    st.info("Aqui controla a abertura/fecho do Caixa, faz o registo de stock, gere o DRH e extrai os QR codes oficiais de cada mesa.")
+    st.info("Aqui controla a abertura/fecho do Caixa, faz o registo de stock e gere o DRH.")
     
-    tab_adm_cx, tab_adm_stock, tab_adm_drh, tab_adm_qr = st.tabs(["💰 Controlo de Caixa", "📦 Stock", "👥 Recursos Humanos", "📷 QR Codes das Mesas"])
+    tab_adm_cx, tab_adm_stock, tab_adm_drh = st.tabs(["💰 Controlo de Caixa", "📦 Stock", "👥 Recursos Humanos"])
     
     with tab_adm_cx:
         st.subheader("Gestão do Estado do Caixa")
@@ -509,30 +546,6 @@ def area_administrador():
                 st.success(f"Colaborador {nome_colab} registado com sucesso!")
                 
         st.dataframe(st.session_state.rh, use_container_width=True)
-        
-    with tab_adm_qr:
-        st.subheader("Gerador de QR Codes por Mesa")
-        dominio_base = st.text_input("Domínio / URL base do Sistema (ex: http://localhost:8501)", "http://localhost:8501")
-        mesa_selecionada_adm = st.selectbox("Selecione a Mesa para obter o QR Code Individual:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
-        
-        st.divider()
-        col_det1, col_det2 = st.columns([2, 1])
-        link_qrcode_executavel = f"{dominio_base.rstrip('/')}/?mesa={mesa_selecionada_adm}"
-        
-        with col_det1:
-            st.write("Link direto formatado para leitura automática via QR Code:")
-            st.code(link_qrcode_executavel, language="text")
-            st.info("Este link carrega instantaneamente a interface do cliente direcionada à mesa selecionada.")
-            
-        with col_det2:
-            img_bytes = gerar_qrcode_bytes(link_qrcode_executavel)
-            st.image(img_bytes, width=180, caption=f"QR Code Oficial - Mesa {mesa_selecionada_adm}")
-            st.download_button(
-                label=f"📥 Descarregar QR Code Mesa {mesa_selecionada_adm}",
-                data=img_bytes,
-                file_name=f"qrcode_mesa_{mesa_selecionada_adm}.png",
-                mime="image/png"
-            )
 
 
 # ==========================================
