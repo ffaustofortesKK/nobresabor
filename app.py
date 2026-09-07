@@ -303,7 +303,6 @@ def area_administrador():
         
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
-    # Apenas as 3 abas solicitadas
     tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH"])
     
     with tab_fin:
@@ -492,27 +491,7 @@ def gestao_mesas_caixa():
                     st.rerun()
 
     else:
-        st.subheader("📋 Painel de Mesas")
-        cols = st.columns(6)
-        for i in range(1, 31):
-            m_info = st.session_state.mesas[i]
-            tem_pendente = any(p["status"] == "Pendente" for p in m_info["pedidos"])
-            tem_pronto = any(p.get("cozinha_status") == "Feito" for p in m_info["pedidos"])
-            
-            with cols[(i - 1) % 6]:
-                if tem_pronto:
-                    st.markdown(f'<div class="mesa-pronta">MESA {i}<br>🍲 PRATO PRONTO!</div>', unsafe_allow_html=True)
-                elif tem_pendente:
-                    st.markdown(f'<div class="mesa-alerta">MESA {i}<br>🔔 NOVO PEDIDO!</div>', unsafe_allow_html=True)
-                elif m_info["status"] == "Aberta":
-                    st.markdown(f'<div class="mesa-aberta">Mesa {i}<br>({m_info["total"]:,.2f} Kz)</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="mesa-fechada">Mesa {i}<br>Fechada</div>', unsafe_allow_html=True)
-                    
-                if st.button(f"Gerir Mesa {i}", key=f"btn_m_{i}"):
-                    st.session_state.mesa_ativa = i
-                    st.rerun()
-        
+        # Apenas o painel do administrador é exibido diretamente na página inicial agora.
         area_administrador()
 
 
