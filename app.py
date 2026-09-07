@@ -426,7 +426,6 @@ def area_caixa():
                             st.success("Bebida confirmada e saída de stock autorizada!")
                             st.rerun()
                 with col3:
-                    # Remoção com justificativa obrigatória
                     with st.form(f"form_rem_{m_ativa}_{idx}"):
                         justificativa = st.text_input("Justificativa para remover:", key=f"just_{m_ativa}_{idx}")
                         btn_rem = st.form_submit_button("❌ Remover Item")
@@ -448,7 +447,6 @@ def area_caixa():
                                 st.rerun()
                 st.divider()
 
-            # Fecho de Faturação
             st.subheader("💳 Fechar Fatura e Pagamento")
             tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Monetário (Dinheiro)", "Pagamento Automático TPA"])
             
@@ -497,7 +495,7 @@ def area_caixa():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (SEM GESTÃO DE MESAS, APENAS CONTROLOS GLOBAIS)
+# ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador - NobreSabor")
@@ -520,11 +518,11 @@ def area_administrador():
             st.error("O Caixa encontra-se atualmente **FECHADO**.")
             if st.button("🟢 Abrir o Caixa"):
                 st.session_state.caixa_aberto = True
+                st.success("Caixa aberto com sucesso! O painel do caixa em `/?perfil=caixa` já está operacional.")
                 st.rerun()
                 
     with tab2:
         st.subheader("📋 Faturação do Dia e Registo Permanente de Clientes")
-        st.write("Histórico definitivo de faturas pagas (nunca perdido).")
         if len(st.session_state.historico_vendas_definitivo) == 0:
             st.info("Ainda não há registos de vendas fechadas.")
         else:
@@ -535,7 +533,6 @@ def area_administrador():
             
     with tab3:
         st.subheader("⚠️ Caixa de Remoção de Pedidos")
-        st.write("Registo de auditoria de itens cancelados e respetivas justificativas.")
         if len(st.session_state.remocoes_log) == 0:
             st.success("Nenhum item removido até o momento.")
         else:
