@@ -15,6 +15,7 @@ st.set_page_config(
 
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
+ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
 
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
@@ -39,13 +40,28 @@ def carregar_mesas_disco():
                 return json.load(f)
         except:
             pass
-    # Estrutura padrão se não existir
-    return {str(i): {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None} for i in range(1, 31)}
+    return {str(i): {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "faturado": False, "fatura_dados": None} for i in range(1, 31)}
 
 def salvar_mesas_disco(mesas_dict):
     try:
         with open(ARQUIVO_DADOS_MESAS, "w", encoding="utf-8") as f:
             json.dump(mesas_dict, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_historico_disco():
+    if os.path.exists(ARQUIVO_HISTORICO_VENDAS):
+        try:
+            with open(ARQUIVO_HISTORICO_VENDAS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_historico_disco(hist_list):
+    try:
+        with open(ARQUIVO_HISTORICO_VENDAS, "w", encoding="utf-8") as f:
+            json.dump(hist_list, f, ensure_ascii=False, indent=4)
     except:
         pass
 
@@ -80,6 +96,13 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         margin-bottom: 30px;
     }
+    .fatura-box {
+        padding: 30px;
+        border-radius: 12px;
+        background-color: #f9f9f9;
+        border: 1px solid #ccc;
+        color: #333;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -106,6 +129,7 @@ except Exception:
 # Sincroniza estados globais do disco
 st.session_state.caixa_aberto = ler_estado_caixa_disco()
 st.session_state.mesas_disco = carregar_mesas_disco()
+st.session_state.historico_vendas_definitivo = carregar_historico_disco()
 
 if "stock" not in st.session_state:
     st.session_state.stock = pd.DataFrame([
@@ -124,9 +148,6 @@ if "rh" not in st.session_state:
         ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
         ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
     ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
-
-if "historico_vendas_definitivo" not in st.session_state:
-    st.session_state.historico_vendas_definitivo = []
 
 URL_OFICIAL = "https://nobresabor.streamlit.app"
 
@@ -152,17 +173,36 @@ else:
 # ÁREA: CLIENTE
 # ==========================================
 def area_cliente():
-    # Identifica a mesa exata passada na URL
     if mesa_detectada and 1 <= mesa_detectada <= 30:
         num_mesa = mesa_detectada
     else:
-        # Se abriu sem parâmetro na URL, avisa o utilizador para usar o link correto
         st.error("⚠️ Nenhum número de mesa detetado no link! Por favor, escaneie o QR Code correto da sua mesa.")
         return
 
     mesas_data = carregar_mesas_disco()
     str_mesa = str(num_mesa)
     dados_m = mesas_data[str_mesa]
+
+    # Se a conta foi faturada pelo caixa, exibe a fatura final e agradecimento
+    if dados_m.get("faturado") and dados_m.get("fatura_dados"):
+        fat = dados_m["fatura_dados"]
+        st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center;'>🍽️ Restaurante Nobre Sabor</h2>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align: center; color: gray;'>Fatura / Recibo de Consumo</h4>", unsafe_allow_html=True)
+        st.divider()
+        st.write(f"**Mesa:** {num_mesa} | **Cliente:** {fat['nome']} | **Data:** {fat['data']}")
+        st.write(f"**Método de Pagamento:** {fat['pagamento']}")
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        st.subheader("Itens Consumidos:")
+        for item in fat['itens']:
+            st.write(f"- {item['quantidade']}x {item['item']} — {(item['quantidade'] * item['preco']):,.2f} Kz")
+            
+        st.markdown(f"### Total Pago: {fat['total']:,.2f} Kz")
+        st.divider()
+        st.success("🎉 **Muito obrigado pela sua presença no Restaurante Nobre Sabor! Esperamos vê-lo(a) novamente em breve.**")
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
 
     if not dados_m.get("cliente"):
         st.markdown(f"<h1 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h1>", unsafe_allow_html=True)
@@ -221,7 +261,6 @@ def area_cliente():
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
                     
-                    # Adiciona e recalcula o total diretamente no disco
                     dados_m["pedidos"].append(novo_pedido)
                     dados_m["status"] = "Aberta"
                     
@@ -348,9 +387,11 @@ def area_administrador():
                     st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader("📊 Histórico de Vendas")
-        if st.session_state.historico_vendas_definitivo:
-            st.dataframe(pd.DataFrame(st.session_state.historico_vendas_definitivo), use_container_width=True)
+        st.subheader("📊 Histórico de Vendas (Administrador)")
+        
+        historico_atual = carregar_historico_disco()
+        if historico_atual:
+            st.dataframe(pd.DataFrame(historico_atual), use_container_width=True)
         else:
             st.info("Sem vendas registadas.")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -396,10 +437,27 @@ def area_caixa_mesas():
     
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
     mesas_data = carregar_mesas_disco()
+    historico_vendas = carregar_historico_disco()
 
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** O Administrador encerrou o caixa.")
         return
+
+    # CÁLCULO DOS TOTAIS ACUMULADOS EM CAIXA (Monetário vs TPA)
+    total_monetario = sum(v["Valor"] for v in historico_vendas if v.get("Pagamento") == "Dinheiro (Monetário)")
+    total_tpa = sum(v["Valor"] for v in historico_vendas if v.get("Pagamento") == "TPA")
+    total_geral_caixa = total_monetario + total_tpa
+
+    # Bloco superior de contagem de valores acumulados no Caixa
+    st.markdown(f"""
+        <div style="background-color: #f1f3f5; padding: 20px; border-radius: 10px; border: 1px solid #ced4da; margin-bottom: 25px;">
+            <h3 style="margin-top: 0; color: #333;">💵 Total em Caixa</h3>
+            <hr style="margin: 5px 0 15px 0;">
+            <p style="font-size: 1.1em; margin: 5px 0;"><b>Valor em Monetário:</b> <span style="color: #2b8a3e; font-weight: bold;">{total_monetario:,.2f} Kz</span></p>
+            <p style="font-size: 1.1em; margin: 5px 0;"><b>Valor em TPA:</b> <span style="color: #1864ab; font-weight: bold;">{total_tpa:,.2f} Kz</span></p>
+            <p style="font-size: 1.2em; margin: 10px 0 0 0;"><b>Total Geral Acumulado:</b> <span style="color: #d9480f; font-weight: bold;">{total_geral_caixa:,.2f} Kz</span></p>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.success("🟢 Caixa Aberto. Atualização inteligente em segundo plano ativa.")
     st.markdown("<br>", unsafe_allow_html=True)
@@ -414,7 +472,6 @@ def area_caixa_mesas():
         st.header(f"🎛️ Gestão da Mesa {m_ativa}")
         dados_mesa = mesas_data[str_m_ativa]
         
-        # Atualiza o total calculado
         total_calculado = sum(
             p['quantidade'] * p['preco'] 
             for p in dados_mesa['pedidos'] 
@@ -449,20 +506,40 @@ def area_caixa_mesas():
 
         st.markdown(f"### Total a Pagar: **{dados_mesa['total']:,.2f} Kz**")
 
+        # Seleção do tipo de pagamento e botão de fechar conta
+        forma_pagamento = st.radio("Selecione o Método de Pagamento:", ["Dinheiro (Monetário)", "TPA"], horizontal=True)
+
         if st.button("💳 Fechar Conta e Faturar", type="primary"):
             if dados_mesa['total'] > 0:
                 nome_c_fatura = dados_mesa['cliente']['nome'] if dados_mesa.get('cliente') else 'Cliente Mesa'
                 tel_c_fatura = dados_mesa['cliente']['telefone'] if dados_mesa.get('cliente') else 'N/A'
+                data_hora_atual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                st.session_state.historico_vendas_definitivo.append({
-                    "Nome": nome_c_fatura, "Telefone": tel_c_fatura, "Mesa": m_ativa,
-                    "Valor": dados_mesa["total"], "Dia": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pagamento": "Dinheiro/TPA"
-                })
-                st.success("Conta fechada com sucesso!")
-                
-                # Reseta a mesa no disco
-                mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None}
+                # Regista no histórico global compartilhado com o Administrador
+                nova_venda = {
+                    "Nome": nome_c_fatura, 
+                    "Telefone": tel_c_fatura, 
+                    "Mesa": m_ativa,
+                    "Valor": dados_mesa["total"], 
+                    "Dia": data_hora_atual, 
+                    "Pagamento": forma_pagamento
+                }
+                historico_vendas.append(nova_venda)
+                salvar_historico_disco(historico_vendas)
+
+                # Prepara dados da fatura para o cliente visualizar no telemóvel
+                dados_mesa["faturado"] = True
+                dados_mesa["fatura_dados"] = {
+                    "nome": nome_c_fatura,
+                    "telefone": tel_c_fatura,
+                    "data": data_hora_atual,
+                    "pagamento": forma_pagamento,
+                    "itens": list(dados_mesa["pedidos"]),
+                    "total": dados_mesa["total"]
+                }
                 salvar_mesas_disco(mesas_data)
+
+                st.success("Conta fechada e faturada com sucesso! O cliente já pode ver a fatura e a mensagem de agradecimento no telemóvel.")
                 del st.session_state.mesa_ativa
                 st.rerun()
             else:
@@ -478,7 +555,6 @@ def area_caixa_mesas():
                     dados_m = mesas_data[str_num]
                     status_m = dados_m["status"]
                     
-                    # Atualiza totais no disco para exibição nos blocos
                     total_m = sum(
                         p['quantidade'] * p['preco'] 
                         for p in dados_m['pedidos'] 
@@ -500,7 +576,6 @@ def area_caixa_mesas():
                             st.session_state.mesa_ativa = num_mesa
                             st.rerun()
     
-    # Salva atualizações periódicas das mesas
     salvar_mesas_disco(mesas_data)
 
 
