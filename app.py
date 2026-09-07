@@ -491,7 +491,39 @@ def gestao_mesas_caixa():
                     st.rerun()
 
     else:
-        # Apenas o painel do administrador é exibido diretamente na página inicial agora.
+        st.subheader("Painel de Mesas")
+        cols_por_linha = 6
+        for linha in range(5):
+            cols = st.columns(cols_por_linha)
+            for c in range(cols_por_linha):
+                num_mesa = linha * cols_por_linha + c + 1
+                if num_mesa <= 30:
+                    dados_m = st.session_state.mesas[num_mesa]
+                    status_m = dados_m["status"]
+                    
+                    tem_pedido_pendente = any(p["status"] == "Pendente" or p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"])
+                    tem_refeicao_pronta = any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"])
+                    
+                    classe_css = "mesa-fechada"
+                    if status_m == "Aberta":
+                        classe_css = "mesa-aberta"
+                    if tem_refeicao_pronta:
+                        classe_css = "mesa-pronta"
+                    elif tem_pedido_pendente:
+                        classe_css = "mesa-alerta"
+                        
+                    with cols[c]:
+                        st.markdown(f"""
+                            <div class="{classe_css}">
+                                Mesa {num_mesa}<br>
+                                <span style="font-size: 12px; font-weight: normal;">{status_m}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        if st.button(f"Gerir Mesa {num_mesa}", key=f"btn_gerir_m_{num_mesa}", use_container_width=True):
+                            st.session_state.mesa_ativa = num_mesa
+                            st.rerun()
+                        st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+
         area_administrador()
 
 
