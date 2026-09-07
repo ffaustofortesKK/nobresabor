@@ -122,12 +122,12 @@ if mesa_detectada and 1 <= mesa_detectada <= 30:
     st.sidebar.success(f"📱 Atendimento Digital (Mesa {mesa_detectada})")
     menu_selecionado = "📱 Cliente"
 else:
+    # Módulo cliente manual removido do menu lateral conforme solicitado
     menu_opcoes = [
         "💻 Caixa & Gestão de Mesas", 
         "🍳 Cozinha (Chef)",
         "👨‍🍳 Garçon", 
-        "👑 Administrador",
-        "📱 Cliente (Manual)"
+        "👑 Administrador"
     ]
     menu_selecionado = st.sidebar.selectbox("Selecione a Área:", menu_opcoes)
 
@@ -139,19 +139,18 @@ def area_cliente():
     if mesa_detectada and 1 <= mesa_detectada <= 30:
         num_mesa = mesa_detectada
     else:
-        num_mesa = st.selectbox("Selecione a sua Mesa:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+        num_mesa = 1
     
     # Se o cliente ainda não estiver registado, mostra o ecrã de boas-vindas pedido
     if num_mesa not in st.session_state.clientes_mesa:
         st.markdown("<h1 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h1>", unsafe_allow_html=True)
-        st.markdown(f"<h3 style='text-align: center; color: gray;'>Atendimento Digital - Mesa {num_mesa}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center; color: gray;'>Faça o seu registo - Mesa {num_mesa}</h3>", unsafe_allow_html=True)
         st.divider()
         
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            st.info("Por favor, faça o seu registo rápido para iniciar os pedidos.")
             with st.form(f"form_cli_{num_mesa}"):
-                nome_cli = st.text_input("Nome Completo:")
+                nome_cli = st.text_input("Nome:")
                 tel_cli = st.text_input("Telefone:")
                 whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp do Restaurante?")
                 
@@ -321,7 +320,7 @@ def area_garcon():
 
 
 # ==========================================
-# ÁREA: CAIXA & GESTÃO DE MESAS (COM QR CODES INTERNOS)
+# ÁREA: CAIXA & GESTÃO DE MESAS (COM QR CODES DENTRO DE CADA MESA)
 # ==========================================
 def area_caixa():
     st.title("💻 Caixa - Controlo Geral e Mesas")
@@ -347,9 +346,9 @@ def area_caixa():
         
         dados_mesa = st.session_state.mesas[m_ativa]
         
-        # Secção com o Link e QR Code Integrado de Cada Mesa específica
-        with st.expander(f"📷 Ver Link e Código QR da Mesa {m_ativa} (Para Impressão/Cliente)"):
-            dominio_base = st.text_input("URL base do Sistema (ex: http://localhost:8501 ou IP local):", "http://localhost:8501", key=f"url_base_{m_ativa}")
+        # Secção com o Link e QR Code Integrado diretamente dentro desta Mesa
+        with st.expander(f"📷 Código QR e Link Direto da Mesa {m_ativa} (Para Impressão)", expanded=True):
+            dominio_base = st.text_input("URL base do Sistema (ex: http://localhost:8501 ou IP de rede):", "http://localhost:8501", key=f"url_base_{m_ativa}")
             link_mesa = f"{dominio_base.rstrip('/')}/?mesa={m_ativa}"
             
             col_qr1, col_qr2 = st.columns([2, 1])
@@ -363,7 +362,7 @@ def area_caixa():
                     st.warning("👤 Nenhum cliente registado nesta mesa ainda (aguardando leitura do QR code).")
             with col_qr2:
                 img_bytes = gerar_qrcode_bytes(link_mesa)
-                st.image(img_bytes, width=150, caption=f"QR Code Mesa {m_ativa}")
+                st.image(img_bytes, width=150, caption=f"QR Code Oficial - Mesa {m_ativa}")
                 st.download_button(
                     label=f"📥 Baixar QR Mesa {m_ativa}",
                     data=img_bytes,
@@ -489,7 +488,7 @@ def area_caixa():
 
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (SEM QR CODES)
+# ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
     st.title("👑 Painel do Administrador")
@@ -562,4 +561,4 @@ elif menu_selecionado == "👨‍🍳 Garçon":
 elif menu_selecionado == "👑 Administrador":
     area_administrador()
 else:
-    area_cliente()
+    area_caixa()
