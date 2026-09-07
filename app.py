@@ -371,9 +371,9 @@ def area_administrador():
 
 
 # ==========================================
-# ROTEADOR PRINCIPAL (GERÊNCIA DE MESAS / CAIXA INTERNO)
+# ÁREA: CAIXA / GESTÃO DE MESAS (?perfil=caixa)
 # ==========================================
-def gestao_mesas_caixa():
+def area_caixa_mesas():
     st.title("💻 Controlo Geral de Mesas e Pagamentos")
     
     if not st.session_state.caixa_aberto:
@@ -524,8 +524,6 @@ def gestao_mesas_caixa():
                             st.rerun()
                         st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
 
-        area_administrador()
-
 
 # ==========================================
 # ROTEADOR PRINCIPAL
@@ -534,5 +532,7 @@ if mesa_detectada and 1 <= mesa_detectada <= 30:
     area_cliente()
 elif perfil_url == "cozinha":
     area_cozinha()
+elif perfil_url == "caixa":
+    area_caixa_mesas()
 else:
-    gestao_mesas_caixa()
+    area_administrador()
