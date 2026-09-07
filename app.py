@@ -89,19 +89,16 @@ def gerar_qrcode_bytes(url_texto):
 query_params = st.query_params
 mesa_detectada = None
 
-# Verifica se existe parâmetro ?mesa=X
 if "mesa" in query_params:
     try:
         mesa_detectada = int(query_params.get("mesa"))
     except:
         pass
 
-# Suporte a rotas limpas simuladas (ex: ?path=cliente/mesa1/qr)
 if not mesa_detectada and "path" in query_params:
     path_val = query_params.get("path", "")
     if "mesa" in path_val:
         try:
-            # Extrai o número da mesa da string (ex: 'cliente/mesa1/qr' -> 1)
             partes = path_val.split("mesa")
             num_str = partes[1].split("/")[0]
             mesa_detectada = int(num_str)
@@ -115,16 +112,15 @@ if not mesa_detectada and "path" in query_params:
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=80)
 st.sidebar.title("NobreSabor - Gestão")
 
-# Se o cliente aceder via QR Code de uma mesa específica, o sistema bloqueia no Módulo Cliente da respetiva mesa automaticamente!
 if mesa_detectada and 1 <= mesa_detectada <= 30:
-    st.sidebar.success(modo_qr_txt := f"📱 Modo Cliente Ativo (Mesa {mesa_detectada})")
+    st.sidebar.success(f"📱 Modo Cliente (Mesa {mesa_detectada})")
     modulo_atual = "📱 Módulo: Cliente"
 else:
     menu_opcoes = [
-        "💻 Módulo: Caixa", 
+        "💻 Módulo: Caixa & Gestão de Mesas", 
         "👨‍🍳 Módulo: Garçon", 
         "📦 Módulo: Stock",
-        "👑 Módulo: Administrador",
+        "👑 Módulo: Administrador / QR Codes",
         "👥 Módulo: Recursos Humanos",
         "📱 Módulo: Cliente (Manual)"
     ]
@@ -135,7 +131,6 @@ else:
 # MÓDULO: CLIENTE (AUTOMATIZADO POR QR CODE)
 # ==========================================
 def modulo_cliente():
-    # Se foi detetado por QR Code, usa essa mesa. Caso contrário, deixa escolher.
     if mesa_detectada and 1 <= mesa_detectada <= 30:
         num_mesa = mesa_detectada
     else:
@@ -144,7 +139,6 @@ def modulo_cliente():
     st.title(f"📱 NobreSabor - Atendimento Digital | Mesa {num_mesa} 🍽️")
     st.info(f"📍 Conexão direta estabelecida com sucesso para a **Mesa {num_mesa}**.")
     
-    # Registo inicial do cliente na mesa
     if num_mesa not in st.session_state.clientes_mesa:
         st.subheader("📝 Registo Inicial do Cliente")
         with st.form(f"form_cli_{num_mesa}"):
@@ -194,7 +188,6 @@ def modulo_cliente():
                         "status": "Pendente",
                         "hora": datetime.now().strftime("%H:%M:%S")
                     }
-                    # O pedido vai direto para a lista desta mesa exata!
                     st.session_state.mesas[num_mesa]["pedidos"].append(novo_pedido)
                     st.success("🎉 Pedido enviado com sucesso para o Caixa da Mesa!")
                     st.balloons()
@@ -273,7 +266,7 @@ def modulo_garcon():
 
 
 # ==========================================
-# MÓDULO: CAIXA (INTEGRAÇÃO DIRETA COM AS MESAS)
+# MÓDULO: CAIXA & GESTÃO DE MESAS
 # ==========================================
 def modulo_caixa():
     if "mesa_ativa" in st.session_state:
@@ -283,7 +276,7 @@ def modulo_caixa():
             del st.session_state.mesa_ativa
             st.rerun()
             
-        st.header(f"🎛️ Módulo Caixa - Gestão da Mesa {m_ativa}")
+        st.header(f"🎛️ Módulo Caixa - Gestão Detalhada da Mesa {m_ativa}")
         
         dados_mesa = st.session_state.mesas[m_ativa]
         
@@ -375,7 +368,7 @@ def modulo_caixa():
 
     else:
         st.title("💻 Módulo Caixa - Controlo Geral das 30 Mesas")
-        st.info("As mesas com pedidos pendentes piscam a vermelho automaticamente. Clique em 'Gerir Mesa' para ver os itens enviados pelo QR Code do cliente.")
+        st.info("As mesas com pedidos pendentes piscam a vermelho. Clique em 'Gerir Mesa' para ver os pedidos do cliente, faturar ou obter o QR Code específico da mesa.")
         
         cols = st.columns(6)
         for i in range(1, 31):
@@ -418,29 +411,43 @@ def modulo_stock():
 
 
 # ==========================================
-# MÓDULO: ADMINISTRADOR (GOP / QR CODES LIMPOS)
+# MÓDULO: ADMINISTRADOR (GERADOR DE QR CODES POR MESA)
 # ==========================================
 def modulo_administrador():
-    st.title("👑 Módulo do Administrador - Configuração de Rotas e QR Codes")
-    st.info("Gere os QR Codes personalizados no formato exacto solicitado (`nobresabor/cliente/mesaX/qr`) para cada uma das 30 mesas.")
+    st.title("👑 Módulo do Administrador - Gestão de QR Codes por Mesa")
+    st.info("Aqui pode consultar o link dedicado de cada mesa, copiar para colocar na mesa correspondente ou gerar o QR Code individual.")
     
-    dominio_base = st.text_input("Domínio / URL base do Sistema", "http://localhost:8501")
+    dominio_base = st.text_input("Domínio / URL base do Sistema (ex: http://localhost:8501)", "http://localhost:8501")
     
-    cols_qr = st.columns(3)
-    for i in range(1, 31):
-        # Link amigável para o QR Code mapeado exatamente para a mesa correspondente
-        link_mesa_limpo = f"{dominio_base.rstrip('/')}/cliente/mesa{i}/qr"
-        # Link de redirecionamento interno em query param compatível com o Streamlit
-        link_qrcode_executavel = f"{dominio_base.rstrip('/')}/?mesa={i}"
+    # Seletor para escolher uma mesa específica e focar na extração do seu QR Code individual
+    mesa_selecionada_adm = st.selectbox("Selecione a Mesa para obter o QR Code Individual:", [i for i in range(1, 31)], format_func=lambda x: f"Mesa {x}")
+    
+    st.divider()
+    
+    col_det1, col_det2 = st.columns([2, 1])
+    link_mesa_limpo = f"{dominio_base.rstrip('/')}/cliente/mesa{mesa_selecionada_adm}/qr"
+    link_qrcode_executavel = f"{dominio_base.rstrip('/')}/?mesa={mesa_selecionada_adm}"
+    
+    with col_det1:
+        st.subheader(f"🔗 Informações da Mesa {mesa_selecionada_adm}")
+        st.write("Copie o link amigável abaixo para configurar nas placas de mesa:")
+        st.code(link_mesa_limpo, language="text")
         
-        with cols_qr[(i - 1) % 3]:
-            st.markdown(f"**Mesa {i}**")
-            st.code(link_mesa_limpo, language="text")
-            
-            # Gera o QR Code codificando a rota da mesa
-            img_bytes = gerar_qrcode_bytes(link_qrcode_executavel)
-            st.image(img_bytes, width=140, caption=f"QR Code Mesa {i}")
-            st.divider()
+        st.write("Link direto de execução no sistema:")
+        st.code(link_qrcode_executavel, language="text")
+        
+    with col_det2:
+        st.subheader(f"📷 QR Code Mesa {mesa_selecionada_adm}")
+        img_bytes = gerar_qrcode_bytes(link_qrcode_executavel)
+        st.image(img_bytes, width=180, caption=f"QR Code Oficial - Mesa {mesa_selecionada_adm}")
+        
+        # Botão para download direto do QR Code
+        st.download_button(
+            label=f"📥 Descarregar QR Code Mesa {mesa_selecionada_adm}",
+            data=img_bytes,
+            file_name=f"qrcode_mesa_{mesa_selecionada_adm}.png",
+            mime="image/png"
+        )
 
 
 # ==========================================
@@ -470,13 +477,13 @@ def modulo_recursos_humanos():
 # ==========================================
 if modulo_atual == "📱 Módulo: Cliente" or mesa_detectada:
     modulo_cliente()
-elif modulo_atual == "💻 Módulo: Caixa":
+elif modulo_atual == "💻 Módulo: Caixa & Gestão de Mesas":
     modulo_caixa()
 elif modulo_atual == "👨‍🍳 Módulo: Garçon":
     modulo_garcon()
 elif modulo_atual == "📦 Módulo: Stock":
     modulo_stock()
-elif modulo_atual == "👑 Módulo: Administrador":
+elif modulo_atual == "👑 Módulo: Administrador / QR Codes":
     modulo_administrador()
 elif modulo_atual == "👥 Módulo: Recursos Humanos":
     modulo_recursos_humanos()
