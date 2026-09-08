@@ -82,13 +82,11 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Visual Compacto Estilo Tablet, Margens Reduzidas e Textos em BRANCO e NEGRITO
+# Estilos CSS: Fundo totalmente preto, largura 100% preenchida e textos em BRANCO e NEGRITO
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #0c0c16;
-        max-width: 960px;
-        margin: 0 auto;
+    .stApp, body, html {
+        background-color: #0c0c16 !important;
     }
     
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
@@ -102,10 +100,11 @@ st.markdown("""
 
     /* Redução drástica de margens e preenchimentos verticais */
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 1rem !important;
         padding-bottom: 2rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
+        max-width: 100% !important;
     }
 
     h1 {
