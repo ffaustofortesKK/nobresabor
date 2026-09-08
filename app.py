@@ -1123,35 +1123,7 @@ def area_caixa_mesas():
                             else:
                                 st.warning("Por favor, preencha o motivo/justificação da anulação.")
 
-            st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**")
-            
-            with st.form(f"form_pagamento_mesa_{m_sel}"):
-                st.markdown("#### 💳 Processar Pagamento e Emitir Recibo")
-                tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto (Dinheiro + TPA)"])
-                
-                val_dinheiro = 0.0
-                val_tpa = 0.0
-                if tipo_pagamento == "Dinheiro":
-                    val_dinheiro = subtotal_m_sel
-                elif tipo_pagamento == "TPA":
-                    val_tpa = subtotal_m_sel
-                else:
-                    col_m1, col_m2 = st.columns(2)
-                    with col_m1:
-                        val_dinheiro = st.number_input("Dinheiro (Kz):", min_value=0.0, value=0.0)
-                    with col_m2:
-                        val_tpa = st.number_input("TPA (Kz):", min_value=0.0, value=0.0)
-
-                btn_concluir_pagamento = st.form_submit_button("✅ Concluir Pagamento & Libertar Mesa", use_container_width=True)
-                if btn_concluir_pagamento and subtotal_m_sel > 0:
-                    itens_validos_fatura = [
-                        {
-                            "item": p['item'],
-                            "quantidade": p['quantidade'],
-                            "preco": p['preco']
-                        }
-                        for p in pedidos_sel if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                    ]
+            st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**")            
                     
                     fatura_dados = {
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
