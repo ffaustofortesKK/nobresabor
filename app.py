@@ -393,20 +393,20 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE (MICRO-TABLET ULTRA COMPACTO - PRETO TOTAL)
+# ÁREA: CLIENTE (MICRO-TABLET ESTREITO E COMPACTO)
 # ==========================================
 @st.fragment(run_every=4)
 def area_cliente():
     st.markdown("""
         <style>
-        .tablet-container { max-width: 420px; margin: 0 auto; background: #000000; border: 4px solid #111111; border-radius: 12px; padding: 8px; }
-        .stButton button { padding: 0.25rem 0.5rem; font-size: 0.8rem; background-color: #111111; color: #ffffff; border: 1px solid #333333; }
+        .tablet-container { max-width: 320px; margin: 0 auto; background: #000000; border: 4px solid #111111; border-radius: 12px; padding: 6px; }
+        .stButton button { padding: 0.2rem 0.4rem; font-size: 0.75rem; background-color: #111111; color: #ffffff; border: 1px solid #333333; }
         .stButton button:hover { background-color: #222222; border-color: #555555; }
-        .element-container, .stTextInput, .stSelectbox { margin-bottom: -0.4rem !important; }
+        .element-container, .stTextInput, .stSelectbox { margin-bottom: -0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { background-color: #000000; }
-        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #aaaaaa; }
+        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #aaaaaa; font-size: 0.75rem; }
         .stTabs [aria-selected="true"] { background-color: #111111 !important; color: #ffb703 !important; }
-        @media (max-width: 500px) { .tablet-container { border: none; padding: 0; background: #000000; } }
+        @media (max-width: 400px) { .tablet-container { border: none; padding: 0; background: #000000; } }
         </style>
     """, unsafe_allow_html=True)
 
@@ -423,10 +423,10 @@ def area_cliente():
 
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        st.markdown("<h4 style='text-align:center; font-size:1rem; color:#ffffff;'>🧾 Fatura Emitida</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align:center; font-size:0.9rem; color:#ffffff;'>🧾 Fatura Emitida</h4>", unsafe_allow_html=True)
         for item in fat['itens']:
-            st.markdown(f"<span style='font-size:0.75rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
-        st.markdown(f"<b style='font-size:0.85rem; color:#ffffff;'>Total: {fat['total']:,.2f}Kz</b>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
+        st.markdown(f"<b style='font-size:0.8rem; color:#ffffff;'>Total: {fat['total']:,.2f}Kz</b>", unsafe_allow_html=True)
         try:
             pdf_path = gerar_pdf_fatura(fat, num_mesa)
             if os.path.exists(pdf_path):
@@ -438,21 +438,22 @@ def area_cliente():
         return
 
     if not dados_m.get("cliente"):
-        st.markdown(f"<h4 style='text-align:center; font-size:1rem; color:#ffffff;'>🍽️ Mesa {num_mesa} - Registo</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='text-align:center; font-size:0.9rem; color:#ffffff;'>🍽️ Mesa {num_mesa} - Registo</h4>", unsafe_allow_html=True)
         with st.form(f"fc_{num_mesa}"):
             nome = st.text_input("Nome:", placeholder="Seu nome")
             tel = st.text_input("Telemóvel:", placeholder="Contacto")
+            nif = st.text_input("NIF (Opcional):", placeholder="NIF")
+            whatsapp = st.checkbox("Entrar no Grupo WhatsApp?")
             if st.form_submit_button("Entrar", use_container_width=True) and nome and tel:
-                dados_m["cliente"] = {"nome": nome, "telefone": tel, "nif": "", "whatsapp": False}
+                dados_m["cliente"] = {"nome": nome, "telefone": tel, "nif": nif, "whatsapp": whatsapp}
                 dados_m["status"] = "Aberta"
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         cli = dados_m["cliente"]
-        # Espaçamento superior ajustado e exibição do nome do cliente reposta
-        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='font-size:0.8rem; color:#ffb703; margin-bottom:8px; text-align:center; background:#111111; padding:6px; border-radius:6px;'>Mesa {num_mesa} | Cliente: <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#111111; padding:5px; border-radius:6px;'>Mesa {num_mesa} | Cliente: <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedir", "📊 Consumo", "🎉 Eventos"])
         
@@ -482,9 +483,9 @@ def area_cliente():
                 t_item = p['quantidade'] * p['preco']
                 if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                     total_parcial += t_item
-                st.markdown(f"<span style='font-size:0.75rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — <b>{p['status']}</b></span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — <b>{p['status']}</b></span>", unsafe_allow_html=True)
             
-            st.markdown(f"<b style='font-size:0.8rem; color:#ffffff;'>Parcial: {total_parcial:,.2f}Kz</b>", unsafe_allow_html=True)
+            st.markdown(f"<b style='font-size:0.75rem; color:#ffffff;'>Parcial: {total_parcial:,.2f}Kz</b>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
                 if st.button("Cancelar Fecho", key=f"cf_{num_mesa}"):
@@ -498,7 +499,7 @@ def area_cliente():
                     st.rerun()
 
         with t_ev:
-            st.markdown("<span style='font-size:0.75rem; color:#cccccc;'>Sexta: Música ao Vivo<br>Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-size:0.7rem; color:#cccccc;'>Sexta: Música ao Vivo<br>Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
         st.markdown('</div>', unsafe_allow_html=True)
         
