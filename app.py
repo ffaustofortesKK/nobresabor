@@ -4,6 +4,8 @@ from datetime import datetime
 import os
 import json
 from fpdf import FPDF
+import qrcode
+from io import BytesIO
 
 # Configuração da Página
 st.set_page_config(
@@ -12,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS (Corrigido para garantir letras pretas nas listas suspensas)
+# Estilos CSS
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -259,6 +261,15 @@ def salvar_stock_disco(df):
         df.to_json(ARQUIVO_STOCK, orient="split", index=False)
     except:
         pass
+
+def gerar_qrcode_bytes(url_texto):
+    qr = qrcode.QRCode(version=1, box_size=6, border=2)
+    qr.add_data(url_texto)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 def gerar_pdf_fatura(fat_data, num_mesa):
     pdf = FPDF()
@@ -716,7 +727,7 @@ def area_caixa_mesas():
 
     st.markdown("---")
 
-    # Layout de 2 colunas: Esquerda (Detalhes da Mesa Selecionada) | Direita (Grelha de Mesas)
+    # Layout de 2 colunas: Esquerda (Detalhes da Mesa Selecionada + QR Code) | Direita (Grelha de Mesas)
     col_esq, col_dir = st.columns([1, 1])
 
     with col_dir:
@@ -769,6 +780,22 @@ def area_caixa_mesas():
     with col_esq:
         m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
         st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
+        
+        # Secção do QR Code da Mesa Selecionada
+        base_url_atual = st.get_option("browser.gatherUsageStats") # ou link base simulado
+        url_mesa_qr = f"?mesa={m_sel}"
+        
+        col_qr1, col_qr2 = st.columns([1, 1])
+        with col_qr1:
+            img_qr_bytes = gerar_qrcode_bytes(f"Mesa {m_sel} — NobreSabor")
+            st.image(img_qr_bytes, width=130, caption=f"QR Code Mesa {m_sel}")
+        with col_qr2:
+            st.markdown(f"📱 **Link direto:**")
+            st.code(f"/?mesa={m_sel}", language="text")
+            st.link_button(f"🔗 Abrir Mesa {m_sel} (Cliente)", f"/?mesa={m_sel}", use_container_width=True)
+
+        st.divider()
+
         dados_m_sel = mesas_data[str(m_sel)]
         
         df_rh_atual = carregar_rh_disco()
