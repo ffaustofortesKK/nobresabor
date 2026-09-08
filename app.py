@@ -733,16 +733,15 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    # ABAS DE NAVEGAÇÃO DO CAIXA
-    aba_operador_1, aba_operador_2, aba_operador_3, aba_operador_4 = st.tabs([
+    # ABAS DE NAVEGAÇÃO DO CAIXA (Atualizado para 3 abas)
+    aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
         "🗺️ Mesas & Operações", 
         "📚 Histórico de Vendas por Cliente", 
-        "❌ Anular Registo / Mesa",
         "🔒 Fecho de Caixa / Resumo"
     ])
 
-    # --- ABA 4: FECHO DE CAIXA / RESUMO ---
-    with aba_operador_4:
+    # --- ABA 3 (ANTIGA 4): FECHO DE CAIXA / RESUMO ---
+    with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
         st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados. Quando estiver seguro, poderá efetuar o fecho do período.")
         
@@ -803,44 +802,6 @@ def area_caixa_mesas():
                 st.rerun()
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
-
-    # --- ABA 3: ANULAR REGISTO / MESA (APENAS MESAS ABERTAS) ---
-    with aba_operador_3:
-        st.markdown("### ❌ Anulação de Registo / Mesa Aberta Mal Feita")
-        st.warning("⚠️ Esta aba permite anular e limpar completamente uma mesa que esteja atualmente **Aberta**, caso tenha ocorrido um registo incorreto. Apenas mesas abertas são listadas abaixo.")
-        
-        mesas_abertas_lista = [
-            m for m in range(1, 31) 
-            if mesas_data.get(str(m), {}).get("status") == "Aberta" or mesas_data.get(str(m), {}).get("cliente") is not None
-        ]
-        
-        if mesas_abertas_lista:
-            mesa_para_anular = st.selectbox(
-                "Selecione a Mesa Aberta a Anular:",
-                options=mesas_abertas_lista,
-                format_func=lambda x: f"Mesa {x} (Cliente: {mesas_data.get(str(x), {}).get('cliente', {}).get('nome', 'Desconhecido') if isinstance(mesas_data.get(str(x), {}).get('cliente'), dict) else 'Livre'} | Total: {mesas_data.get(str(x), {}).get('total', 0.0):,.2f} Kz)"
-            )
-            
-            dados_mesa_anul = mesas_data.get(str(mesa_para_anular), {})
-            st.markdown(f"**Detalhes da Mesa {mesa_para_anular} selecionada:**")
-            st.write(f"- Total atual: {dados_mesa_anul.get('total', 0.0):,.2f} Kz")
-            st.write(f"- Pedidos registados: {len(dados_mesa_anul.get('pedidos', []))}")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button(f"🗑️ Confirmar Anulação Completa da Mesa {mesa_para_anular}", type="primary", use_container_width=True):
-                mesas_data[str(mesa_para_anular)] = {
-                    "status": "Fechada",
-                    "cliente": None,
-                    "pedidos": [],
-                    "total": 0.0,
-                    "garcon": "",
-                    "solicitou_fecho": False
-                }
-                salvar_mesas_disco(mesas_data)
-                st.success(f"Mesa {mesa_para_anular} anulada e reiniciada com sucesso!")
-                st.rerun()
-        else:
-            st.info("ℹ️ De momento, não existem mesas abertas para anular.")
 
     # --- ABA 2: HISTÓRICO DE VENDAS ---
     with aba_operador_2:
@@ -946,7 +907,6 @@ def area_caixa_mesas():
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Correção aplicada aqui: removido o parâmetro inválido use_company_width
                         if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.rerun()
@@ -977,62 +937,9 @@ def area_caixa_mesas():
                     with col_qr2:
                         st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
 
-                # --- LISTA DOS PEDIDOS E BOTÃO DE ADICIONAR LOGO ABAIXO ---
+                # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 
-                # Botão solicitado colocado logo abaixo do título "Pedidos da Mesa"
-                if st.button("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)", key=f"btn_add_item_caixa_{m_sel}", use_container_width=True):
-                    st.session_state[f"modal_add_item_{m_sel}"] = True
-
-                # Lógica opcional para abrir modal/formulário de adição caso o botão seja acionado
-                if st.session_state.get(f"modal_add_item_{m_sel}", False):
-                    with st.form(key=f"form_add_item_cx_{m_sel}"):
-                        st.markdown(f"**Adicionar Item Manualmente à Mesa {m_sel}**")
-                        
-                        cat_add = st.selectbox("Categoria:", ["Comida", "Bebida", "Sobremesa"], key=f"cat_add_{m_sel}")
-                        item_nome_add = st.text_input("Nome do Item:", key=f"item_nome_{m_sel}")
-                        item_qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"item_qtd_{m_sel}")
-                        item_preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"item_preco_{m_sel}")
-                        
-                        col_fa1, col_fa2 = st.columns(2)
-                        with col_fa1:
-                            submitted_add = st.form_submit_button("💾 Guardar Item", use_container_width=True)
-                        with col_fa2:
-                            cancelled_add = st.form_submit_button("❌ Cancelar", use_container_width=True)
-                            
-                        if submitted_add:
-                            if item_nome_add and item_preco_add > 0:
-                                novo_pedido = {
-                                    "item": item_nome_add,
-                                    "quantidade": item_qtd_add,
-                                    "preco": item_preco_add,
-                                    "categoria": cat_add,
-                                    "status": "Confirmado",
-                                    "cozinha_status": "Feito"
-                                }
-                                if "pedidos" not in dados_m_sel:
-                                    dados_m_sel["pedidos"] = []
-                                dados_m_sel["pedidos"].append(novo_pedido)
-                                
-                                dados_m_sel["total"] = sum(
-                                    float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) 
-                                    for item in dados_m_sel["pedidos"] 
-                                    if item.get('status') not in ["Anulado", "Recusado pela Cozinha"]
-                                )
-                                if dados_m_sel.get("status") == "Fechada":
-                                    dados_m_sel["status"] = "Aberta"
-                                    
-                                mesas_data[str(m_sel)] = dados_m_sel
-                                salvar_mesas_disco(mesas_data)
-                                st.session_state[f"modal_add_item_{m_sel}"] = False
-                                st.success(f"Item '{item_nome_add}' adicionado com sucesso!")
-                                st.rerun()
-                            else:
-                                st.warning("Insira o nome do item e um preço válido.")
-                        if cancelled_add:
-                            st.session_state[f"modal_add_item_{m_sel}"] = False
-                            st.rerun()
-
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
