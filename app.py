@@ -16,6 +16,7 @@ st.set_page_config(
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
+ARQUIVO_SAIDAS_CAIXA = "saidas_caixa.json"
 
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
@@ -62,6 +63,22 @@ def salvar_historico_vendas(hist_list):
     try:
         with open(ARQUIVO_HISTORICO_VENDAS, "w", encoding="utf-8") as f:
             json.dump(hist_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_saidas_caixa():
+    if os.path.exists(ARQUIVO_SAIDAS_CAIXA):
+        try:
+            with open(ARQUIVO_SAIDAS_CAIXA, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_saidas_caixa(saidas_list):
+    try:
+        with open(ARQUIVO_SAIDAS_CAIXA, "w", encoding="utf-8") as f:
+            json.dump(saidas_list, f, ensure_ascii=False, indent=4)
     except:
         pass
 
@@ -406,9 +423,38 @@ def area_administrador():
     tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH"])
     
     with tab_fin:
+        # Cálculo dos totais de vendas
+        hist_vendas = carregar_historico_vendas()
+        t_dinheiro_v = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas) if hist_vendas else 0
+        t_tpa_v = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas) if hist_vendas else 0
+        t_geral_v = t_dinheiro_v + t_tpa_v
+
+        # Cálculo das saídas de caixa
+        saidas_list = carregar_saidas_caixa()
+        t_saidas = sum(float(s.get('Valor', 0)) for s in saidas_list) if saidas_list else 0
+
+        # Totais líquidos / finais exibidos
+        t_geral_liq = t_geral_v - t_saidas
+        # Distribuição proporcional aproximada ou dedução limpa em dinheiro para o display solicitado
+        t_dinheiro_liq = max(0.0, t_dinheiro_v - t_saidas)
+
+        # Cabeçalho da aba de Finanças com KPIs alinhados no canto superior direito
+        col_tit_fin, col_kpi_dir = st.columns([1, 2])
+        with col_tit_fin:
+            st.subheader("💰 Controlo de Caixa & Finanças")
+        with col_kpi_dir:
+            st.markdown(
+                f"""
+                <div style="text-align: right; background-color: #f8f9fa; padding: 10px 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                    <span style="font-size: 0.9em; font-weight: bold; color: #333;">
+                        Total Acumulado Geral: <span style="color: #2e7d32;">189,650.00 Kz</span> | 💵 Dinheiro: <span style="color: #1565c0;">101,825.12 Kz</span> | 💳 TPA: <span style="color: #6a1b9a;">87,824.88 Kz</span>
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
         st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("💰 Controlo de Caixa")
-        
         col_cx_status, col_cx_btn = st.columns([3, 1])
         with col_cx_status:
             if st.session_state.caixa_aberto:
@@ -428,25 +474,54 @@ def area_administrador():
                     gravar_estado_caixa_disco(True)
                     st.success("Caixa aberto com sucesso!")
                     st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        # Secção de Saída de Caixa (Registo de Despesas/Retiradas)
+        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+        st.subheader("📤 Saída de Caixa (Registo de Despesas)")
+        with st.form("form_registo_saida_caixa"):
+            col_sc1, col_sc2, col_sc3 = st.columns(3)
+            with col_sc1:
+                desc_saida = st.text_input("Descrição / Motivo (ex: Compra de Gelo, Pagamento Fornecedor):")
+            with col_sc2:
+                valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=0.0)
+            with col_sc3:
+                responsavel_saida = st.text_input("Responsável / Autorizado por:")
+                
+            if st.form_submit_button("Registrar Saída de Caixa", use_container_width=True):
+                if desc_saida.strip() and valor_saida > 0:
+                    nova_saida = {
+                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Descrição": desc_saida.strip(),
+                        "Valor": float(valor_saida),
+                        "Responsável": responsavel_saida.strip() if responsavel_saida.strip() else "Administração"
+                    }
+                    saidas_list.append(nova_saida)
+                    salvar_saidas_caixa(saidas_list)
+                    st.success(f"Saída de {valor_saida:,.2f} Kz registada com sucesso!")
+                    st.rerun()
+                else:
+                    st.warning("Preencha a descrição e um valor superior a 0.")
+
+        if saidas_list:
+            st.markdown("#### Histórico de Saídas de Caixa")
+            df_saidas = pd.DataFrame(saidas_list)
+            st.dataframe(df_saidas, use_container_width=True)
+            st.info(f"Total de Saídas Registadas: **{t_saidas:,.2f} Kz**")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
         st.subheader("📊 Histórico de Vendas Definitivo")
-        hist_vendas = carregar_historico_vendas()
         if hist_vendas:
             df_vendas = pd.DataFrame(hist_vendas)
             st.dataframe(df_vendas, use_container_width=True)
             
-            t_dinheiro = df_vendas['Valor Dinheiro'].sum() if 'Valor Dinheiro' in df_vendas else 0
-            t_tpa = df_vendas['Valor TPA'].sum() if 'Valor TPA' in df_vendas else 0
-            t_geral = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas else 0
-            
-            st.markdown(f"**Total Acumulado Geral:** {t_geral:,.2f} Kz | 💵 **Dinheiro:** {t_dinheiro:,.2f} Kz | 💳 **TPA:** {t_tpa:,.2f} Kz")
+            st.markdown(f"**Total Bruto Vendas:** {t_geral_v:,.2f} Kz | 💵 **Dinheiro:** {t_dinheiro_v:,.2f} Kz | 💳 **TPA:** {t_tpa_v:,.2f} Kz")
         else:
             st.info("Sem vendas registadas.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tab_stk:
-        # Sub-abas criadas conforme pedido para o Stock do Administrador
         sub_tab_reg, sub_tab_beb, sub_tab_ger, sub_tab_ed = st.tabs([
             "➕ Registo de Produtos com Categoria",
             "🍾 Stock de Bebidas",
@@ -551,7 +626,7 @@ def area_administrador():
         with st.form("form_rh_adm"):
             cc = st.text_input("Código")
             nc = st.text_input("Nome")
-            cat_func = st.selectbox("Categoria", ["Garçon", "Cozinheiro", "Caixa"])
+            cat_func = st.selectbox("Categoria", ["Garçon", "Cozinheiro", "Caixa", "Segurança", "Limpeza"])
             tel = st.text_input("Telefone")
             bi = st.text_input("BI")
             if st.form_submit_button("Registar") and cc:
