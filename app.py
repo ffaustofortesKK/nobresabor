@@ -1031,8 +1031,6 @@ def area_caixa_mesas():
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
         # ==========================================
-        with st.expander("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)", expanded=False):
-            stock_df_cx = st.session_state.stock
             if stock_df_cx.empty:
                 st.warning("O stock está vazio. Adicione itens no painel do ADM.")
             else:
