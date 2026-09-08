@@ -82,21 +82,18 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Todos os textos em BRANCO e NEGRITO + Ocultação total da barra lateral
+# Estilos CSS: Textos em BRANCO e NEGRITO + Ocultação da barra lateral
 st.markdown("""
     <style>
-    /* Fundo geral e formatação global de texto em Branco e Negrito */
     .stApp {
         background-color: #0c0c16;
     }
     
-    /* Força todos os textos gerais, títulos, labels, parágrafos e spans a ficarem brancos e em negrito */
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: bold !important;
     }
 
-    /* Oculta completamente a barra lateral (sidebar) */
     [data-testid="stSidebar"] {
         display: none;
     }
@@ -159,7 +156,6 @@ st.markdown("""
         padding: 25px;
         border-radius: 12px;
     }
-    /* Estilização de inputs e botões */
     .stButton>button {
         border-radius: 8px;
         font-weight: bold !important;
@@ -167,7 +163,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Captura rigorosa de Parâmetros da URL
+# Captura de Parâmetros da URL
 mesa_detectada = None
 perfil_url = None
 
@@ -187,7 +183,6 @@ except Exception:
     except Exception:
         pass
 
-# Sincroniza estados globais do disco
 st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
 if "stock" not in st.session_state:
@@ -360,7 +355,7 @@ def area_cliente():
 
 
 # ==========================================
-# ÁREA: COZINHA (Com Fragmento Auto-Executável)
+# ÁREA: COZINHA
 # ==========================================
 @st.fragment(run_every=6)
 def area_cozinha():
@@ -695,7 +690,7 @@ def area_administrador():
 
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (Com Fragmento Auto-Executável)
+# ÁREA: CAIXA / GESTÃO DE MESAS (Organizado em Abas por Blocos)
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
@@ -841,47 +836,57 @@ def area_caixa_mesas():
         else:
             st.warning("A mesa não tem valor a faturar.")
     else:
-        cols_por_linha = 6
-        for linha in range(5):
-            cols = st.columns(cols_por_linha)
-            for c in range(cols_por_linha):
-                num_mesa = linha * cols_por_linha + c + 1
-                if num_mesa <= 30:
-                    str_num = str(num_mesa)
-                    dados_m = mesas_data[str_num]
-                    status_m = dados_m["status"]
-                    
-                    total_m = sum(
-                        float(p['quantidade']) * float(p['preco']) 
-                        for p in dados_m['pedidos'] 
-                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                    )
-                    dados_m['total'] = float(total_m)
-                    
-                    tem_refeicao_pronta = any(
-                        ("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower()) and p.get("cozinha_status") == "Feito" 
-                        for p in dados_m['pedidos']
-                    )
-                    
-                    if tem_refeicao_pronta:
-                        classe_css = "mesa-pronta-alerta"
-                        emoji_topo_html = "<div class='emoji-refeicao-topo'>🍲</div>"
-                    else:
-                        classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
-                        emoji_topo_html = ""
-                    
-                    with cols[c]:
-                        st.markdown(emoji_topo_html, unsafe_allow_html=True)
-                        alerta_pronto_html = "<div style='color: #ff6b6b; font-size: 0.8em; font-weight: bold; margin-bottom: 1px;'>🚨 Pronta!</div>" if tem_refeicao_pronta else ""
-                        nome_cli_formatado = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
-                        valor_formatado = f"<span style='font-weight: bold; font-size: 0.85em;'>{dados_m['total']:,.2f} Kz</span>"
-
-                        conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>{valor_formatado}</div>"
-                        st.markdown(conteudo_html, unsafe_allow_html=True)
+        # Sistema de Abas por blocos de mesas para caber perfeitamente na tela
+        tab_bloco1, tab_bloco2, tab_bloco3 = st.tabs(["🪑 Mesas 1 a 10", "🪑 Mesas 11 a 20", "🪑 Mesas 21 a 30"])
+        
+        blocos = [
+            (tab_bloco1, range(1, 11)),
+            (tab_bloco2, range(11, 21)),
+            (tab_bloco3, range(21, 31))
+        ]
+        
+        for tab_atual, intervalo_mesas in blocos:
+            with tab_atual:
+                cols_por_linha = 5
+                mesas_lista = list(intervalo_mesas)
+                for i in range(0, len(mesas_lista), cols_por_linha):
+                    cols = st.columns(cols_por_linha)
+                    for c_idx, num_mesa in enumerate(mesas_lista[i:i+cols_por_linha]):
+                        str_num = str(num_mesa)
+                        dados_m = mesas_data[str_num]
+                        status_m = dados_m["status"]
                         
-                        if st.button(f"Gerir {num_mesa}", key=f"btn_m_{num_mesa}", use_container_width=True):
-                            st.session_state.mesa_ativa = num_mesa
-                            st.rerun()
+                        total_m = sum(
+                            float(p['quantidade']) * float(p['preco']) 
+                            for p in dados_m['pedidos'] 
+                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                        )
+                        dados_m['total'] = float(total_m)
+                        
+                        tem_refeicao_pronta = any(
+                            ("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower()) and p.get("cozinha_status") == "Feito" 
+                            for p in dados_m['pedidos']
+                        )
+                        
+                        if tem_refeicao_pronta:
+                            classe_css = "mesa-pronta-alerta"
+                            emoji_topo_html = "<div class='emoji-refeicao-topo'>🍲</div>"
+                        else:
+                            classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
+                            emoji_topo_html = ""
+                        
+                        with cols[c_idx]:
+                            st.markdown(emoji_topo_html, unsafe_allow_html=True)
+                            alerta_pronto_html = "<div style='color: #ff6b6b; font-size: 0.8em; font-weight: bold; margin-bottom: 1px;'>🚨 Pronta!</div>" if tem_refeicao_pronta else ""
+                            nome_cli_formatado = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
+                            valor_formatado = f"<span style='font-weight: bold; font-size: 0.85em;'>{dados_m['total']:,.2f} Kz</span>"
+
+                            conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>{valor_formatado}</div>"
+                            st.markdown(conteudo_html, unsafe_allow_html=True)
+                            
+                            if st.button(f"Gerir {num_mesa}", key=f"btn_m_{num_mesa}", use_container_width=True):
+                                st.session_state.mesa_ativa = num_mesa
+                                st.rerun()
     
     salvar_mesas_disco(mesas_data)
 
