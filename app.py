@@ -82,15 +82,20 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS inspirados no layout de Administrador da imagem (Tema Escuro Luxo, Dourado e Roxo)
+# Estilos CSS: Todos os textos em BRANCO e NEGRITO (com excepção de elementos com cores de alerta específicas)
 st.markdown("""
     <style>
-    /* Fundo geral e ajuste de fontes do Streamlit para o tema escuro */
+    /* Fundo geral e formatação global de texto em Branco e Negrito */
     .stApp {
         background-color: #0c0c16;
-        color: #f1f1f1;
     }
     
+    /* Força todos os textos gerais, títulos, labels, parágrafos e spans a ficarem brancos e em negrito */
+    html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+        font-weight: bold !important;
+    }
+
     @keyframes borda-vermelha-piscar {
         0% { border: 2px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #1a0f0f; }
         50% { border: 2px solid #ffa0a0; box-shadow: none; background-color: #12121c; }
@@ -113,29 +118,26 @@ st.markdown("""
         padding: 10px;
         border-radius: 12px;
         text-align: center;
-        font-weight: bold;
         animation: borda-vermelha-piscar 1s infinite;
-        color: #ff6b6b;
+        color: #ff6b6b !important;
         font-size: 0.9em;
     }
     .mesa-aberta {
         padding: 10px;
         border-radius: 12px;
         text-align: center;
-        font-weight: bold;
         border: 2px solid #2ea44f;
         background-color: #0f2316;
-        color: #4ac26b;
+        color: #4ac26b !important;
         font-size: 0.9em;
     }
     .mesa-fechada {
         padding: 10px;
         border-radius: 12px;
         text-align: center;
-        font-weight: bold;
         border: 2px solid #30363d;
         background-color: #161b22;
-        color: #8b949e;
+        color: #ffffff !important;
         font-size: 0.9em;
     }
     .bloco-seccao {
@@ -151,12 +153,11 @@ st.markdown("""
         border: 2px dashed #ffb703;
         padding: 25px;
         border-radius: 12px;
-        color: #f1f1f1;
     }
-    /* Estilização personalizada para botões de destaque dourados */
+    /* Estilização de inputs e botões */
     .stButton>button {
         border-radius: 8px;
-        font-weight: bold;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -213,7 +214,7 @@ def gerar_qrcode_bytes(url_texto):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Sidebar dinâmica em harmonia com o tema escuro
+# Sidebar dinâmica
 st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=70)
 st.sidebar.title("NobreSabor - Gestão")
 st.sidebar.divider()
@@ -239,7 +240,7 @@ def area_cliente():
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center; color: #ffb703;'>🧾 Restaurante Nobre Sabor - Fatura / Recibo</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center;'>🧾 Restaurante Nobre Sabor - Fatura / Recibo</h2>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center;'><b>Mesa:</b> {num_mesa} | <b>Data:</b> {fat['data']}</p>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center;'><b>Cliente:</b> {fat['cliente']} | <b>Telefone:</b> {fat['telefone']}</p>", unsafe_allow_html=True)
         st.divider()
@@ -250,13 +251,13 @@ def area_cliente():
         st.markdown(f"### Total Pago: **{fat['total']:,.2f} Kz**")
         st.markdown(f"<p><b>Forma de Pagamento:</b> {fat['pagamento_detalhe']}</p>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("<h3 style='text-align: center; color: #4ac26b;'>🙏 Muito obrigado pela sua presença no Restaurante Nobre Sabor! Esperamos vê-lo(a) novamente em breve.</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença no Restaurante Nobre Sabor! Esperamos vê-lo(a) novamente em breve.</h3>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
     if not dados_m.get("cliente"):
-        st.markdown(f"<h1 style='text-align: center; color: #ffb703;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h1>", unsafe_allow_html=True)
-        st.markdown(f"<h3 style='text-align: center; color: #a0a0c0;'>Registo de Entrada - Mesa {num_mesa}</h3>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center;'>Registo de Entrada - Mesa {num_mesa}</h3>", unsafe_allow_html=True)
         st.divider()
         
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -422,18 +423,17 @@ def area_cozinha():
 # ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
-    # Cabeçalho idêntico ao modelo visual solicitado (com coroa e informações à direita)
     col_adm_title, col_adm_info = st.columns([3, 2])
     with col_adm_title:
-        st.markdown("<h1 style='color: #ffb703; margin-bottom: 0px;'>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #a0a0c0; margin-top: 0px;'>Acompanhe e gerencie todas as informações do sistema.</p>", unsafe_allow_html=True)
+        st.markdown("<h1 style='margin-bottom: 0px;'>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='margin-top: 0px;'>Acompanhe e gerencie todas as informações do sistema.</p>", unsafe_allow_html=True)
     with col_adm_info:
         data_atual_str = datetime.now().strftime("%d/%m/%Y")
         hora_atual_str = datetime.now().strftime("%H:%M")
         st.markdown(
             f"""
             <div style="text-align: right; padding-top: 15px;">
-                <span style="background-color: #1a1a38; border: 1px solid #2a2a5a; padding: 6px 12px; border-radius: 20px; font-size: 0.85em; color: #f1f1f1;">
+                <span style="background-color: #1a1a38; border: 1px solid #2a2a5a; padding: 6px 12px; border-radius: 20px; font-size: 0.85em;">
                     🟢 Sistema Online &nbsp;|&nbsp; 📅 {data_atual_str} &nbsp;|&nbsp; 🕒 {hora_atual_str}
                 </span>
             </div>
@@ -450,7 +450,6 @@ def area_administrador():
     tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH"])
     
     with tab_fin:
-        # Inicializa o estado de autenticação da aba Finanças
         if "financas_autenticado" not in st.session_state:
             st.session_state.financas_autenticado = False
 
@@ -493,8 +492,8 @@ def area_administrador():
                 st.markdown(
                     f"""
                     <div style="text-align: right; background-color: #141428; padding: 10px 15px; border-radius: 8px; border: 1px solid #2a2a4a;">
-                        <span style="font-size: 0.9em; font-weight: bold; color: #f1f1f1;">
-                            Total Geral: <span style="color: #4ac26b;">{t_geral_v:,.2f} Kz</span> | 💵 Dinheiro: <span style="color: #ffb703;">{t_dinheiro_v:,.2f} Kz</span> | 💳 TPA: <span style="color: #c084fc;">{t_tpa_v:,.2f} Kz</span>
+                        <span style="font-size: 0.9em;">
+                            Total Geral: {t_geral_v:,.2f} Kz | 💵 Dinheiro: {t_dinheiro_v:,.2f} Kz | 💳 TPA: {t_tpa_v:,.2f} Kz
                         </span>
                     </div>
                     """,
@@ -720,7 +719,7 @@ def area_caixa_mesas():
 
     st.markdown("""
         <div style="background-color: #141428; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a;">
-            <h4 style="margin-top: 0; color: #ffb703;">📊 Resumo Total em Caixa</h4>
+            <h4 style="margin-top: 0;">📊 Resumo Total em Caixa</h4>
     """, unsafe_allow_html=True)
     
     col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
@@ -878,8 +877,8 @@ def area_caixa_mesas():
                     with cols[c]:
                         st.markdown(emoji_topo_html, unsafe_allow_html=True)
                         alerta_pronto_html = "<div style='color: #ff6b6b; font-size: 0.8em; font-weight: bold; margin-bottom: 1px;'>🚨 Pronta!</div>" if tem_refeicao_pronta else ""
-                        nome_cli_formatado = f"<br><span style='font-size: 0.75em; color: #a0a0c0;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
-                        valor_formatado = f"<span style='color: #ffb703; font-weight: bold; font-size: 0.85em;'>{dados_m['total']:,.2f} Kz</span>"
+                        nome_cli_formatado = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
+                        valor_formatado = f"<span style='font-weight: bold; font-size: 0.85em;'>{dados_m['total']:,.2f} Kz</span>"
 
                         conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>{valor_formatado}</div>"
                         st.markdown(conteudo_html, unsafe_allow_html=True)
