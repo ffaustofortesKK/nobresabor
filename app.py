@@ -669,7 +669,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para as animações de oscilação
+    # Injeção de CSS para o formato circular e animações
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -692,14 +692,20 @@ def area_caixa_mesas():
         }
         .mesa-circle {
             background-color: #1a1a2e;
-            border: 1px solid #333355;
-            border-radius: 8px;
-            padding: 8px;
+            border: 2px solid #333355;
+            border-radius: 50%;
+            width: 95px;
+            height: 95px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            margin-bottom: 5px;
+            margin: 0 auto 8px auto;
             color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        .mesa-aberta { background-color: #1f3b2c; border: 1px solid #4ac26b; }
+        .mesa-aberta { background-color: #1f3b2c; border: 2px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
         </style>
     """, unsafe_allow_html=True)
@@ -806,7 +812,7 @@ def area_caixa_mesas():
     """, unsafe_allow_html=True)
 
     # ABAS DE NAVEGAÇÃO DO CAIXA
-    aba_operador_1, aba_operador_2 = st.tabs(["🗺️ Grelha de Mesas & Operações", "📚 Histórico de Vendas por Cliente"])
+    aba_operador_1, aba_operador_2 = st.tabs(["🗺️ Mesas & Operações", "📚 Histórico de Vendas por Cliente"])
 
     with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
@@ -841,9 +847,9 @@ def area_caixa_mesas():
         col_esq, col_dir = st.columns([0.85, 1.15])
 
         with col_dir:
-            st.markdown("#### 🗺️ Grelha de Mesas (1 a 30)")
-            cols_grelha = 5
-            rows = 6
+            st.markdown("#### 🗺️ Mesas")
+            cols_grelha = 3
+            rows = 10
             
             mesa_idx = 1
             for r in range(rows):
@@ -901,12 +907,13 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
+                        # O círculo inteiro funciona como botão/ação ao ser clicado via Streamlit button transparente por cima ou integrado
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.85rem; margin-bottom: 2px; min-height: 18px;">{simbolo_topo}</div>
-                                <span style="font-size: 0.75rem;">Mesa {mesa_idx}</span><br>
-                                <span style="font-size: 0.6rem;">{nome_cliente_curto}</span><br>
-                                <span style="font-size: 0.55rem;">{total_m:,.0f}Kz</span>
+                                <div style="font-size: 0.65rem; line-height: 1.1; min-height: 14px;">{simbolo_topo}</div>
+                                <span style="font-size: 0.8rem; font-weight: bold;">Mesa {mesa_idx}</span>
+                                <span style="font-size: 0.6rem; color: #ddd;">{nome_cliente_curto}</span>
+                                <span style="font-size: 0.55rem; color: #ffb703;">{total_m:,.0f}Kz</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -922,18 +929,17 @@ def area_caixa_mesas():
                 dados_m_sel = mesas_data[str(m_sel)]
                 
                 cli_atual = dados_m_sel.get("cliente")
-                nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Sem Cliente"
+                nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                # Título com o nome do cliente
-                st.markdown(f"### ⚙️ Gestão da Mesa {m_sel} — <span style='color: #ffb703;'>{nome_cliente_titulo}</span>", unsafe_allow_html=True)
+                # Título atualizado: Mesa nº - ( nome do cliente )
+                st.markdown(f"### ⚙️ Mesa {m_sel} — <span style='color: #ffb703;'>({nome_cliente_titulo})</span>", unsafe_allow_html=True)
                 
                 # --- EXIBIÇÃO DO QR CODE DA MESA ---
                 with st.expander(f"📱 Ver QR Code da Mesa {m_sel}", expanded=False):
-                    url_mesa = f"https://ffkaraokecloud.streamlit.app/?mesa={m_sel}"  # ou o link base da aplicação
+                    url_mesa = f"https://ffkaraokecloud.streamlit.app/?mesa={m_sel}"
                     st.markdown(f"**Link de acesso rápido para a Mesa {m_sel}:**")
                     st.code(url_mesa, language="text")
                     
-                    # Gerar imagem do QR Code se a biblioteca qrcode estiver disponível
                     try:
                         import qrcode
                         from io import BytesIO
@@ -947,7 +953,7 @@ def area_caixa_mesas():
                         with col_qr2:
                             st.image(byte_im, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
                     except Exception:
-                        st.info("Biblioteca qrcode não detetada. Instale o pacote 'qrcode[pil]' para visualizar a imagem do QR Code.")
+                        pass
 
                 # --- LISTA DOS PEDIDOS EM 4 COLUNAS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
