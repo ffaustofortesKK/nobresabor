@@ -1,11 +1,4 @@
-# Let's write a python script to generate the complete Streamlit application code for "Restaurante Nobre Sabor"
-# incorporating the requested changes:
-# 1. Reset/Clear table orders or ensure they start clean / are zeroed out when opening cash/system, 
-#    or ensure that opening cash relies strictly on the cash output (saída de caixa) sent by ADM as the initial balance.
-# 2. Add 3 filter/category buttons in the Cashier (Caixa) area to identify/filter items by: Bebidas, Refeição, Sobremesa.
-# 3. Compile everything into a complete, clean, robust Python file and save it as a downloadable script / full script.
-
-code_content = '''import streamlit as st
+import streamlit as st
 import pandas as pd
 import json
 import os
@@ -734,9 +727,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''
-
-with open("app_nobre_sabor.py", "w", encoding="utf-8") as f:
-    f.write(code_content)
-
-print("Script generated successfully.")
