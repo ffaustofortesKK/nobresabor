@@ -613,6 +613,8 @@ def area_caixa_mesas():
         st.session_state.caixa_logado = False
     if "caixa_turno_aberto" not in st.session_state:
         st.session_state.caixa_turno_aberto = False
+    if "turno_fechado" not in st.session_state:
+        st.session_state.turno_fechado = False
     if "operador_nome" not in st.session_state:
         st.session_state.operador_nome = ""
     if "operador_periodo" not in st.session_state:
@@ -632,6 +634,7 @@ def area_caixa_mesas():
                     st.session_state.caixa_logado = True
                     st.session_state.operador_nome = utilizador_input
                     st.session_state.operador_periodo = periodo_input
+                    st.session_state.turno_fechado = False
                     st.success(f"Bem-vindo(a), {utilizador_input}! Faça agora a abertura do período.")
                     st.rerun()
                 else:
@@ -644,7 +647,7 @@ def area_caixa_mesas():
             <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;">
                 <p>👤 <b>Utilizador:</b> {st.session_state.operador_nome}</p>
                 <p>⏰ <b>Período:</b> {st.session_state.operador_periodo}</p>
-                <p style="color: #ffb703;">O seu caixa está inicialmente <b>vazio (0.00 Kz)</b>. Se o ADM realizou alguma transferência/saída para este caixa, ela aparecerá registada. Clique abaixo para abrir o turno.</p>
+                <p style="color: #ffb703;">O saldo inicial provém estritamente do valor atribuído pelo ADM. Clique abaixo para abrir o seu turno.</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -655,7 +658,7 @@ def area_caixa_mesas():
         if saidas_destinadas:
             st.success(f"💵 Entrada detetada vinda do ADM: **{saldo_inicial_recebido:,.2f} Kz**")
         else:
-            st.info("💵 Caixa sem saldo inicial atribuído pelo ADM (A iniciar a 0.00 Kz).")
+            st.info("💵 Sem fundo de maneio atribuído pelo ADM (A iniciar com 0.00 Kz).")
 
         col_op1, col_op2 = st.columns(2)
         with col_op1:
@@ -674,11 +677,13 @@ def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
 
+    # Filtrar vendas apenas do turno atual (se houver registo de data/hora ou associadas ao operador)
     total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas)
     total_tpa_vendas = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
     
     saldo_inicial_turno = st.session_state.get("saldo_inicial_caixa", 0.0)
     
+    # Saldo em caixa físico = Saldo inicial do ADM + Vendas em Dinheiro efetuadas no turno
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
     saldo_total_geral = saldo_em_caixa_fisico + total_tpa_vendas
 
@@ -686,44 +691,62 @@ def area_caixa_mesas():
         <div style="background-color: #141428; padding: 14px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; flex-direction: column; gap: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; padding-bottom: 8px;">
                 <span style="font-size: 1rem;">👤 Operador: <b>{st.session_state.operador_nome}</b> | ⏰ Período: <b>{st.session_state.operador_periodo}</b></span>
-                <button style="background-color: #ff4b4b; border: none; padding: 4px 8px; border-radius: 4px;"><a href="?perfil=caixa" style="color: white; text-decoration: none;">Sair do Turno</a></button>
+                {"<span style='color: #4ac26b; font-weight: bold;'>✔ Turno Fechado e Apurado</span>" if st.session_state.turno_fechado else "<span style='color: #ffb703; font-weight: bold;'>Turno Ativo</span>"}
             </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo em Caixa:</span><br>
+                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Acumulado em Caixa:</span><br>
                     <b style="color: #4ac26b; font-size: 1.2rem;">{saldo_em_caixa_fisico:,.2f} Kz</b><br><br>
-                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Total:</span><br>
+                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Total Geral (Dinheiro + TPA):</span><br>
                     <b style="color: #ffb703; font-size: 1.2rem;">{saldo_total_geral:,.2f} Kz</b>
                 </div>
                 <div style="text-align: right; display: flex; flex-direction: column; gap: 4px;">
-                    <span style="font-size: 0.9rem;">📥 <b>Saldo Inicial (ADM):</b> {saldo_inicial_turno:,.2f} Kz</span>
-                    <span style="font-size: 0.9rem;">💵 <b>Valor monetário:</b> {total_dinheiro_vendas:,.2f} Kz</span>
-                    <span style="font-size: 0.9rem;">💳 <b>Valor em TPA:</b> {total_tpa_vendas:,.2f} Kz</span>
+                    <span style="font-size: 0.9rem;">📥 <b>Saldo Inicial (Fundo ADM):</b> {saldo_inicial_turno:,.2f} Kz</span>
+                    <span style="font-size: 0.9rem;">💵 <b>Vendas em Dinheiro:</b> {total_dinheiro_vendas:,.2f} Kz</span>
+                    <span style="font-size: 0.9rem;">💳 <b>Vendas em TPA:</b> {total_tpa_vendas:,.2f} Kz</span>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("🔒 Fazer o Fecho do Período (Enviar para o ADM)", expanded=False):
-        st.write("Ao fazer o fecho do período, os dados do utilizador, período e valor total apurado serão enviados diretamente para o ADM.")
-        if st.button("✅ Confirmar Fecho de Período", type="primary"):
-            fechos_list = carregar_fechos_caixa()
-            novo_fecho = {
-                "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Utilizador": st.session_state.operador_nome,
-                "Período": st.session_state.operador_periodo,
-                "Saldo Inicial": saldo_inicial_turno,
-                "Valor Dinheiro": total_dinheiro_vendas,
-                "Valor TPA": total_tpa_vendas,
-                "Total Fecho": saldo_total_geral
-            }
-            fechos_list.append(novo_fecho)
-            salvar_fechos_caixa(fechos_list)
+    # Secção de Fecho de Período e Extrato (O botão "Sair do Turno" só aparece após fechar o período)
+    with st.expander("🔒 Fazer o Fecho do Período & Extrato de Vendas", expanded=not st.session_state.turno_fechado):
+        st.write("Após efetuar o fecho do turno, o valor total apurado fica disponível e poderá consultar o extrato de vendas para conferência.")
+        
+        if not st.session_state.turno_fechado:
+            if st.button("✅ Confirmar Fecho de Período", type="primary"):
+                fechos_list = carregar_fechos_caixa()
+                novo_fecho = {
+                    "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Utilizador": st.session_state.operador_nome,
+                    "Período": st.session_state.operador_periodo,
+                    "Saldo Inicial (ADM)": saldo_inicial_turno,
+                    "Valor Dinheiro": total_dinheiro_vendas,
+                    "Valor TPA": total_tpa_vendas,
+                    "Total Fecho": saldo_total_geral
+                }
+                fechos_list.append(novo_fecho)
+                salvar_fechos_caixa(fechos_list)
+                
+                st.session_state.turno_fechado = True
+                st.success("Fecho de período registado com sucesso e enviado ao ADM!")
+                st.rerun()
+        else:
+            st.success(f"🎉 O Turno já foi fechado! Valor Total Apurado do Dia/Turno: **{saldo_total_geral:,.2f} Kz** (Inclui Saldo Inicial de {saldo_inicial_turno:,.2f} Kz).")
             
-            st.success("Fecho de período registado com sucesso e enviado ao ADM!")
-            st.session_state.caixa_logado = False
-            st.session_state.caixa_turno_aberto = False
-            st.rerun()
+            if st.button("📊 Ver Extrato de Vendas do Turno para Conferência"):
+                st.markdown("#### 📋 Extrato Detalhado de Vendas")
+                if hist_vendas:
+                    df_ext = pd.DataFrame(hist_vendas)
+                    st.dataframe(df_ext, use_container_width=True)
+                else:
+                    st.info("Nenhuma venda registada neste turno.")
+
+            if st.button("🚪 Sair do Turno (Terminar Sessão)", type="primary"):
+                st.session_state.caixa_logado = False
+                st.session_state.caixa_turno_aberto = False
+                st.session_state.turno_fechado = False
+                st.rerun()
 
     st.markdown("---")
 
@@ -782,7 +805,6 @@ def area_caixa_mesas():
         st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
         
         # Secção do QR Code da Mesa Selecionada
-        base_url_atual = st.get_option("browser.gatherUsageStats") # ou link base simulado
         url_mesa_qr = f"?mesa={m_sel}"
         
         col_qr1, col_qr2 = st.columns([1, 1])
@@ -956,40 +978,61 @@ def area_administrador():
     ])
     
     with tab_fin:
+        # A aba Finança agora possui uma camada de proteção com senha dedicada no ADM
         st.subheader("⚙️ Controlo Geral de Abertura e Fecho do Dia (Caixa e Cozinha)")
-        st.session_state.caixa_aberto = ler_estado_caixa_disco()
         
-        col_adm_c1, col_adm_c2 = st.columns([1, 3])
-        with col_adm_c1:
-            if st.session_state.caixa_aberto:
-                if st.button("🔒 Fechar Dia do Restaurante", type="primary"):
-                    gravar_estado_caixa_disco(False)
-                    st.session_state.caixa_aberto = False
-                    st.success("Dia fechado com sucesso! Caixa e Cozinha bloqueados.")
-                    st.rerun()
-            else:
-                if st.button("🟢 Abrir Dia do Restaurante", type="primary"):
-                    gravar_estado_caixa_disco(True)
-                    st.session_state.caixa_aberto = True
-                    st.success("Dia aberto com sucesso! Caixa e Cozinha desbloqueados.")
-                    st.rerun()
-        with col_adm_c2:
-            if st.session_state.caixa_aberto:
-                st.info("🟢 O Sistema encontra-se atualmente **ABERTO** (Caixa e Cozinha operacionais).")
-            else:
-                st.warning("🔴 O Sistema encontra-se atualmente **FECHADO** pelo Administrador.")
+        if "financa_aba_autenticada" not in st.session_state:
+            st.session_state.financa_aba_autenticada = False
 
-        st.markdown("---")
-        st.subheader("📊 Histórico Geral de Vendas")
-        hist_vendas = carregar_historico_vendas()
-        
-        if not hist_vendas:
-            st.info("Ainda não existem vendas faturadas registadas.")
+        if not st.session_state.financa_aba_autenticada:
+            with st.form("form_senha_aba_financa"):
+                st.markdown("#### 🔒 Acesso Restrito à Aba Finanças")
+                senha_fin = st.text_input("Introduza a senha de acesso às Finanças:", type="password")
+                if st.form_submit_button("Desbloquear Finanças"):
+                    if senha_fin == "123123123":
+                        st.session_state.financa_aba_autenticada = True
+                        st.rerun()
+                    else:
+                        st.error("Senha incorreta!")
         else:
-            df_vendas = pd.DataFrame(hist_vendas)
-            st.dataframe(df_vendas, use_container_width=True)
-            total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
-            st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
+            if st.button("🔒 Bloquear Aba Finanças"):
+                st.session_state.financa_aba_autenticada = False
+                st.rerun()
+                
+            st.markdown("---")
+            st.session_state.caixa_aberto = ler_estado_caixa_disco()
+            
+            col_adm_c1, col_adm_c2 = st.columns([1, 3])
+            with col_adm_c1:
+                if st.session_state.caixa_aberto:
+                    if st.button("🔒 Fechar Dia do Restaurante", type="primary"):
+                        gravar_estado_caixa_disco(False)
+                        st.session_state.caixa_aberto = False
+                        st.success("Dia fechado com sucesso! Caixa e Cozinha bloqueados.")
+                        st.rerun()
+                else:
+                    if st.button("🟢 Abrir Dia do Restaurante", type="primary"):
+                        gravar_estado_caixa_disco(True)
+                        st.session_state.caixa_aberto = True
+                        st.success("Dia aberto com sucesso! Caixa e Cozinha desbloqueados.")
+                        st.rerun()
+            with col_adm_c2:
+                if st.session_state.caixa_aberto:
+                    st.info("🟢 O Sistema encontra-se atualmente **ABERTO** (Caixa e Cozinha operacionais).")
+                else:
+                    st.warning("🔴 O Sistema encontra-se atualmente **FECHADO** pelo Administrador.")
+
+            st.markdown("---")
+            st.subheader("📊 Histórico Geral de Vendas")
+            hist_vendas = carregar_historico_vendas()
+            
+            if not hist_vendas:
+                st.info("Ainda não existem vendas faturadas registadas.")
+            else:
+                df_vendas = pd.DataFrame(hist_vendas)
+                st.dataframe(df_vendas, use_container_width=True)
+                total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
+                st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
 
     with tab_fechos_cx:
         st.subheader("📋 Relatórios de Fecho de Período enviados pelos Operadores")
@@ -1011,11 +1054,11 @@ def area_administrador():
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
                 motivo_saida = st.text_input("Motivo da Saída (Ex: Fundo de Maneio, Trocos):")
-                lista_utilizadores_padrao = ["OperadorCaixa1", "OperadorCaixa2", "Carlos", "Ana"]
+                lista_utilizadores_padrao = ["Carlos", "Ana", "OperadorCaixa1", "OperadorCaixa2"]
                 destino_utilizador = st.selectbox("Destinatário (Utilizador do Caixa):", lista_utilizadores_padrao)
             with col_sc2:
-                valor_saida = st.number_input("Valor da Saída / Fundo (Kz):", min_value=0.0, value=5000.0, step=1000.0)
-                periodo_destino = st.selectbox("Período Destino:", ["Dia", "Noite"])
+                valor_saida = st.number_input("Valor da Saída / Fundo (Kz):", min_value=0.0, value=20000.0, step=1000.0)
+                periodo_destino = st.selectbox("Período Destino:", ["Noite", "Dia"])
             
             responsavel_saida = st.text_input("Autorizado por (ADM):", value="Administração")
             
