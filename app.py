@@ -1016,25 +1016,7 @@ def area_caixa_mesas():
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 st.markdown(f"### 💵 Total Atual da Mesa: **{total_a_pagar:,.2f} Kz**")
-                                                     
-                        hist_vendas.append(registo_venda)
-                        salvar_historico_vendas(hist_vendas)
-                        
-                        mesas_data[str(m_sel)] = {
-                            "status": "Fechada",
-                            "cliente": None,
-                            "pedidos": [],
-                            "total": 0.0,
-                            "garcon": "",
-                            "solicitou_fecho": False
-                        }
-                        salvar_mesas_disco(mesas_data)
-                        
-                        st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
-                        st.rerun()
-                else:
-                    st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.") 
-                    
+                                                                                          
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
         # ==========================================
