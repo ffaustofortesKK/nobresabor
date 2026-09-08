@@ -82,7 +82,7 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Ajuste seguro para evitar cortes e manter mesas em círculo
+# Estilos CSS: Espaçamento superior bastante aumentado para nada colar no topo
 st.markdown("""
     <style>
     /* Fundo geral da página */
@@ -90,9 +90,9 @@ st.markdown("""
         background-color: #0c0c16;
     }
     
-    /* Garante espaçamento adequado no topo para nada ficar cortado */
+    /* Espaçamento bem generoso no topo para descer a interface */
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 4.5rem !important;
         padding-bottom: 2rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
