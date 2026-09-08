@@ -711,7 +711,7 @@ def area_caixa_mesas():
     hora_abertura_turno = sessao_op.get("hora_abertura", "2000-01-01 00:00:00")
     vendas_turno = [
         v for v in hist_vendas 
-        if v.get("Data", "") >= hora_abertura_turno and v.get("Operador", sessao_op['operador']) == sessao_op['operador'] and not v.get("Anulado", False)
+        if v.get("Data", "") >= hora_abertura_turno and v.get("Operador", sessao_op['operador']) == sessao_op['operador']
     ]
 
     total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in vendas_turno)
@@ -733,63 +733,16 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    # ABAS DE NAVEGAÇÃO DO CAIXA (Adicionada a aba de Anulação)
+    # ABAS DE NAVEGAÇÃO DO CAIXA (Adicionada a aba de anulação)
     aba_operador_1, aba_operador_2, aba_operador_3, aba_operador_4 = st.tabs([
         "🗺️ Mesas & Operações", 
         "📚 Histórico de Vendas por Cliente", 
-        "🔒 Fecho de Caixa / Resumo",
-        "❌ Anular Fatura/Registo"
+        "❌ Anular Registo / Mesa",
+        "🔒 Fecho de Caixa / Resumo"
     ])
 
-    # --- ABA 4: ANULAR FATURA / REGISTO MAL FEITO ---
+    # --- ABA 4: FECHO DE CAIXA / RESUMO ---
     with aba_operador_4:
-        st.markdown("### ❌ Anulação de Faturas ou Pagamentos Registados por Erro")
-        st.warning("Atenção: Anular uma fatura irá retirar os valores correspondentes do total do caixa deste turno e reverterá a mesa para o estado aberto com os itens respetivos.")
-
-        if vendas_turno:
-            opcoes_vendas = {}
-            for idx, v in enumerate(vendas_turno):
-                desc = f"Registo #{idx} | Mesa {v.get('Mesa')} | Cliente: {v.get('Cliente')} | Total: {v.get('Total', 0):,.2f} Kz | Data: {v.get('Data')}"
-                opcoes_vendas[desc] = v
-
-            escolha_anulacao = st.selectbox("Selecione a venda/fatura que deseja anular:", list(opcoes_vendas.keys()))
-            
-            if escolha_anulacao:
-                venda_alvo = opcoes_vendas[escolha_anulacao]
-                st.markdown("#### Detalhes do Registo Selecionado:")
-                st.write(f"- **Mesa:** {venda_alvo.get('Mesa')}")
-                st.write(f"- **Cliente:** {venda_alvo.get('Cliente')}")
-                st.write(f"- **Total Cobrado:** {venda_alvo.get('Total', 0):,.2f} Kz (Dinheiro: {venda_alvo.get('Valor Dinheiro', 0):,.2f} Kz | TPA: {venda_alvo.get('Valor TPA', 0):,.2f} Kz)")
-                
-                motivo_anulacao = st.text_input("Motivo da anulação (Obrigatório):", placeholder="Ex: Erro no valor cobrado, cliente desistiu, etc.")
-
-                if st.button("🚨 Confirmar Anulação desta Fatura", type="primary", use_container_width=True):
-                    if not motivo_anulacao.strip():
-                        st.error("Por favor, indique o motivo da anulação antes de continuar.")
-                    else:
-                        # Marcar fatura como anulada no histórico geral
-                        for item_h in hist_vendas:
-                            if item_h.get("Data") == venda_alvo.get("Data") and item_h.get("Mesa") == venda_alvo.get("Mesa") and item_h.get("Total") == venda_alvo.get("Total"):
-                                item_h["Anulado"] = True
-                                item_h["Motivo Anulacao"] = motivo_anulacao
-                                item_h["Operador Anulacao"] = sessao_op['operador']
-                        salvar_historico_vendas(hist_vendas)
-
-                        # Devolver os itens à respetiva mesa para correção
-                        num_mesa_afetada = str(venda_alvo.get("Mesa"))
-                        if num_mesa_afetada in mesas_data:
-                            mesas_data[num_mesa_afetada]["status"] = "Aberta"
-                            mesas_data[num_mesa_afetada]["pedidos"] = venda_alvo.get("pedidos", [])
-                            mesas_data[num_mesa_afetada]["total"] = venda_alvo.get("Total", 0.0)
-                            salvar_mesas_disco(mesas_data)
-
-                        st.success("Fatura anulada com sucesso! Os valores foram estornados do caixa e os itens devolvidos à mesa.")
-                        st.rerun()
-        else:
-            st.info("Não existem vendas elegíveis para anulação neste turno atual.")
-
-    # --- ABA 3: FECHO DE CAIXA / RESUMO ---
-    with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
         st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados. Quando estiver seguro, poderá efetuar o fecho do período.")
         
@@ -851,6 +804,44 @@ def area_caixa_mesas():
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
 
+    # --- ABA 3: ANULAR REGISTO / MESA (APENAS MESAS ABERTAS) ---
+    with aba_operador_3:
+        st.markdown("### ❌ Anulação de Registo / Mesa Aberta Mal Feita")
+        st.warning("⚠️ Esta aba permite anular e limpar completamente uma mesa que esteja atualmente **Aberta**, caso tenha ocorrido um registo incorreto. Apenas mesas abertas são listadas abaixo.")
+        
+        mesas_abertas_lista = [
+            m for m in range(1, 31) 
+            if mesas_data.get(str(m), {}).get("status") == "Aberta" or mesas_data.get(str(m), {}).get("cliente") is not None
+        ]
+        
+        if mesas_abertas_lista:
+            mesa_para_anular = st.selectbox(
+                "Selecione a Mesa Aberta a Anular:",
+                options=mesas_abertas_lista,
+                format_func=lambda x: f"Mesa {x} (Cliente: {mesas_data.get(str(x), {}).get('cliente', {}).get('nome', 'Desconhecido') if isinstance(mesas_data.get(str(x), {}).get('cliente'), dict) else 'Livre'} | Total: {mesas_data.get(str(x), {}).get('total', 0.0):,.2f} Kz)"
+            )
+            
+            dados_mesa_anul = mesas_data.get(str(mesa_para_anular), {})
+            st.markdown(f"**Detalhes da Mesa {mesa_para_anular} selecionada:**")
+            st.write(f"- Total atual: {dados_mesa_anul.get('total', 0.0):,.2f} Kz")
+            st.write(f"- Pedidos registados: {len(dados_mesa_anul.get('pedidos', []))}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button(f"🗑️ Confirmar Anulação Completa da Mesa {mesa_para_anular}", type="primary", use_container_width=True):
+                mesas_data[str(mesa_para_anular)] = {
+                    "status": "Fechada",
+                    "cliente": None,
+                    "pedidos": [],
+                    "total": 0.0,
+                    "garcon": "",
+                    "solicitou_fecho": False
+                }
+                salvar_mesas_disco(mesas_data)
+                st.success(f"Mesa {mesa_para_anular} anulada e reiniciada com sucesso!")
+                st.rerun()
+        else:
+            st.info("ℹ️ De momento, não existem mesas abertas para anular.")
+
     # --- ABA 2: HISTÓRICO DE VENDAS ---
     with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
@@ -871,11 +862,8 @@ def area_caixa_mesas():
                 total_v = v_item.get("Total", 0.0)
                 data_v = v_item.get("Data", "")
                 op_v = v_item.get("Operador", "")
-                estado_anulacao_txt = " ❌ [ANULADO]" if v_item.get("Anulado") else ""
                 
-                with st.expander(f"Mesa {mesa_origem} — Cliente: {cli_info} ({tel_info}) | Total: {total_v:,.2f} Kz | Data: {data_v}{estado_anulacao_txt}"):
-                    if v_item.get("Anulado"):
-                        st.error(f"⚠️ Esta fatura foi anulada. Motivo: {v_item.get('Motivo Anulacao', 'Não especificado')} (por {v_item.get('Operador Anulacao', '')})")
+                with st.expander(f"Mesa {mesa_origem} — Cliente: {cli_info} ({tel_info}) | Total: {total_v:,.2f} Kz | Data: {data_v}"):
                     st.write(f"**Operador responsável:** {op_v}")
                     st.write(f"**Forma de Pagamento:** Dinheiro: {v_item.get('Valor Dinheiro', 0):,.2f} Kz | TPA: {v_item.get('Valor TPA', 0):,.2f} Kz")
                     st.write("**Itens Consumidos:**")
