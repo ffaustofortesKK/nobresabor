@@ -866,6 +866,55 @@ def area_caixa_mesas():
         else:
             st.warning("Mesa sem cliente registado.")
 
+        # ==========================================
+        # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
+        # ==========================================
+        with st.expander("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)", expanded=False):
+            stock_df_cx = st.session_state.stock
+            if stock_df_cx.empty:
+                st.warning("O stock está vazio. Adicione itens no painel do ADM.")
+            else:
+                cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
+                cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
+                
+                itens_filtrados_cx = stock_df_cx[stock_df_cx['Categoria'] == cat_sel_cx]['Produto'].tolist()
+                
+                with st.form(key=f"form_adicionar_item_caixa_{m_sel}"):
+                    prod_sel_cx = st.selectbox("Produto / Item:", itens_filtrados_cx)
+                    qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
+                    obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_sel}")
+                    
+                    btn_add_cx = st.form_submit_button("🚀 Adicionar à Mesa", use_container_width=True)
+                    if btn_add_cx:
+                        row_p_cx = stock_df_cx[stock_df_cx['Produto'] == prod_sel_cx].iloc[0]
+                        is_refeicao_cx = (cat_sel_cx.lower() in ["refeições", "refeicoes", "pratos", "comida"])
+                        
+                        novo_pedido_cx = {
+                            "item": prod_sel_cx,
+                            "tipo": cat_sel_cx,
+                            "quantidade": int(qtd_cx),
+                            "preco": float(row_p_cx['Preço Unitário']),
+                            "origem": f"Caixa ({sessao_op['operador']})",
+                            "obs": obs_cx,
+                            "status": "Confirmado" if not is_refeicao_cx else "Pendente",
+                            "cozinha_status": "N/A" if not is_refeicao_cx else "Pendente",
+                            "hora": datetime.now().strftime("%H:%M:%S")
+                        }
+                        
+                        dados_m_sel["pedidos"].append(novo_pedido_cx)
+                        dados_m_sel["status"] = "Aberta"
+                        
+                        total_atualizado_cx = sum(
+                            p['quantidade'] * p['preco'] 
+                            for p in dados_m_sel["pedidos"] 
+                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                        )
+                        dados_m_sel["total"] = float(total_atualizado_cx)
+                        
+                        salvar_mesas_disco(mesas_data)
+                        st.success(f"Adicionado com sucesso: {qtd_cx}x {prod_sel_cx}!")
+                        st.rerun()
+
         pedidos_sel = dados_m_sel["pedidos"]
         if not pedidos_sel:
             st.info("Esta mesa não tem pedidos efetuados.")
@@ -887,7 +936,7 @@ def area_caixa_mesas():
                                 # Marca como anulado na mesa
                                 mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
                                 total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                                mesas_data[str(m_sel)]['total'] = float(total_novo)
+                                mesas_data[str(m_sel]]['total'] = float(total_novo)
                                 salvar_mesas_disco(mesas_data)
                                 
                                 # Regista em Vendas Excluídas para o ADM
@@ -975,6 +1024,8 @@ def area_caixa_mesas():
                     })
                     salvar_atendimentos_garcon(atend_list)
                     
+                    # Guarda a fatura emitida na mesa para que o cliente veja a mensagem de agradecimento e a fatura final,
+                    # e limpa os pedidos, total e dados do cliente para resetar a mesa.
                     mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
                     mesas_data[str(m_sel)]["pedidos"] = []
                     mesas_data[str(m_sel)]["total"] = 0.0
@@ -983,7 +1034,7 @@ def area_caixa_mesas():
                     mesas_data[str(m_sel)]["garcon"] = "Não atribuído"
                     salvar_mesas_disco(mesas_data)
                     
-                    st.success("Pagamento efetuado com sucesso!")
+                    st.success("Pagamento efetuado com sucesso e perfil de cliente encerrado com mensagem de agradecimento!")
                     st.rerun()
 
 # ==========================================
@@ -1084,7 +1135,6 @@ def area_administrador():
                 else:
                     st.warning("🔴 O Sistema encontra-se atualmente **FECHADO** pelo Administrador.")
 
-            # --- SALDO DISPONÍVEL EM CAIXA ADICIONADO AQUI POR ABAIXO DO AVISO ---
             sessao_op_adm = carregar_sessao_operador()
             hist_vendas_adm = carregar_historico_vendas()
             
@@ -1107,7 +1157,6 @@ def area_administrador():
                     <span style="font-size: 0.9rem; color: #d0d0e0;">👤 <b>Funcionário em Caixa:</b> {operador_atual_nome} (Período: {periodo_atual_nome}) | Fundo Inicial: {fundo_inicial_adm:,.2f} Kz | Vendas Dinheiro: {vendas_dinheiro_adm:,.2f} Kz</span>
                 </div>
             """, unsafe_allow_html=True)
-            # -------------------------------------------------------------------
 
             st.markdown("---")
             st.subheader("📊 Histórico Geral de Vendas")
