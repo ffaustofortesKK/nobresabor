@@ -1028,50 +1028,50 @@ def area_caixa_mesas():
                 else:
                     st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                                                                                           
-        # ==========================================
+       # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
         # ==========================================
-            else:
-                cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
-                cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
-                
-                itens_filtrados_cx = stock_df_cx[stock_df_cx['Categoria'] == cat_sel_cx]['Produto'].tolist()
-                
-                with st.form(key=f"form_adicionar_item_caixa_{m_sel}"):
-                    prod_sel_cx = st.selectbox("Produto / Item:", itens_filtrados_cx)
-                    qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
-                    obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_sel}")
+                else:
+                    cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
+                    cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
                     
-                    btn_add_cx = st.form_submit_button("🚀 Adicionar à Mesa", use_container_width=True)
-                    if btn_add_cx:
-                        row_p_cx = stock_df_cx[stock_df_cx['Produto'] == prod_sel_cx].iloc[0]
-                        is_refeicao_cx = (cat_sel_cx.lower() in ["refeições", "refeicoes", "pratos", "comida"])
+                    itens_filtrados_cx = stock_df_cx[stock_df_cx['Categoria'] == cat_sel_cx]['Produto'].tolist()
+                    
+                    with st.form(key=f"form_adicionar_item_caixa_{m_sel}"):
+                        prod_sel_cx = st.selectbox("Produto / Item:", itens_filtrados_cx)
+                        qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
+                        obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_sel}")
                         
-                        novo_pedido_cx = {
-                            "item": prod_sel_cx,
-                            "tipo": cat_sel_cx,
-                            "quantidade": int(qtd_cx),
-                            "preco": float(row_p_cx['Preço Unitário']),
-                            "origem": f"Caixa ({sessao_op['operador']})",
-                            "obs": obs_cx,
-                            "status": "Confirmado" if not is_refeicao_cx else "Pendente",
-                            "cozinha_status": "N/A" if not is_refeicao_cx else "Pendente",
-                            "hora": datetime.now().strftime("%H:%M:%S")
-                        }
-                        
-                        dados_m_sel["pedidos"].append(novo_pedido_cx)
-                        dados_m_sel["status"] = "Aberta"
-                        
-                        total_atualizado_cx = sum(
-                            p['quantidade'] * p['preco'] 
-                            for p in dados_m_sel["pedidos"] 
-                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                        )
-                        dados_m_sel["total"] = float(total_atualizado_cx)
-                        
-                        salvar_mesas_disco(mesas_data)
-                        st.success(f"Adicionado com sucesso: {qtd_cx}x {prod_sel_cx}!")
-                        st.rerun()
+                        btn_add_cx = st.form_submit_button("🚀 Adicionar à Mesa", use_container_width=True)
+                        if btn_add_cx:
+                            row_p_cx = stock_df_cx[stock_df_cx['Produto'] == prod_sel_cx].iloc[0]
+                            is_refeicao_cx = (cat_sel_cx.lower() in ["refeições", "refeicoes", "pratos", "comida"])
+                            
+                            novo_pedido_cx = {
+                                "item": prod_sel_cx,
+                                "tipo": cat_sel_cx,
+                                "quantidade": int(qtd_cx),
+                                "preco": float(row_p_cx['Preço Unitário']),
+                                "origem": f"Caixa ({sessao_op['operador']})",
+                                "obs": obs_cx,
+                                "status": "Confirmado" if not is_refeicao_cx else "Pendente",
+                                "cozinha_status": "N/A" if not is_refeicao_cx else "Pendente",
+                                "hora": datetime.now().strftime("%H:%M:%S")
+                            }
+                            
+                            dados_m_sel["pedidos"].append(novo_pedido_cx)
+                            dados_m_sel["status"] = "Aberta"
+                            
+                            total_atualizado_cx = sum(
+                                p['quantidade'] * p['preco'] 
+                                for p in dados_m_sel["pedidos"] 
+                                if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                            )
+                            dados_m_sel["total"] = float(total_atualizado_cx)
+                            
+                            salvar_mesas_disco(mesas_data)
+                            st.success(f"Adicionado com sucesso: {qtd_cx}x {prod_sel_cx}!")
+                            st.rerun() 
 
         pedidos_sel = dados_m_sel["pedidos"]
         if not pedidos_sel:
@@ -1091,7 +1091,6 @@ def area_caixa_mesas():
                         justificacao_anulacao = st.text_input(f"Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
                         if st.button(f"Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
                             if justificacao_anulacao.strip():
-                                # Marca como anulado na mesa (corrigido o fecho de parênteses)
                                 mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
                                 total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
                                 mesas_data[str(m_sel)]['total'] = float(total_novo)
@@ -1173,6 +1172,7 @@ def area_caixa_mesas():
                     })
                     salvar_historico_vendas(hist)
                     
+                    # Linha separada corretamente
                     atend_list = carregar_atendimentos_garcon()
                     atend_list.append({
                         "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1182,8 +1182,7 @@ def area_caixa_mesas():
                     })
                     salvar_atendimentos_garcon(atend_list)
                     
-                    # Guarda a fatura emitida na mesa para que o cliente veja a mensagem de agradecimento e a fatura final,
-                    # e limpa os pedidos, total e dados do cliente para resetar a mesa.
+                    # Guarda a fatura emitida na mesa e limpa os dados
                     mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
                     mesas_data[str(m_sel)]["pedidos"] = []
                     mesas_data[str(m_sel)]["total"] = 0.0
@@ -1194,7 +1193,7 @@ def area_caixa_mesas():
                     
                     st.success("Pagamento efetuado com sucesso e perfil de cliente encerrado com mensagem de agradecimento!")
                     st.rerun()
-
+                    
 # ==========================================
 # ÁREA: ADMINISTRADOR
 # ==========================================
