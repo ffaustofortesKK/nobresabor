@@ -12,6 +12,104 @@ st.set_page_config(
     layout="wide"
 )
 
+# Estilos CSS (Corrigido para garantir letras pretas nas listas suspensas)
+st.markdown("""
+    <style>
+    .stApp, body, html {
+        background-color: #0c0c16 !important;
+    }
+    
+    .block-container {
+        padding-top: 3.5rem !important;
+        padding-bottom: 1.5rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 62% !important;
+        margin: 0 auto !important;
+        background-color: #0c0c16 !important;
+    }
+
+    html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+        font-weight: bold !important;
+    }
+
+    input, select, option {
+        color: #000000 !important;
+    }
+
+    /* Correção robusta para menus suspensos (dropdowns / selectbox) */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], div[role="listbox"] {
+        background-color: #ffffff !important;
+    }
+    
+    div[data-baseweb="popover"] *, div[data-baseweb="menu"] *, div[role="listbox"] * {
+        color: #000000 !important;
+    }
+
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+
+    .mesa-circle {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        margin: 0 auto 4px auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .mesa-aberta {
+        border: 3px solid #2ea44f;
+        background-color: #0f2316;
+        color: #4ac26b !important;
+    }
+
+    .mesa-fechada {
+        border: 3px solid #30363d;
+        background-color: #161b22;
+        color: #ffffff !important;
+    }
+
+    .mesa-pronta-alerta {
+        border: 3px solid #ff4b4b;
+        background-color: #2b0d0d;
+        color: #ff6b6b !important;
+        animation: borda-vermelha-piscar 1s infinite;
+    }
+
+    @keyframes borda-vermelha-piscar {
+        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+        50% { border: 3px solid #ffa0a0; box-shadow: none; }
+        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+    }
+
+    .fatura-box {
+        background-color: #141428;
+        border: 2px dashed #ffb703;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: bold !important;
+        padding: 4px 8px !important;
+        font-size: 0.85rem !important;
+        color: #000000 !important;
+    }
+    
+    .stButton>button p, .stButton>button span {
+        color: #000000 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
@@ -210,95 +308,6 @@ def gerar_pdf_fatura(fat_data, num_mesa):
     nome_arquivo = f"fatura_mesa_{num_mesa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     pdf.output(nome_arquivo)
     return nome_arquivo
-
-# Estilos CSS
-st.markdown("""
-    <style>
-    .stApp, body, html {
-        background-color: #0c0c16 !important;
-    }
-    
-    .block-container {
-        padding-top: 3.5rem !important;
-        padding-bottom: 1.5rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-        max-width: 62% !important;
-        margin: 0 auto !important;
-        background-color: #0c0c16 !important;
-    }
-
-    html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
-        font-weight: bold !important;
-    }
-
-    input, select, option, div[data-baseweb="select"] *, div[data-baseweb="popover"] *, [data-baseweb="menu"] * {
-        color: #000000 !important;
-    }
-
-    [data-testid="stSidebar"] {
-        display: none;
-    }
-
-    .mesa-circle {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
-        margin: 0 auto 4px auto;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    }
-
-    .mesa-aberta {
-        border: 3px solid #2ea44f;
-        background-color: #0f2316;
-        color: #4ac26b !important;
-    }
-
-    .mesa-fechada {
-        border: 3px solid #30363d;
-        background-color: #161b22;
-        color: #ffffff !important;
-    }
-
-    .mesa-pronta-alerta {
-        border: 3px solid #ff4b4b;
-        background-color: #2b0d0d;
-        color: #ff6b6b !important;
-        animation: borda-vermelha-piscar 1s infinite;
-    }
-
-    @keyframes borda-vermelha-piscar {
-        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
-        50% { border: 3px solid #ffa0a0; box-shadow: none; }
-        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
-    }
-
-    .fatura-box {
-        background-color: #141428;
-        border: 2px dashed #ffb703;
-        padding: 20px;
-        border-radius: 10px;
-    }
-    
-    .stButton>button {
-        border-radius: 8px;
-        font-weight: bold !important;
-        padding: 4px 8px !important;
-        font-size: 0.85rem !important;
-        color: #000000 !important;
-    }
-    
-    .stButton>button p, .stButton>button span {
-        color: #000000 !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 # Parâmetros URL
 mesa_detectada = None
@@ -619,7 +628,7 @@ def area_caixa_mesas():
                     st.warning("Preencha o utilizador e a senha.")
         return
 
-    # 2. ABERTURA DO CAIXA DO PERÍODO (CAIXA INICIAL VAZIO / SEM VALOR)
+    # 2. ABERTURA DO CAIXA DO PERÍODO
     if not st.session_state.caixa_turno_aberto:
         st.markdown(f"""
             <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;">
@@ -629,7 +638,6 @@ def area_caixa_mesas():
             </div>
         """, unsafe_allow_html=True)
         
-        # Verificar se o ADM fez alguma saída para este operador/período
         saidas_todas = carregar_saidas_caixa()
         saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == st.session_state.operador_nome and s.get("Período") == st.session_state.operador_periodo]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
@@ -674,7 +682,6 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    # BOTÃO DE FECHO DE PERÍODO
     with st.expander("🔒 Fazer o Fecho do Período (Enviar para o ADM)", expanded=False):
         st.write("Ao fazer o fecho do período, os dados do utilizador, período e valor total apurado serão enviados diretamente para o ADM.")
         if st.button("✅ Confirmar Fecho de Período", type="primary"):
@@ -749,7 +756,6 @@ def area_caixa_mesas():
         st.markdown(f"### ⚙️ Gestão Detalhada da Mesa {m_sel}")
         dados_m_sel = mesas_data[str(m_sel)]
         
-        # ATRIBUIR / SELECIONAR GARÇON PARA A MESA
         df_rh_atual = carregar_rh_disco()
         lista_garcons_disponiveis = df_rh_atual['Nome'].tolist() if not df_rh_atual.empty else ["Carlos Manuel", "Ana Paula"]
         garcon_atual = dados_m_sel.get("garcon", lista_garcons_disponiveis[0])
@@ -833,7 +839,6 @@ def area_caixa_mesas():
                         "Valor TPA": val_tpa
                     }
                     
-                    # Registar Venda
                     hist = carregar_historico_vendas()
                     hist.append({
                         "Data": fatura_dados["data"],
@@ -847,7 +852,6 @@ def area_caixa_mesas():
                     })
                     salvar_historico_vendas(hist)
                     
-                    # Registar Atendimento do Garçon para Bónus na DCH
                     atend_list = carregar_atendimentos_garcon()
                     atend_list.append({
                         "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
