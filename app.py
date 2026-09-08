@@ -661,16 +661,25 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para animações e estilização das mesas
+    # Injeção de CSS para as animações de oscilação (Vermelha para fecho / Verde para comida pronta)
     st.markdown("""
         <style>
-        @keyframes oscilarMesa {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 183, 3, 0.7); }
-            50% { transform: scale(1.06); box-shadow: 0 0 15px 8px rgba(255, 183, 3, 0.9); background-color: #ffb703 !important; color: #000 !important; }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 183, 3, 0); }
+        @keyframes oscilarVermelho {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: scale(1.06); box-shadow: 0 0 15px 8px rgba(239, 68, 68, 0.9); background-color: #ef4444 !important; color: #fff !important; }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        @keyframes oscilarVerde {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0.7); }
+            50% { transform: scale(1.06); box-shadow: 0 0 15px 8px rgba(74, 194, 107, 0.9); background-color: #4ac26b !important; color: #000 !important; }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0); }
         }
         .mesa-conta-solicitada {
-            animation: oscilarMesa 1.2s infinite ease-in-out;
+            animation: oscilarVermelho 1.2s infinite ease-in-out;
+            border: 2px solid #fff !important;
+        }
+        .mesa-pronta-alerta {
+            animation: oscilarVerde 1.2s infinite ease-in-out;
             border: 2px solid #fff !important;
         }
         .mesa-circle {
@@ -683,7 +692,6 @@ def area_caixa_mesas():
             color: #fff;
         }
         .mesa-aberta { background-color: #1f3b2c; border: 1px solid #4ac26b; }
-        .mesa-pronta-alerta { background-color: #3b2f1f; border: 1px solid #ffb703; }
         .mesa-fechada { background-color: #141420; }
         </style>
     """, unsafe_allow_html=True)
@@ -849,22 +857,28 @@ def area_caixa_mesas():
                         if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                     )
                     
+                    # Definição de classes CSS e emojis no topo da mesa conforme solicitado
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
+                        simbolo_topo = "💵"
                     elif tem_pronto:
                         classe_css = "mesa-pronta-alerta"
+                        simbolo_topo = "🍲"
                     elif status_m == "Aberta" or cli_m:
                         classe_css = "mesa-aberta"
+                        simbolo_topo = ""
                     else:
                         classe_css = "mesa-fechada"
+                        simbolo_topo = ""
 
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
-                                <span style="font-size: 0.75rem;">Mesa {mesa_idx}</span>
-                                <span style="font-size: 0.6rem;">{nome_cliente_curto}</span>
+                                <div style="font-size: 0.85rem; margin-bottom: 2px;">{simbolo_topo}</div>
+                                <span style="font-size: 0.75rem;">Mesa {mesa_idx}</span><br>
+                                <span style="font-size: 0.6rem;">{nome_cliente_curto}</span><br>
                                 <span style="font-size: 0.55rem;">{total_m:,.0f}Kz</span>
                             </div>
                         """, unsafe_allow_html=True)
@@ -887,7 +901,6 @@ def area_caixa_mesas():
                 # Título com o nome do cliente logo a seguir
                 st.markdown(f"### ⚙️ Gestão da Mesa {m_sel} — <span style='color: #ffb703;'>{nome_cliente_titulo}</span>", unsafe_allow_html=True)
                 
-                # VERIFICAÇÃO SE HÁ PEDIDOS OU CONTA PARA FECHAR
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 solicitou_fecho = dados_m_sel.get("solicitou_fecho", False)
                 
@@ -895,11 +908,9 @@ def area_caixa_mesas():
                 if solicitou_fecho:
                     st.warning(f"🚨 **O cliente da Mesa {m_sel} solicitou o fecho da conta!**")
                 
-                # Módulo de fecho disponível caso a mesa tenha itens/total ou o cliente tenha pedido
                 if total_a_pagar > 0 or cli_atual:
                     if not solicitou_fecho:
                         st.info(f"Mesa {m_sel} ativa. O operador pode proceder ao fecho manual da conta abaixo a qualquer momento.")
-                        # Botão para o operador forçar o pedido de fecho caso o cliente não o faça
                         if st.button(f"🔔 Marcar Mesa {m_sel} como 'Fecho Solicitado'", key=f"forcar_fecho_{m_sel}", use_container_width=True):
                             dados_m_sel["solicitou_fecho"] = True
                             salvar_mesas_disco(mesas_data)
@@ -955,13 +966,6 @@ def area_caixa_mesas():
                             st.rerun()
                 else:
                     st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
-
-                st.divider()
-
-                if cli_info := dados_m_sel.get("cliente"):
-                    st.write(f"**Cliente Atual:** {cli_info.get('nome')} | **Tel:** {cli_info.get('telefone')}")
-                else:
-                    st.warning("Mesa sem cliente registado.")
                     
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
