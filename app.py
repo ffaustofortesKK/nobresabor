@@ -19,6 +19,7 @@ ARQUIVO_SAIDAS_CAIXA = "saidas_caixa.json"
 ARQUIVO_STOCK = "stock_dados.json"
 ARQUIVO_FECHOS_CAIXA = "fechos_caixa_historico.json"
 ARQUIVO_ATENDIMENTOS_GARCON = "atendimentos_garcon.json"
+ARQUIVO_RH_COLABORADORES = "rh_colaboradores.json"
 
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
@@ -115,6 +116,25 @@ def salvar_atendimentos_garcon(atend_list):
     try:
         with open(ARQUIVO_ATENDIMENTOS_GARCON, "w", encoding="utf-8") as f:
             json.dump(atend_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_rh_disco():
+    if os.path.exists(ARQUIVO_RH_COLABORADORES):
+        try:
+            df_loaded = pd.read_json(ARQUIVO_RH_COLABORADORES)
+            if not df_loaded.empty:
+                return df_loaded
+        except:
+            pass
+    return pd.DataFrame([
+        ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
+        ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
+    ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+
+def salvar_rh_disco(df):
+    try:
+        df.to_json(ARQUIVO_RH_COLABORADORES, orient="split", index=False)
     except:
         pass
 
@@ -306,10 +326,7 @@ if "stock" not in st.session_state:
     st.session_state.stock = carregar_stock_disco()
 
 if "rh" not in st.session_state:
-    st.session_state.rh = pd.DataFrame([
-        ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
-        ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
-    ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+    st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
 # ÁREA: CLIENTE
@@ -695,7 +712,6 @@ def area_caixa_mesas():
             status_m = dados_m.get("status", "Fechada")
             total_m = dados_m.get("total", 0.0)
             cli_m = dados_m.get("cliente")
-            garcon_m = dados_m.get("garcon", "Não atribuído")
             
             tem_pronto = any(
                 p.get("cozinha_status") == "Feito" 
@@ -734,7 +750,8 @@ def area_caixa_mesas():
         dados_m_sel = mesas_data[str(m_sel)]
         
         # ATRIBUIR / SELECIONAR GARÇON PARA A MESA
-        lista_garcons_disponiveis = st.session_state.rh['Nome'].tolist() if not st.session_state.rh.empty else ["Carlos Manuel", "Ana Paula"]
+        df_rh_atual = carregar_rh_disco()
+        lista_garcons_disponiveis = df_rh_atual['Nome'].tolist() if not df_rh_atual.empty else ["Carlos Manuel", "Ana Paula"]
         garcon_atual = dados_m_sel.get("garcon", lista_garcons_disponiveis[0])
         if garcon_atual not in lista_garcons_disponiveis:
             lista_garcons_disponiveis.append(garcon_atual)
@@ -895,7 +912,7 @@ def area_administrador():
         "📋 Fechos de Período (Caixa)", 
         "💸 Saídas de Caixa", 
         "📦 Stock & Menu", 
-        "👥 DCH (Bónus)"
+        "👥 DCH (Colaboradores & Bónus)"
     ])
     
     with tab_fin:
@@ -954,7 +971,6 @@ def area_administrador():
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
                 motivo_saida = st.text_input("Motivo da Saída (Ex: Fundo de Maneio, Trocos):")
-                # Selecionar o utilizador que vai receber
                 lista_utilizadores_padrao = ["OperadorCaixa1", "OperadorCaixa2", "Carlos", "Ana"]
                 destino_utilizador = st.selectbox("Destinatário (Utilizador do Caixa):", lista_utilizadores_padrao)
             with col_sc2:
@@ -1032,29 +1048,66 @@ def area_administrador():
                     st.rerun()
         
     with tab_dch:
-        st.subheader("👥 DCH — Controlo de Funcionários & Bónus Acumulados")
-        st.write("Cada mesa atendida por um garçon gera pontos convertidos em bónus (Taxa: **500 Kz por mesa atendida**).")
+        st.subheader("👥 DCH — Cadastramento de Colaboradores & Bónus Acumulados")
+        st.write("Faça o registo da equipa (Garçons) e consulte o acumulado de bónus por mesas atendidas (**500 Kz por mesa**).")
         
+        with st.expander("➕ Cadastrar Novo Colaborador / Garçon", expanded=False):
+            with st.form("form_cadastrar_colaborador"):
+                col_r1, col_r2 = st.columns(2)
+                with col_r1:
+                    cod_func = st.text_input("Código do Funcionário (Ex: G003):")
+                    nome_func = st.text_input("Nome Completo:")
+                    cat_func = st.selectbox("Categoria / Cargo:", ["Garçon", "Chefe de Sala", "Bartender", "Outro"])
+                with col_r2:
+                    tel_func = st.text_input("Telefone:")
+                    bi_func = st.text_input("Nº de BI:")
+                
+                btn_salvar_func = st.form_submit_button("💾 Salvar Colaborador", use_container_width=True)
+                if btn_salvar_func and cod_func and nome_func:
+                    df_rh = carregar_rh_disco()
+                    if not df_rh.empty and (cod_func in df_rh['Código'].values):
+                        df_rh.loc[df_rh['Código'] == cod_func, ['Nome', 'Categoria', 'Telefone', 'BI']] = [nome_func, cat_func, tel_func, bi_func]
+                        st.success(f"Colaborador '{nome_func}' atualizado com sucesso!")
+                    else:
+                        nova_linha_rh = pd.DataFrame([[cod_func, nome_func, cat_func, tel_func, bi_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+                        df_rh = pd.concat([df_rh, nova_linha_rh], ignore_index=True)
+                        st.success(f"Colaborador '{nome_func}' registado com sucesso!")
+                    
+                    salvar_rh_disco(df_rh)
+                    st.rerun()
+
+        st.markdown("#### 📋 Lista de Colaboradores Cadastrados")
+        df_rh_atual = carregar_rh_disco()
+        st.dataframe(df_rh_atual, use_container_width=True)
+
+        if not df_rh_atual.empty:
+            with st.form("form_remover_colaborador"):
+                func_remover = st.selectbox("Selecionar colaborador para remover:", df_rh_atual['Nome'].tolist())
+                btn_rem_func = st.form_submit_button("🗑️ Remover Colaborador Selecionado", use_container_width=True)
+                if btn_rem_func:
+                    df_rh_atual = df_rh_atual[df_rh_atual['Nome'] != func_remover].reset_index(drop=True)
+                    salvar_rh_disco(df_rh_atual)
+                    st.success(f"Colaborador '{func_remover}' removido com sucesso!")
+                    st.rerun()
+
+        st.markdown("---")
+        st.subheader("🏆 Resumo de Bónus Acumulados por Atendimento de Mesas")
         atendimentos = carregar_atendimentos_garcon()
         if not atendimentos:
-            st.info("Ainda não existem mesas atendidas registadas por garçons.")
+            st.info("Ainda não existem mesas atendidas registadas para calcular bónus.")
         else:
             df_atend = pd.DataFrame(atendimentos)
             
-            # Agrupar por Garçon para calcular bónus acumulado
             df_resumo_bonus = df_atend.groupby("Garçon").agg(
                 Mesas_Atendidas=("Mesa", "count"),
                 Total_Vendido=("Valor Venda", "sum")
             ).reset_index()
             
-            # Cada mesa = 1 ponto, cada ponto = 500 Kz
             VALOR_POR_PONTO = 500.0
             df_resumo_bonus["Bónus Acumulado (Kz)"] = df_resumo_bonus["Mesas_Atendidas"] * VALOR_POR_PONTO
             
-            st.markdown("#### 🏆 Resumo de Bónus por Garçon")
             st.dataframe(df_resumo_bonus, use_container_width=True)
             
-            st.markdown("---")
             st.markdown("#### 📋 Histórico Detalhado de Atendimentos")
             st.dataframe(df_atend, use_container_width=True)
 
