@@ -995,10 +995,8 @@ def area_caixa_mesas():
                             st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — **{subtotal_item:,.2f} Kz**")
                         with col_it2:
                             if st.button(f"🗑️ Anular Item", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
-                                # Marcar como anulado
                                 p['status'] = "Anulado"
                                 
-                                # Recalcular o total da mesa descontando o item anulado
                                 novo_total = sum(
                                     float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) 
                                     for item in dados_m_sel["pedidos"] 
@@ -1006,7 +1004,6 @@ def area_caixa_mesas():
                                 )
                                 dados_m_sel["total"] = novo_total
                                 
-                                # Se ficar sem nenhum item ativo, podemos limpar cliente/status opcionalmente ou manter
                                 if not any(item.get('status') not in ["Anulado", "Recusado pela Cozinha"] for item in dados_m_sel["pedidos"]):
                                     dados_m_sel["total"] = 0.0
                                 
