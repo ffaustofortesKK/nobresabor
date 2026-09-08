@@ -555,9 +555,10 @@ def area_administrador():
             
     with col_links_rapidos:
         st.markdown("""
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <a href="?perfil=caixa" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer;">💻 Aceder ao Caixa</button></a>
-                <a href="?perfil=cozinha" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍳 Aceder à Cozinha</button></a>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; align-items: center;">
+                <span style="color: #ffb703; font-size: 0.95rem;">🔗 Links Rápidos:</span>
+                <a href="?perfil=caixa" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">💻 Link Caixa</button></a>
+                <a href="?perfil=cozinha" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍳 Link Cozinha</button></a>
             </div>
         """, unsafe_allow_html=True)
         
@@ -887,7 +888,6 @@ def main():
                 st.rerun()
         with col3:
             if st.button("👑 Aceder à Administração", use_container_width=True):
-                st.query_params["perfil"] = "perfil" # corrigido para admin abaixo
                 st.query_params["perfil"] = "admin"
                 st.rerun()
                 
