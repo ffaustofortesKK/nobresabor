@@ -946,7 +946,7 @@ def area_caixa_mesas():
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
+                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_company_width=True if 'use_company_width' in globals() else False, use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.rerun()
                         
@@ -976,10 +976,65 @@ def area_caixa_mesas():
                     with col_qr2:
                         st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
 
-                # --- LISTA DOS PEDIDOS E BOTÃO DE ANULAR ITEM INDIVIDUAL ---
+                # --- LISTA DOS PEDIDOS E BOTÃO DE ADICIONAR LOGO ABAIXO ---
                 st.markdown("#### 📋 Pedidos da Mesa")
-                pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
+                # Botão solicitado colocado logo abaixo do título "Pedidos da Mesa"
+                if st.button("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)", key=f"btn_add_item_caixa_{m_sel}", use_container_width=True):
+                    st.session_state[f"modal_add_item_{m_sel}"] = True
+
+                # Lógica opcional para abrir modal/formulário de adição caso o botão seja acionado
+                if st.session_state.get(f"modal_add_item_{m_sel}", False):
+                    with st.form(key=f"form_add_item_cx_{m_sel}"):
+                        st.markdown(f"**Adicionar Item Manualmente à Mesa {m_sel}**")
+                        
+                        # Exemplo de campos de adição (pode ajustar conforme a sua lista de produtos)
+                        cat_add = st.selectbox("Categoria:", ["Comida", "Bebida", "Sobremesa"], key=f"cat_add_{m_sel}")
+                        item_nome_add = st.text_input("Nome do Item:", key=f"item_nome_{m_sel}")
+                        item_qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"item_qtd_{m_sel}")
+                        item_preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"item_ preco_{m_sel}")
+                        
+                        col_fa1, col_fa2 = st.columns(2)
+                        with col_fa1:
+                            submitted_add = st.form_submit_button("💾 Guardar Item", use_container_width=True)
+                        with col_fa2:
+                            cancelled_add = st.form_submit_button("❌ Cancelar", use_container_width=True)
+                            
+                        if submitted_add:
+                            if item_nome_add and item_preco_add > 0:
+                                novo_pedido = {
+                                    "item": item_nome_add,
+                                    "quantidade": item_qtd_add,
+                                    "preco": item_preco_add,
+                                    "categoria": cat_add,
+                                    "status": "Confirmado",
+                                    "cozinha_status": "Feito" # Adicionado diretamente pelo caixa
+                                }
+                                if "pedidos" not in dados_m_sel:
+                                    dados_m_sel["pedidos"] = []
+                                dados_m_sel["pedidos"].append(novo_pedido)
+                                
+                                # Recalcula o total
+                                dados_m_sel["total"] = sum(
+                                    float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) 
+                                    for item in dados_m_sel["pedidos"] 
+                                    if item.get('status') not in ["Anulado", "Recusado pela Cozinha"]
+                                )
+                                if dados_m_sel.get("status") == "Fechada":
+                                    dados_m_sel["status"] = "Aberta"
+                                    
+                                mesas_data[str(m_sel)] = dados_m_sel
+                                salvar_mesas_disco(mesas_data)
+                                st.session_state[f"modal_add_item_{m_sel}"] = False
+                                st.success(f"Item '{item_nome_add}' adicionado com sucesso!")
+                                st.rerun()
+                            else:
+                                st.warning("Insira o nome do item e um preço válido.")
+                        if cancelled_add:
+                            st.session_state[f"modal_add_item_{m_sel}"] = False
+                            st.rerun()
+
+                pedidos_mesa = dados_m_sel.get("pedidos", [])
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
@@ -1016,6 +1071,56 @@ def area_caixa_mesas():
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 st.markdown(f"### 💵 Total Atual da Mesa: **{total_a_pagar:,.2f} Kz**")
+                
+                if total_a_pagar > 0 or cli_atual:
+                    st.markdown("---")
+                    st.markdown("### 💳 Processar Pagamento e Emitir Recibo")
+                    tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
+                    
+                    v_dinheiro = 0.0
+                    v_tpa = 0.0
+                    if tipo_pagamento == "Dinheiro":
+                        v_dinheiro = total_a_pagar
+                    elif tipo_pagamento == "TPA":
+                        v_tpa = total_a_pagar
+                    else:
+                        v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
+                        v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
+
+                    if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
+                        nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
+                        tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
+                        
+                        registo_venda = {
+                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Mesa": m_sel,
+                            "Cliente": nome_c,
+                            "Telefone": tel_c,
+                            "Operador": sessao_op['operador'],
+                            "Período": sessao_op['periodo'],
+                            "Valor Dinheiro": v_dinheiro,
+                            "Valor TPA": v_tpa,
+                            "Total": total_a_pagar,
+                            "pedidos": dados_m_sel.get("pedidos", [])
+                        }
+                        
+                        hist_vendas.append(registo_venda)
+                        salvar_historico_vendas(hist_vendas)
+                        
+                        mesas_data[str(m_sel)] = {
+                            "status": "Fechada",
+                            "cliente": None,
+                            "pedidos": [],
+                            "total": 0.0,
+                            "garcon": "",
+                            "solicitou_fecho": False
+                        }
+                        salvar_mesas_disco(mesas_data)
+                        
+                        st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
+                        st.rerun()
+                else:
+                    st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                                                                                           
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
