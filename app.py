@@ -82,15 +82,24 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Todos os textos em BRANCO e NEGRITO + Ocultação total da barra lateral
+# Estilos CSS: Layout compacto, Mesas em Círculo, Barra lateral oculta e Textos em Branco/Negrito
 st.markdown("""
     <style>
-    /* Fundo geral e formatação global de texto em Branco e Negrito */
+    /* Fundo geral da página */
     .stApp {
         background-color: #0c0c16;
     }
     
-    /* Força todos os textos gerais, títulos, labels, parágrafos e spans a ficarem brancos e em negrito */
+    /* Reduz o padding superior e inferior da tela para otimizar o espaço */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        max-width: 98% !important;
+    }
+
+    /* Força todos os textos gerais a ficarem em Branco e Negrito */
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: bold !important;
@@ -101,73 +110,70 @@ st.markdown("""
         display: none;
     }
 
-    @keyframes borda-vermelha-piscar {
-        0% { border: 2px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #1a0f0f; }
-        50% { border: 2px solid #ffa0a0; box-shadow: none; background-color: #12121c; }
-        100% { border: 2px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #1a0f0f; }
-    }
-    @keyframes flutuar-emoji {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-4px); }
-        100% { transform: translateY(0px); }
-    }
-    .emoji-refeicao-topo {
-        font-size: 1.4em;
+    /* ESTILO DAS MESAS EM CÍRCULO */
+    .mesa-circle {
+        width: 82px;
+        height: 82px;
+        border-radius: 50%;
+        margin: 0 auto 4px auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
         text-align: center;
-        margin-bottom: -8px;
-        z-index: 10;
-        position: relative;
-        animation: flutuar-emoji 1.2s infinite ease-in-out;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
-    .mesa-pronta-alerta {
-        padding: 10px;
-        border-radius: 12px;
-        text-align: center;
-        animation: borda-vermelha-piscar 1s infinite;
-        color: #ff6b6b !important;
-        font-size: 0.9em;
-    }
+
     .mesa-aberta {
-        padding: 10px;
-        border-radius: 12px;
-        text-align: center;
-        border: 2px solid #2ea44f;
+        border: 3px solid #2ea44f;
         background-color: #0f2316;
         color: #4ac26b !important;
-        font-size: 0.9em;
     }
+
     .mesa-fechada {
-        padding: 10px;
-        border-radius: 12px;
-        text-align: center;
-        border: 2px solid #30363d;
+        border: 3px solid #30363d;
         background-color: #161b22;
         color: #ffffff !important;
-        font-size: 0.9em;
     }
+
+    .mesa-pronta-alerta {
+        border: 3px solid #ff4b4b;
+        background-color: #2b0d0d;
+        color: #ff6b6b !important;
+        animation: borda-vermelha-piscar 1s infinite;
+    }
+
+    @keyframes borda-vermelha-piscar {
+        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+        50% { border: 3px solid #ffa0a0; box-shadow: none; }
+        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+    }
+
     .bloco-seccao {
-        padding: 22px;
-        border-radius: 14px;
+        padding: 16px;
+        border-radius: 12px;
         background-color: #141428;
         border: 1px solid #2a2a4a;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        margin-bottom: 15px;
     }
     .fatura-box {
         background-color: #141428;
         border: 2px dashed #ffb703;
-        padding: 25px;
+        padding: 20px;
         border-radius: 12px;
     }
-    /* Estilização de inputs e botões */
+    
+    /* Botões compactos para se ajustarem abaixo das mesas */
     .stButton>button {
         border-radius: 8px;
         font-weight: bold !important;
+        padding: 2px 6px !important;
+        font-size: 0.78rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Captura rigorosa de Parâmetros da URL
+# Captura de Parâmetros da URL
 mesa_detectada = None
 perfil_url = None
 
@@ -324,7 +330,7 @@ def area_cliente():
                         
                         salvar_mesas_disco(mesas_data)
                         
-                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado com sucesso! Já pode solicitar outro item."
+                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado com sucesso!"
                         st.rerun()
 
             chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
@@ -358,9 +364,8 @@ def area_cliente():
             st.subheader("Eventos da Semana")
             st.markdown("- Sexta: Música ao Vivo\n- Sábado: Karaoke (Grupo FF Karaoke)")
 
-
 # ==========================================
-# ÁREA: COZINHA (Com Fragmento Auto-Executável)
+# ÁREA: COZINHA
 # ==========================================
 @st.fragment(run_every=6)
 def area_cozinha():
@@ -414,7 +419,6 @@ def area_cozinha():
     if not tem_pedidos:
         st.success("🎉 Sem refeições pendentes de momento!")
 
-
 # ==========================================
 # ÁREA: ADMINISTRADOR
 # ==========================================
@@ -422,22 +426,21 @@ def area_administrador():
     col_adm_title, col_adm_info = st.columns([3, 2])
     with col_adm_title:
         st.markdown("<h1 style='margin-bottom: 0px;'>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='margin-top: 0px;'>Acompanhe e gerencie todas as informações do sistema.</p>", unsafe_allow_html=True)
     with col_adm_info:
         data_atual_str = datetime.now().strftime("%d/%m/%Y")
         hora_atual_str = datetime.now().strftime("%H:%M")
         st.markdown(
             f"""
-            <div style="text-align: right; padding-top: 15px;">
-                <span style="background-color: #1a1a38; border: 1px solid #2a2a5a; padding: 6px 12px; border-radius: 20px; font-size: 0.85em;">
-                    🟢 Sistema Online &nbsp;|&nbsp; 📅 {data_atual_str} &nbsp;|&nbsp; 🕒 {hora_atual_str}
+            <div style="text-align: right; padding-top: 10px;">
+                <span style="background-color: #1a1a38; border: 1px solid #2a2a5a; padding: 4px 10px; border-radius: 20px; font-size: 0.8em;">
+                    🟢 Online &nbsp;|&nbsp; 📅 {data_atual_str} &nbsp;|&nbsp; 🕒 {hora_atual_str}
                 </span>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-    st.markdown("<hr style='margin-top: 10px; margin-bottom: 20px; border-color: #2a2a4a;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin-top: 5px; margin-bottom: 15px; border-color: #2a2a4a;'>", unsafe_allow_html=True)
     
     with st.expander("🔗 Links Oficiais do Sistema", expanded=False):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
@@ -452,10 +455,8 @@ def area_administrador():
         if not st.session_state.financas_autenticado:
             st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
             st.subheader("🔒 Acesso Restrito - Finanças")
-            st.info("Insira a senha de acesso para visualizar o painel financeiro.")
-            
             with st.form("form_senha_financas"):
-                senha_digitada = st.text_input("Senha:", type="password", placeholder="Digite a sua senha")
+                senha_digitada = st.text_input("Senha:", type="password", placeholder="Digite a senha")
                 btn_entrar_fin = st.form_submit_button("Desbloquear Finanças", use_container_width=True)
                 
                 if btn_entrar_fin:
@@ -464,7 +465,7 @@ def area_administrador():
                         st.success("Acesso autorizado com sucesso!")
                         st.rerun()
                     else:
-                        st.error("Senha incorreta! Tente novamente.")
+                        st.error("Senha incorreta!")
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             col_blq1, col_blq2 = st.columns([6, 1])
@@ -481,20 +482,7 @@ def area_administrador():
             saidas_list = carregar_saidas_caixa()
             t_saidas = sum(float(s.get('Valor', 0)) for s in saidas_list) if saidas_list else 0
 
-            col_tit_fin, col_kpi_dir = st.columns([1, 2])
-            with col_tit_fin:
-                st.subheader("💰 Controlo de Caixa & Finanças")
-            with col_kpi_dir:
-                st.markdown(
-                    f"""
-                    <div style="text-align: right; background-color: #141428; padding: 10px 15px; border-radius: 8px; border: 1px solid #2a2a4a;">
-                        <span style="font-size: 0.9em;">
-                            Total Geral: {t_geral_v:,.2f} Kz | 💵 Dinheiro: {t_dinheiro_v:,.2f} Kz | 💳 TPA: {t_tpa_v:,.2f} Kz
-                        </span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            st.subheader("💰 Controlo de Caixa & Finanças")
 
             st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
             col_cx_status, col_cx_btn = st.columns([3, 1])
@@ -505,22 +493,19 @@ def area_administrador():
                     st.error("🔴 O Caixa encontra-se FECHADO.")
             with col_cx_btn:
                 if st.session_state.caixa_aberto:
-                    if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
+                    if st.button("Fechar Caixa", key="btn_fechar_cx_adm"):
                         st.session_state.caixa_aberto = False
                         gravar_estado_caixa_disco(False)
-                        st.success("Caixa fechado com sucesso!")
                         st.rerun()
                 else:
                     if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_adm"):
                         st.session_state.caixa_aberto = True
                         gravar_estado_caixa_disco(True)
-                        st.success("Caixa aberto com sucesso!")
                         st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
             st.subheader("📤 Saída de Caixa (Registo de Despesas)")
-            
             lista_colaboradores_rh = st.session_state.rh['Nome'].tolist() if not st.session_state.rh.empty else ["Administração"]
 
             with st.form("form_registo_saida_caixa"):
@@ -542,23 +527,18 @@ def area_administrador():
                         }
                         saidas_list.append(nova_saida)
                         salvar_saidas_caixa(saidas_list)
-                        st.success(f"Saída de {valor_saida:,.2f} Kz registada com sucesso!")
+                        st.success("Saída registada com sucesso!")
                         st.rerun()
-                    else:
-                        st.warning("Preencha a descrição e um valor superior a 0.")
 
             if saidas_list:
-                st.markdown("#### Histórico de Saídas de Caixa")
-                df_saidas = pd.DataFrame(saidas_list)
-                st.dataframe(df_saidas, use_container_width=True)
+                st.dataframe(pd.DataFrame(saidas_list), use_container_width=True)
                 st.info(f"Total de Saídas Registadas: **{t_saidas:,.2f} Kz**")
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
             st.subheader("📊 Histórico de Vendas Definitivo")
             if hist_vendas:
-                df_vendas = pd.DataFrame(hist_vendas)
-                st.dataframe(df_vendas, use_container_width=True)
+                st.dataframe(pd.DataFrame(hist_vendas), use_container_width=True)
                 st.markdown(f"**Total Bruto Vendas:** {t_geral_v:,.2f} Kz")
             else:
                 st.info("Sem vendas registadas.")
@@ -566,140 +546,68 @@ def area_administrador():
 
     with tab_stk:
         sub_tab_reg, sub_tab_beb, sub_tab_ger, sub_tab_ed = st.tabs([
-            "➕ Registo de Produtos",
-            "🍾 Stock de Bebidas",
-            "📦 Stock Geral",
-            "🛠️ Editar / Remover Item"
+            "➕ Registo", "🍾 Bebidas", "📦 Stock Geral", "🛠️ Editar/Remover"
         ])
         
         with sub_tab_reg:
             st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-            st.subheader("➕ Registo de Produtos com Categoria")
             with st.form("form_registo_produto_novo"):
                 col_rp1, col_rp2 = st.columns(2)
                 with col_rp1:
                     nome_novo_prod = st.text_input("Nome do Produto:")
                     categoria_nova = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Diversos"])
                 with col_rp2:
-                    qtd_nova = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                    qtd_nova = st.number_input("Quantidade:", min_value=0, value=10)
                     preco_novo = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=1000.0)
                     
                 if st.form_submit_button("💾 Registar Produto", use_container_width=True):
                     if nome_novo_prod.strip():
-                        if not st.session_state.stock[st.session_state.stock['Produto'].str.lower() == nome_novo_prod.strip().lower()].empty:
-                            st.error("Já existe um produto com este nome no stock!")
-                        else:
-                            novo_reg = pd.DataFrame([[nome_novo_prod.strip(), categoria_nova, int(qtd_nova), float(preco_novo)]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-                            st.session_state.stock = pd.concat([st.session_state.stock, novo_reg], ignore_index=True)
-                            st.success(f"Produto '{nome_novo_prod.strip()}' registado com sucesso!")
-                            st.rerun()
-                    else:
-                        st.warning("Por favor, insira o nome do produto.")
+                        novo_reg = pd.DataFrame([[nome_novo_prod.strip(), categoria_nova, int(qtd_nova), float(preco_novo)]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+                        st.session_state.stock = pd.concat([st.session_state.stock, novo_reg], ignore_index=True)
+                        st.success("Produto registado!")
+                        st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
         with sub_tab_beb:
-            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-            st.subheader("🍾 Stock de Bebidas")
-            df_bebidas = st.session_state.stock[st.session_state.stock['Categoria'].str.lower() == "bebidas"]
-            if df_bebidas.empty:
-                st.info("Nenhuma bebida registada.")
-            else:
-                st.dataframe(df_bebidas, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            st.dataframe(st.session_state.stock[st.session_state.stock['Categoria'].str.lower() == "bebidas"], use_container_width=True)
 
         with sub_tab_ger:
-            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-            st.subheader("📦 Stock de Produtos (Geral)")
-            df_produtos = st.session_state.stock[st.session_state.stock['Categoria'].str.lower() != "bebidas"]
-            if df_produtos.empty:
-                st.info("Nenhum produto geral registado.")
-            else:
-                st.dataframe(df_produtos, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            st.dataframe(st.session_state.stock[st.session_state.stock['Categoria'].str.lower() != "bebidas"], use_container_width=True)
 
         with sub_tab_ed:
-            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-            st.subheader("🛠️ Editar ou Remover Qualquer Item do Stock")
-            if st.session_state.stock.empty:
-                st.info("O stock está vazio.")
-            else:
-                lista_todos_produtos = st.session_state.stock['Produto'].tolist()
-                prod_selecionado_gestao = st.selectbox("Selecione o produto:", lista_todos_produtos, key="sel_gestao_produto_geral")
-                
-                if prod_selecionado_gestao:
-                    idx_encontrado = st.session_state.stock[st.session_state.stock['Produto'] == prod_selecionado_gestao].index[0]
-                    dado_item = st.session_state.stock.loc[idx_encontrado]
+            if not st.session_state.stock.empty:
+                prod_sel = st.selectbox("Selecione o produto:", st.session_state.stock['Produto'].tolist())
+                if prod_sel:
+                    idx = st.session_state.stock[st.session_state.stock['Produto'] == prod_sel].index[0]
+                    dado_item = st.session_state.stock.loc[idx]
                     
-                    with st.form(f"form_edicao_item_{idx_encontrado}"):
-                        edit_nome = st.text_input("Nome do Produto:", value=str(dado_item['Produto']))
-                        cats_possiveis = ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Diversos"]
-                        cat_atual_val = dado_item['Categoria']
-                        if cat_atual_val not in cats_possiveis:
-                            cats_possiveis.append(cat_atual_val)
-                            
-                        edit_cat = st.selectbox("Categoria:", cats_possiveis, index=cats_possiveis.index(cat_atual_val))
-                        edit_qtd = st.number_input("Quantidade:", min_value=0, value=int(dado_item['Quantidade']))
-                        edit_prc = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=float(dado_item['Preço Unitário']))
+                    with st.form(f"form_ed_{idx}"):
+                        edit_nome = st.text_input("Nome:", value=str(dado_item['Produto']))
+                        edit_qtd = st.number_input("Qtd:", min_value=0, value=int(dado_item['Quantidade']))
+                        edit_prc = st.number_input("Preço:", min_value=0.0, value=float(dado_item['Preço Unitário']))
                         
-                        col_b_ed1, col_b_ed2 = st.columns(2)
-                        with col_b_ed1:
-                            btn_salvar_edicao = st.form_submit_button("🔄 Atualizar Produto", use_container_width=True)
-                        with col_b_ed2:
-                            btn_apagar_prod = st.form_submit_button("🗑️ Remover Produto", use_container_width=True)
-                            
-                        if btn_salvar_edicao:
-                            st.session_state.stock.at[idx_encontrado, 'Produto'] = edit_nome.strip()
-                            st.session_state.stock.at[idx_encontrado, 'Categoria'] = edit_cat
-                            st.session_state.stock.at[idx_encontrado, 'Quantidade'] = int(edit_qtd)
-                            st.session_state.stock.at[idx_encontrado, 'Preço Unitário'] = float(edit_prc)
-                            st.success("Produto atualizado com sucesso!")
+                        col_b1, col_b2 = st.columns(2)
+                        if col_b1.form_submit_button("🔄 Atualizar"):
+                            st.session_state.stock.at[idx, 'Produto'] = edit_nome.strip()
+                            st.session_state.stock.at[idx, 'Quantidade'] = int(edit_qtd)
+                            st.session_state.stock.at[idx, 'Preço Unitário'] = float(edit_prc)
                             st.rerun()
-                            
-                        if btn_apagar_prod:
-                            st.session_state.stock = st.session_state.stock.drop(idx_encontrado).reset_index(drop=True)
-                            st.success("Produto removido com sucesso!")
+                        if col_b2.form_submit_button("🗑️ Remover"):
+                            st.session_state.stock = st.session_state.stock.drop(idx).reset_index(drop=True)
                             st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
         
     with tab_dch:
         st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
         st.subheader("👥 Recursos Humanos (DCH)")
-        
-        proximo_numero = len(st.session_state.rh) + 1
-        codigo_gerado_auto = f"G{proximo_numero:03d}"
-        
-        st.info(f"💡 Próximo código gerado automaticamente: **{codigo_gerado_auto}**")
-
-        with st.form("form_rh_adm"):
-            nc = st.text_input("Nome Completo:")
-            cat_func = st.selectbox("Categoria:", ["Garçon", "Cozinheiro", "Caixa", "Segurança", "Limpeza"])
-            tel = st.text_input("Telefone:")
-            bi = st.text_input("Nº de BI:")
-            
-            if st.form_submit_button("Registar Colaborador", use_container_width=True):
-                if nc.strip():
-                    while not st.session_state.rh[st.session_state.rh['Código'] == codigo_gerado_auto].empty:
-                        proximo_numero += 1
-                        codigo_gerado_auto = f"G{proximo_numero:03d}"
-
-                    novo_rh = pd.DataFrame([[codigo_gerado_auto, nc.strip(), cat_func, tel.strip(), bi.strip()]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
-                    st.session_state.rh = pd.concat([st.session_state.rh, novo_rh], ignore_index=True)
-                    st.success(f"Colaborador {nc.strip()} registado com sucesso!")
-                    st.rerun()
-                else:
-                    st.warning("Por favor, preencha o nome do colaborador.")
-
-        st.markdown("#### Lista de Colaboradores Registados")
         st.dataframe(st.session_state.rh, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (Com Fragmento Auto-Executável)
+# ÁREA: CAIXA / GESTÃO DE MESAS (CÍRCULOS COMPACTOS)
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
-    st.title("💻 Controlo Geral de Mesas e Faturação (Caixa)")
+    st.markdown("<h3 style='margin-top:-10px; margin-bottom:5px;'>💻 Controlo Geral de Mesas e Faturação (Caixa)</h3>", unsafe_allow_html=True)
     
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
     mesas_data = carregar_mesas_disco()
@@ -713,22 +621,16 @@ def area_caixa_mesas():
     total_tpa_caixa = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
     total_geral_caixa = total_dinheiro_caixa + total_tpa_caixa
 
-    st.markdown("""
-        <div style="background-color: #141428; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a;">
-            <h4 style="margin-top: 0;">📊 Resumo Total em Caixa</h4>
+    # RESUMO HORIZONTAL ULTRA COMPACTO PARA CABER TUDO NA TELA
+    st.markdown(f"""
+        <div style="background-color: #141428; padding: 6px 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.95rem;">📊 <b>Caixa:</b></span>
+            <span style="font-size: 0.9rem;">Total Acumulado: <b style="color: #4ac26b;">{total_geral_caixa:,.2f} Kz</b></span>
+            <span style="font-size: 0.9rem;">💵 Dinheiro: <b>{total_dinheiro_caixa:,.2f} Kz</b></span>
+            <span style="font-size: 0.9rem;">💳 TPA: <b>{total_tpa_caixa:,.2f} Kz</b></span>
+            <span style="font-size: 0.8rem; background-color: #0f2316; color: #4ac26b; padding: 2px 8px; border-radius: 12px; border: 1px solid #2ea44f;">🟢 Caixa Aberto</span>
+        </div>
     """, unsafe_allow_html=True)
-    
-    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-    with col_kpi1:
-        st.metric("Total Acumulado", f"{total_geral_caixa:,.2f} Kz")
-    with col_kpi2:
-        st.metric("Valor em Dinheiro 💵", f"{total_dinheiro_caixa:,.2f} Kz")
-    with col_kpi3:
-        st.metric("Valor em TPA 💳", f"{total_tpa_caixa:,.2f} Kz")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.success("🟢 Caixa Aberto. Atualização inteligente em segundo plano ativa.")
-    st.markdown("<br>", unsafe_allow_html=True)
 
     if "mesa_ativa" in st.session_state:
         m_ativa = st.session_state.mesa_ativa
@@ -760,7 +662,7 @@ def area_caixa_mesas():
         with st.expander("📷 QR Code", expanded=False):
             link_mesa = f"{URL_OFICIAL}/?mesa={m_ativa}"
             st.code(link_mesa)
-            st.image(gerar_qrcode_bytes(link_mesa), width=130)
+            st.image(gerar_qrcode_bytes(link_mesa), width=120)
 
         if dados_mesa.get("cliente"):
             cli = dados_mesa["cliente"]
@@ -773,13 +675,13 @@ def area_caixa_mesas():
             for idx_p, p in enumerate(dados_mesa['pedidos']):
                 col_p1, col_p2, col_p3 = st.columns([3, 2, 2])
                 with col_p1:
-                    st.write(f"- {p['quantidade']}x {p['item']} ({p['tipo']}) [{p['origem']}]")
+                    st.write(f"- {p['quantidade']}x {p['item']} ({p['tipo']})")
                 with col_p2:
                     st.write(f"**{(float(p['quantidade']) * float(p['preco'])):,.2f} Kz**")
                 with col_p3:
                     c_status = p.get('cozinha_status', 'N/A')
                     if c_status == "Feito":
-                        st.markdown("🍽️ **Refeição Pronta**")
+                        st.markdown("🍽️ **Pronta**")
                     else:
                         st.write(f"Estado: `{p['status']}`")
 
@@ -840,7 +742,9 @@ def area_caixa_mesas():
                 st.rerun()
         else:
             st.warning("A mesa não tem valor a faturar.")
+            
     else:
+        # VISÃO GERAL DAS MESAS EXIBIDAS EM CÍRCULOS
         cols_por_linha = 6
         for linha in range(5):
             cols = st.columns(cols_por_linha)
@@ -865,18 +769,21 @@ def area_caixa_mesas():
                     
                     if tem_refeicao_pronta:
                         classe_css = "mesa-pronta-alerta"
-                        emoji_topo_html = "<div class='emoji-refeicao-topo'>🍲</div>"
                     else:
                         classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
-                        emoji_topo_html = ""
                     
                     with cols[c]:
-                        st.markdown(emoji_topo_html, unsafe_allow_html=True)
-                        alerta_pronto_html = "<div style='color: #ff6b6b; font-size: 0.8em; font-weight: bold; margin-bottom: 1px;'>🚨 Pronta!</div>" if tem_refeicao_pronta else ""
-                        nome_cli_formatado = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
-                        valor_formatado = f"<span style='font-weight: bold; font-size: 0.85em;'>{dados_m['total']:,.2f} Kz</span>"
+                        alerta_pronto_html = "<span style='font-size:0.65rem; color:#ff6b6b;'>🚨</span> " if tem_refeicao_pronta else ""
+                        nome_cli_formatado = f"<div style='font-size: 0.62rem; max-width: 65px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{dados_m['cliente']['nome']}</div>" if dados_m.get('cliente') else f"<div style='font-size: 0.62rem;'>{status_m}</div>"
+                        valor_formatado = f"<div style='font-size: 0.68rem; font-weight: bold;'>{dados_m['total']:,.0f} Kz</div>"
 
-                        conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>{valor_formatado}</div>"
+                        conteudo_html = f"""
+                        <div class='mesa-circle {classe_css}'>
+                            <div style='font-size: 0.78rem; line-height: 1.0;'>{alerta_pronto_html}🪑 M{num_mesa}</div>
+                            {nome_cli_formatado}
+                            {valor_formatado}
+                        </div>
+                        """
                         st.markdown(conteudo_html, unsafe_allow_html=True)
                         
                         if st.button(f"Gerir {num_mesa}", key=f"btn_m_{num_mesa}", use_container_width=True):
@@ -884,7 +791,6 @@ def area_caixa_mesas():
                             st.rerun()
     
     salvar_mesas_disco(mesas_data)
-
 
 # ==========================================
 # ROTEADOR PRINCIPAL
