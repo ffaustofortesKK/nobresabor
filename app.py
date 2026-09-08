@@ -82,7 +82,7 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS Corrigidos (Sem barras brancas e com margem superior correta)
+# Estilos CSS (Largura reduzida em ~40% e sem barras brancas)
 st.markdown("""
     <style>
     /* Fundo geral da página e elementos raiz */
@@ -90,13 +90,14 @@ st.markdown("""
         background-color: #0c0c16 !important;
     }
     
-    /* Garante respiro no topo para não cortar o cabeçalho e elimina fundo branco */
+    /* Reduz a largura lateral em cerca de 40% e centraliza */
     .block-container {
         padding-top: 3.5rem !important;
         padding-bottom: 1.5rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-        max-width: 98% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 62% !important;
+        margin: 0 auto !important;
         background-color: #0c0c16 !important;
     }
 
@@ -226,7 +227,7 @@ def gerar_qrcode_bytes(url_texto):
     return buffered.getvalue()
 
 # ==========================================
-# ÁREA: CLIENTE (Otimizada para Tablet / Tela Única)
+# ÁREA: CLIENTE
 # ==========================================
 def area_cliente():
     if mesa_detectada and 1 <= mesa_detectada <= 30:
@@ -283,7 +284,6 @@ def area_cliente():
                     st.warning("Preencha o seu nome e telefone.")
     else:
         cli = dados_m["cliente"]
-        # Cabeçalho compacto em linha única com bom respiro no topo
         st.markdown(f"""
             <div style="display: flex; justify-content: space-between; align-items: center; background-color: #141428; padding: 10px 14px; border-radius: 8px; border: 1px solid #2a2a4a; margin-bottom: 10px;">
                 <span style="font-size: 1.1rem; color: #ffb703;">🍽️ NobreSabor | Mesa {num_mesa}</span>
@@ -533,6 +533,15 @@ def area_caixa_mesas():
                         c_status = p.get('cozinha_status', 'N/A')
                         if c_status == "Feito":
                             st.markdown("🍽️ **Pronta**")
+                            # Botão para dar baixa na refeição pronta e parar o alerta
+                            cat_p = str(p.get("tipo", "")).lower()
+                            if "refei" in cat_p or "prato" in cat_p or "comida" in cat_p:
+                                if st.button("✅ Adicionar Refeição", key=f"btn_baixa_ref_{m_ativa}_{idx_p}"):
+                                    mesas_data[str_m_ativa]["pedidos"][idx_p]["cozinha_status"] = "Entregue"
+                                    salvar_mesas_disco(mesas_data)
+                                    st.rerun()
+                        elif c_status == "Entregue":
+                            st.markdown("✅ **Entregue**")
                         else:
                             st.write(f"Est: `{p['status']}`")
 
@@ -613,6 +622,7 @@ def area_caixa_mesas():
                     )
                     dados_m['total'] = float(total_m)
                     
+                    # Apenas pisca se houver prato Feito E ainda não marcado como Entregue
                     tem_refeicao_pronta = any(
                         ("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower()) and p.get("cozinha_status") == "Feito" 
                         for p in dados_m['pedidos']
