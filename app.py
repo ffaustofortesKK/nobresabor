@@ -59,7 +59,6 @@ def carregar_historico_vendas():
         except:
             pass
     
-    # Dados de exemplo pré-carregados para nunca aparecer vazio (incluindo ontem e hoje)
     ontem = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
     hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
@@ -146,7 +145,7 @@ def salvar_stock_disco(df):
     except:
         pass
 
-# Estilos CSS
+# Estilos CSS Corrigidos (Texto preto nos inputs e dropdowns abertos)
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -166,6 +165,11 @@ st.markdown("""
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: bold !important;
+    }
+
+    /* Correção para forçar texto preto dentro dos inputs, selects e listas suspensas abertas */
+    input, select, option, div[data-baseweb="select"] *, div[data-baseweb="popover"] *, [data-baseweb="menu"] * {
+        color: #000000 !important;
     }
 
     [data-testid="stSidebar"] {
@@ -462,7 +466,7 @@ def area_cozinha():
         st.success("🎉 Sem refeições pendentes de momento!")
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (Com Finanças, Saídas de Caixa, Stock e RH)
+# ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
@@ -591,7 +595,6 @@ def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
 
-    # Botão de Abertura / Fecho de Caixa
     col_cx_btn1, col_cx_btn2 = st.columns([1, 4])
     with col_cx_btn1:
         if st.session_state.caixa_aberto:
