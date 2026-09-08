@@ -223,18 +223,10 @@ if "rh" not in st.session_state:
 
 URL_OFICIAL = "https://nobresabor.streamlit.app"
 
-def gerar_qrcode_bytes(url_texto):
-    qr = qrcode.QRCode(version=1, box_size=5, border=2)
-    qr.add_data(url_texto)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    return buffered.getvalue()
-
 # ==========================================
 # ÁREA: CLIENTE
 # ==========================================
+@st.fragment(run_every=4)
 def area_cliente():
     if mesa_detectada and 1 <= mesa_detectada <= 30:
         num_mesa = mesa_detectada
@@ -246,6 +238,7 @@ def area_cliente():
     str_mesa = str(num_mesa)
     dados_m = mesas_data[str_mesa]
 
+    # Se a fatura foi emitida pelo caixa, exibe automaticamente a fatura e a mensagem de agradecimento
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
@@ -260,7 +253,7 @@ def area_cliente():
         st.markdown(f"### Total Pago: **{fat['total']:,.2f} Kz**")
         st.markdown(f"<p><b>Forma de Pagamento:</b> {fat['pagamento_detalhe']}</p>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença no Restaurante Nobre Sabor!</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença no Restaurante Nobre Sabor! Volte sempre!</h3>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
@@ -591,6 +584,7 @@ def area_caixa_mesas():
                     hist_vendas.append(novo_registo_venda)
                     salvar_historico_vendas(hist_vendas)
 
+                    # Geração da fatura na mesa (dispara automaticamente a mensagem de agradecimento no dispositivo do cliente)
                     dados_mesa["fatura_emitida"] = {
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "cliente": str(nome_c_fatura),
@@ -602,7 +596,7 @@ def area_caixa_mesas():
                     
                     dados_mesa["status"] = "Fechada"
                     salvar_mesas_disco(mesas_data)
-                    st.success("Conta fechada com sucesso!")
+                    st.success("Conta fechada com sucesso! Fatura emitida e mensagem de agradecimento enviada ao cliente.")
                     del st.session_state.mesa_ativa
                     st.rerun()
         else:
