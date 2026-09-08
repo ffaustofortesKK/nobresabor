@@ -557,8 +557,8 @@ def area_administrador():
         st.markdown("""
             <div style="display: flex; gap: 10px; justify-content: flex-end; align-items: center;">
                 <span style="color: #ffb703; font-size: 0.95rem;">🔗 Links Rápidos:</span>
-                <a href="?perfil=caixa" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">💻 Link Caixa</button></a>
-                <a href="?perfil=cozinha" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍳 Link Cozinha</button></a>
+                <a href="?perfil=caixa" target="_blank"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">💻 Link Caixa</button></a>
+                <a href="?perfil=cozinha" target="_blank"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍳 Link Cozinha</button></a>
             </div>
         """, unsafe_allow_html=True)
         
@@ -852,6 +852,7 @@ def area_caixa_mesas():
                     
                     mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
                     mesas_data[str(m_sel)]["pedidos"] = []
+                    mesas_data[str_sel] = 0.0 # Ajustado para chave correta no seu dicionário se necessário
                     mesas_data[str(m_sel)]["total"] = 0.0
                     mesas_data[str(m_sel)]["status"] = "Fechada"
                     mesas_data[str(m_sel)]["cliente"] = None
