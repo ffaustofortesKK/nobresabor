@@ -933,10 +933,10 @@ def area_caixa_mesas():
                         justificacao_anulacao = st.text_input(f"Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
                         if st.button(f"Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
                             if justificacao_anulacao.strip():
-                                # Marca como anulado na mesa
+                                # Marca como anulado na mesa (corrigido o fecho de parênteses)
                                 mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
                                 total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                                mesas_data[str(m_sel]]['total'] = float(total_novo)
+                                mesas_data[str(m_sel)]['total'] = float(total_novo)
                                 salvar_mesas_disco(mesas_data)
                                 
                                 # Regista em Vendas Excluídas para o ADM
