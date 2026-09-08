@@ -510,7 +510,6 @@ def area_cliente():
                             "cozinha_status": "N/A" if not is_refeicao else "Pendente",
                             "hora": datetime.now().strftime("%H:%M:%S")
                         }
-                        
                         dados_m["pedidos"].append(novo_pedido)
                         dados_m["status"] = "Aberta"
                         
@@ -548,8 +547,17 @@ def area_cliente():
                         status_txt = "🍽️ Refeição Pronta!"
                     elif p.get('cozinha_status') == "Aprovado":
                         status_txt = "Preparando 🍳"
+                    
+                    # Atribuir emoji com base no tipo ou categoria do item
+                    tipo_item_str = str(p.get('tipo', '')).lower()
+                    if "bebida" in tipo_item_str:
+                        emoji_item = "🍹"
+                    elif "sobremesa" in tipo_item_str:
+                        emoji_item = "🧁"
+                    else:
+                        emoji_item = "🍲"
                         
-                    st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — **{status_txt}**")
+                    st.write(f"- {emoji_item} {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — **{status_txt}**")
                     
                 st.markdown(f"### Total Parcial: {subtotal_geral:,.2f} Kz")
                 st.divider()
@@ -661,7 +669,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para as animações de oscilação (Vermelha para fecho / Verde para comida pronta)
+    # Injeção de CSS para as animações de oscilação
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -856,27 +864,49 @@ def area_caixa_mesas():
                         for p in dados_m["pedidos"] 
                         if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                     )
+
+                    # Verificação de Bebidas e Sobremesas nos pedidos ativos da mesa
+                    tem_bebida = any(
+                        "bebida" in str(p.get("categoria", "")).lower() or 
+                        any(palavra in str(p.get("item", "")).lower() for palavra in ["sumo", "cerveja", "refrigerante", "vinho", "agua", "cocktail", "whisky"])
+                        for p in dados_m["pedidos"]
+                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                    )
+
+                    tem_sobremesa = any(
+                        "sobremesa" in str(p.get("categoria", "")).lower() or 
+                        any(palavra in str(p.get("item", "")).lower() for palavra in ["gelado", "bolo", "pudim", "doce", "torta", "sobremesa"])
+                        for p in dados_m["pedidos"]
+                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                    )
                     
-                    # Definição de classes CSS e emojis no topo da mesa conforme solicitado
+                    # Definição de classes CSS e símbolos/emojis no topo da mesa
+                    simbolos_topo_lista = []
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
-                        simbolo_topo = "💵"
+                        simbolos_topo_lista.append("💵")
                     elif tem_pronto:
                         classe_css = "mesa-pronta-alerta"
-                        simbolo_topo = "🍲"
+                        simbolos_topo_lista.append("🍲")
                     elif status_m == "Aberta" or cli_m:
                         classe_css = "mesa-aberta"
-                        simbolo_topo = ""
                     else:
                         classe_css = "mesa-fechada"
-                        simbolo_topo = ""
+
+                    # Adiciona os emojis de Bebida e Sobremesa se aplicável
+                    if tem_bebida:
+                        simbolos_topo_lista.append("🍹")
+                    if tem_sobremesa:
+                        simbolos_topo_lista.append("🍰")
+
+                    simbolo_topo = " ".join(simbolos_topo_lista)
 
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.85rem; margin-bottom: 2px;">{simbolo_topo}</div>
+                                <div style="font-size: 0.85rem; margin-bottom: 2px; min-height: 18px;">{simbolo_topo}</div>
                                 <span style="font-size: 0.75rem;">Mesa {mesa_idx}</span><br>
                                 <span style="font-size: 0.6rem;">{nome_cliente_curto}</span><br>
                                 <span style="font-size: 0.55rem;">{total_m:,.0f}Kz</span>
@@ -894,17 +924,14 @@ def area_caixa_mesas():
                 m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
                 dados_m_sel = mesas_data[str(m_sel)]
                 
-                # Nome do cliente obtido diretamente da mesa selecionada
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Sem Cliente"
                 
-                # Título com o nome do cliente logo a seguir
                 st.markdown(f"### ⚙️ Gestão da Mesa {m_sel} — <span style='color: #ffb703;'>{nome_cliente_titulo}</span>", unsafe_allow_html=True)
                 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 solicitou_fecho = dados_m_sel.get("solicitou_fecho", False)
                 
-                # Alerta visual se o cliente pediu fecho
                 if solicitou_fecho:
                     st.warning(f"🚨 **O cliente da Mesa {m_sel} solicitou o fecho da conta!**")
                 
@@ -951,7 +978,6 @@ def area_caixa_mesas():
                             hist_vendas.append(registo_venda)
                             salvar_historico_vendas(hist_vendas)
                             
-                            # Reseta a mesa inteira para o estado inicial (Estaca Zero)
                             mesas_data[str(m_sel)] = {
                                 "status": "Fechada",
                                 "cliente": None,
