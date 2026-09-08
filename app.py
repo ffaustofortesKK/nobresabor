@@ -832,10 +832,10 @@ def area_caixa_mesas():
             st.metric("Vendas em TPA", f"{total_tpa_vendas:,.2f} Kz")
             
         st.markdown("---")
-        st.markdown("#### 📦 Resumo de Todos os Itens Comercializados no Turno")
+        st.markdown("#### 📦 Extrato de Produtos Vendidos no Turno")
         
         if vendas_turno:
-            # Consolidar itens vendidos
+            # Consolidar itens vendidos no turno
             itens_consolidados = {}
             for v in vendas_turno:
                 for p in v.get("pedidos", []):
@@ -867,8 +867,10 @@ def area_caixa_mesas():
             
             st.markdown("---")
             total_geral_turno = sum(d["total"] for d in itens_consolidados.values())
+            
+            # Destacando o Valor em Caixa e a Faturação Total
             st.markdown(f"### 💰 Faturação Total do Turno: **{total_geral_turno:,.2f} Kz**")
-            st.markdown(f"### 💵 Dinheiro Esperado em Gaveta: **{saldo_em_caixa_fisico:,.2f} Kz**")
+            st.markdown(f"### 💵 Valor de Caixa (Dinheiro em Gaveta): **{saldo_em_caixa_fisico:,.2f} Kz**")
             
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🔒 Fechar Período de Caixa com Segurança", type="primary", use_container_width=True):
@@ -1002,7 +1004,7 @@ def area_caixa_mesas():
                 
                 st.markdown(f"### ⚙️ Mesa {m_sel} — <span style='color: #ffb703;'>({nome_cliente_titulo})</span>", unsafe_allow_html=True)
                 
-                # --- EXIBIÇÃO DO QR CODE DA MESA (NOBRE SABOR) ---
+                # --- EXIBIÇÃO DO QR CODE DA MESA ---
                 with st.expander(f"📱 Ver QR Code da Mesa {m_sel}", expanded=False):
                     url_mesa = f"https://nobresabor.streamlit.app/?mesa={m_sel}"
                     st.markdown(f"**Link de acesso rápido para a Mesa {m_sel}:**")
@@ -1101,7 +1103,6 @@ def area_caixa_mesas():
                         v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
                         v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
 
-                    # Botão Fechar Conta centralizado
                     col_b1, col_b2, col_b3 = st.columns([1, 1.5, 1])
                     with col_b2:
                         if st.button("✅ Fechar Conta", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
