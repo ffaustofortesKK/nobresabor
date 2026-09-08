@@ -423,103 +423,135 @@ def area_administrador():
     tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH"])
     
     with tab_fin:
-        # Cálculo dos totais de vendas
-        hist_vendas = carregar_historico_vendas()
-        t_dinheiro_v = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas) if hist_vendas else 0
-        t_tpa_v = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas) if hist_vendas else 0
-        t_geral_v = t_dinheiro_v + t_tpa_v
+        # Inicializa o estado de autenticação da aba Finanças, se não existir
+        if "financas_autenticado" not in st.session_state:
+            st.session_state.financas_autenticado = False
 
-        # Cálculo das saídas de caixa
-        saidas_list = carregar_saidas_caixa()
-        t_saidas = sum(float(s.get('Valor', 0)) for s in saidas_list) if saidas_list else 0
-
-        # Totais líquidos / finais exibidos
-        t_geral_liq = t_geral_v - t_saidas
-        # Distribuição proporcional aproximada ou dedução limpa em dinheiro para o display solicitado
-        t_dinheiro_liq = max(0.0, t_dinheiro_v - t_saidas)
-
-        # Cabeçalho da aba de Finanças com KPIs alinhados no canto superior direito
-        col_tit_fin, col_kpi_dir = st.columns([1, 2])
-        with col_tit_fin:
-            st.subheader("💰 Controlo de Caixa & Finanças")
-        with col_kpi_dir:
-            st.markdown(
-                f"""
-                <div style="text-align: right; background-color: #f8f9fa; padding: 10px 15px; border-radius: 8px; border: 1px solid #e9ecef;">
-                    <span style="font-size: 0.9em; font-weight: bold; color: #333;">
-                        Total Acumulado Geral: <span style="color: #2e7d32;">189,650.00 Kz</span> | 💵 Dinheiro: <span style="color: #1565c0;">101,825.12 Kz</span> | 💳 TPA: <span style="color: #6a1b9a;">87,824.88 Kz</span>
-                    </span>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        col_cx_status, col_cx_btn = st.columns([3, 1])
-        with col_cx_status:
-            if st.session_state.caixa_aberto:
-                st.success("🟢 O Caixa encontra-se ABERTO.")
-            else:
-                st.error("🔴 O Caixa encontra-se FECHADO.")
-        with col_cx_btn:
-            if st.session_state.caixa_aberto:
-                if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
-                    st.session_state.caixa_aberto = False
-                    gravar_estado_caixa_disco(False)
-                    st.success("Caixa fechado com sucesso!")
-                    st.rerun()
-            else:
-                if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_adm"):
-                    st.session_state.caixa_aberto = True
-                    gravar_estado_caixa_disco(True)
-                    st.success("Caixa aberto com sucesso!")
-                    st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Secção de Saída de Caixa (Registo de Despesas/Retiradas)
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("📤 Saída de Caixa (Registo de Despesas)")
-        with st.form("form_registo_saida_caixa"):
-            col_sc1, col_sc2, col_sc3 = st.columns(3)
-            with col_sc1:
-                desc_saida = st.text_input("Descrição / Motivo (ex: Compra de Gelo, Pagamento Fornecedor):")
-            with col_sc2:
-                valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=0.0)
-            with col_sc3:
-                responsavel_saida = st.text_input("Responsável / Autorizado por:")
-                
-            if st.form_submit_button("Registrar Saída de Caixa", use_container_width=True):
-                if desc_saida.strip() and valor_saida > 0:
-                    nova_saida = {
-                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "Descrição": desc_saida.strip(),
-                        "Valor": float(valor_saida),
-                        "Responsável": responsavel_saida.strip() if responsavel_saida.strip() else "Administração"
-                    }
-                    saidas_list.append(nova_saida)
-                    salvar_saidas_caixa(saidas_list)
-                    st.success(f"Saída de {valor_saida:,.2f} Kz registada com sucesso!")
-                    st.rerun()
-                else:
-                    st.warning("Preencha a descrição e um valor superior a 0.")
-
-        if saidas_list:
-            st.markdown("#### Histórico de Saídas de Caixa")
-            df_saidas = pd.DataFrame(saidas_list)
-            st.dataframe(df_saidas, use_container_width=True)
-            st.info(f"Total de Saídas Registadas: **{t_saidas:,.2f} Kz**")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("📊 Histórico de Vendas Definitivo")
-        if hist_vendas:
-            df_vendas = pd.DataFrame(hist_vendas)
-            st.dataframe(df_vendas, use_container_width=True)
+        if not st.session_state.financas_autenticado:
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("🔒 Acesso Restrito - Finanças")
+            st.info("Insira a senha de acesso para visualizar o painel financeiro.")
             
-            st.markdown(f"**Total Bruto Vendas:** {t_geral_v:,.2f} Kz | 💵 **Dinheiro:** {t_dinheiro_v:,.2f} Kz | 💳 **TPA:** {t_tpa_v:,.2f} Kz")
+            with st.form("form_senha_financas"):
+                senha_digitada = st.text_input("Senha:", type="password")
+                btn_entrar_fin = st.form_submit_button("Desbloquear Finanças", use_container_width=True)
+                
+                if btn_entrar_fin:
+                    if senha_digitada == "123123123":
+                        st.session_state.financas_autenticado = True
+                        st.success("Acesso autorizado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("Senha incorreta! Tente novamente.")
+            st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.info("Sem vendas registadas.")
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Botão para bloquear novamente, caso o administrador desejar sair
+            col_blq1, col_blq2 = st.columns([6, 1])
+            with col_blq2:
+                if st.button("🔒 Bloquear", key="btn_bloquear_fin"):
+                    st.session_state.financas_autenticado = False
+                    st.rerun()
+
+            # Cálculo dos totais de vendas
+            hist_vendas = carregar_historico_vendas()
+            t_dinheiro_v = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas) if hist_vendas else 0
+            t_tpa_v = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas) if hist_vendas else 0
+            t_geral_v = t_dinheiro_v + t_tpa_v
+
+            # Cálculo das saídas de caixa
+            saidas_list = carregar_saidas_caixa()
+            t_saidas = sum(float(s.get('Valor', 0)) for s in saidas_list) if saidas_list else 0
+
+            # Totais líquidos / finais exibidos
+            t_geral_liq = t_geral_v - t_saidas
+            t_dinheiro_liq = max(0.0, t_dinheiro_v - t_saidas)
+
+            # Cabeçalho da aba de Finanças com KPIs alinhados no canto superior direito
+            col_tit_fin, col_kpi_dir = st.columns([1, 2])
+            with col_tit_fin:
+                st.subheader("💰 Controlo de Caixa & Finanças")
+            with col_kpi_dir:
+                st.markdown(
+                    f"""
+                    <div style="text-align: right; background-color: #f8f9fa; padding: 10px 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                        <span style="font-size: 0.9em; font-weight: bold; color: #333;">
+                            Total Acumulado Geral: <span style="color: #2e7d32;">189,650.00 Kz</span> | 💵 Dinheiro: <span style="color: #1565c0;">101,825.12 Kz</span> | 💳 TPA: <span style="color: #6a1b9a;">87,824.88 Kz</span>
+                        </span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            col_cx_status, col_cx_btn = st.columns([3, 1])
+            with col_cx_status:
+                if st.session_state.caixa_aberto:
+                    st.success("🟢 O Caixa encontra-se ABERTO.")
+                else:
+                    st.error("🔴 O Caixa encontra-se FECHADO.")
+            with col_cx_btn:
+                if st.session_state.caixa_aberto:
+                    if st.button("Fechar Caixa", type="secondary", key="btn_fechar_cx_adm"):
+                        st.session_state.caixa_aberto = False
+                        gravar_estado_caixa_disco(False)
+                        st.success("Caixa fechado com sucesso!")
+                        st.rerun()
+                else:
+                    if st.button("Abrir Caixa", type="primary", key="btn_abrir_cx_adm"):
+                        st.session_state.caixa_aberto = True
+                        gravar_estado_caixa_disco(True)
+                        st.success("Caixa aberto com sucesso!")
+                        st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # Secção de Saída de Caixa (Registo de Despesas/Retiradas)
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("📤 Saída de Caixa (Registo de Despesas)")
+            
+            # Obter lista de colaboradores do DCH para o campo de responsável
+            lista_colaboradores_rh = st.session_state.rh['Nome'].tolist() if not st.session_state.rh.empty else ["Administração"]
+
+            with st.form("form_registo_saida_caixa"):
+                col_sc1, col_sc2, col_sc3 = st.columns(3)
+                with col_sc1:
+                    desc_saida = st.text_input("Descrição / Motivo (ex: Compra de Gelo, Pagamento Fornecedor):")
+                with col_sc2:
+                    valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=0.0)
+                with col_sc3:
+                    responsavel_saida = st.selectbox("Responsável / Autorizado (DCH):", lista_colaboradores_rh)
+                    
+                if st.form_submit_button("Registrar Saída de Caixa", use_container_width=True):
+                    if desc_saida.strip() and valor_saida > 0:
+                        nova_saida = {
+                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Descrição": desc_saida.strip(),
+                            "Valor": float(valor_saida),
+                            "Responsável": responsavel_saida
+                        }
+                        saidas_list.append(nova_saida)
+                        salvar_saidas_caixa(saidas_list)
+                        st.success(f"Saída de {valor_saida:,.2f} Kz registada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("Preencha a descrição e um valor superior a 0.")
+
+            if saidas_list:
+                st.markdown("#### Histórico de Saídas de Caixa")
+                df_saidas = pd.DataFrame(saidas_list)
+                st.dataframe(df_saidas, use_container_width=True)
+                st.info(f"Total de Saídas Registadas: **{t_saidas:,.2f} Kz**")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("📊 Histórico de Vendas Definitivo")
+            if hist_vendas:
+                df_vendas = pd.DataFrame(hist_vendas)
+                st.dataframe(df_vendas, use_container_width=True)
+                
+                st.markdown(f"**Total Bruto Vendas:** {t_geral_v:,.2f} Kz | 💵 **Dinheiro:** {t_dinheiro_v:,.2f} Kz | 💳 **TPA:** {t_tpa_v:,.2f} Kz")
+            else:
+                st.info("Sem vendas registadas.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
     with tab_stk:
         sub_tab_reg, sub_tab_beb, sub_tab_ger, sub_tab_ed = st.tabs([
@@ -622,17 +654,34 @@ def area_administrador():
         
     with tab_dch:
         st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("👥 Recursos Humanos")
+        st.subheader("👥 Recursos Humanos (DCH)")
+        
+        # Geração automática do próximo código de funcionário
+        proximo_numero = len(st.session_state.rh) + 1
+        codigo_gerado_auto = f"G{proximo_numero:03d}"
+        
+        st.info(f"💡 O próximo código de funcionário gerado automaticamente será: **{codigo_gerado_auto}**")
+
         with st.form("form_rh_adm"):
-            cc = st.text_input("Código")
-            nc = st.text_input("Nome")
-            cat_func = st.selectbox("Categoria", ["Garçon", "Cozinheiro", "Caixa", "Segurança", "Limpeza"])
-            tel = st.text_input("Telefone")
-            bi = st.text_input("BI")
-            if st.form_submit_button("Registar") and cc:
-                novo_rh = pd.DataFrame([[cc, nc, cat_func, tel, bi]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
-                st.session_state.rh = pd.concat([st.session_state.rh, novo_rh], ignore_index=True)
-                st.rerun()
+            nc = st.text_input("Nome Completo:")
+            cat_func = st.selectbox("Categoria:", ["Garçon", "Cozinheiro", "Caixa", "Segurança", "Limpeza"])
+            tel = st.text_input("Telefone:")
+            bi = st.text_input("Nº de BI:")
+            
+            if st.form_submit_button("Registar Colaborador", use_container_width=True):
+                if nc.strip():
+                    while not st.session_state.rh[st.session_state.rh['Código'] == codigo_gerado_auto].empty:
+                        proximo_numero += 1
+                        codigo_gerado_auto = f"G{proximo_numero:03d}"
+
+                    novo_rh = pd.DataFrame([[codigo_gerado_auto, nc.strip(), cat_func, tel.strip(), bi.strip()]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+                    st.session_state.rh = pd.concat([st.session_state.rh, novo_rh], ignore_index=True)
+                    st.success(f"Colaborador {nc.strip()} registado com sucesso com o código {codigo_gerado_auto}!")
+                    st.rerun()
+                else:
+                    st.warning("Por favor, preencha o nome do colaborador.")
+
+        st.markdown("#### Lista de Colaboradores Registados")
         st.dataframe(st.session_state.rh, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
