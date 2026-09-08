@@ -669,7 +669,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para as animações de oscilação (Vermelha para fecho / Verde para comida pronta)
+    # Injeção de CSS para as animações de oscilação e estilo de botões reduzidos
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -865,7 +865,6 @@ def area_caixa_mesas():
                         if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                     )
 
-                    # Verificação de Bebidas nos pedidos ativos
                     tem_bebida = any(
                         "bebida" in str(p.get("categoria", "")).lower() or 
                         any(palavra in str(p.get("item", "")).lower() for palavra in ["sumo", "cerveja", "refrigerante", "vinho", "agua", "cocktail", "whisky"])
@@ -873,7 +872,6 @@ def area_caixa_mesas():
                         if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                     )
 
-                    # Verificação de Sobremesas nos pedidos ativos
                     tem_sobremesa = any(
                         "sobremesa" in str(p.get("categoria", "")).lower() or 
                         any(palavra in str(p.get("item", "")).lower() for palavra in ["gelado", "bolo", "pudim", "doce", "torta", "sobremesa"])
@@ -881,7 +879,6 @@ def area_caixa_mesas():
                         if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                     )
                     
-                    # Definição de classes CSS e símbolos no topo da mesa
                     simbolos_topo_lista = []
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
@@ -957,23 +954,57 @@ def area_caixa_mesas():
                         with col_i4: st.write(f"{subtotal_item:,.2f} Kz")
                     st.divider()
                 else:
-                    st.info("Ainda não existem pedidos registados nesta mesa.")
+                    st.info("Ainda não existem registos de pedidos nesta mesa.")
+
+                # --- BOTÃO ADICIONAR BEBIDA / COMIDA / SOBREMSA (CAIXA) LOGO ABAIXO DOS PEDIDOS ---
+                if st.button("➕ Adicionar Bebida / Comida / Sobremesa", key=f"btn_add_item_caixa_{m_sel}", use_container_width=True):
+                    st.session_state[f"modo_adicao_caixa_{m_sel}"] = not st.session_state.get(f"modo_adicao_caixa_{m_sel}", False)
+
+                if st.session_state.get(f"modo_adicao_caixa_{m_sel}", False):
+                    with st.form(f"form_adicionar_item_caixa_{m_sel}"):
+                        st.markdown("##### 🛒 Adicionar Novo Item à Mesa")
+                        cat_add = st.selectbox("Categoria:", ["Bebidas", "Comidas", "Sobremesas"], key=f"cat_add_cx_{m_sel}")
+                        
+                        # Exemplo de itens por categoria (pode ajustar conforme o seu dicionário de stock/menu)
+                        if cat_add == "Bebidas":
+                            item_add = st.selectbox("Item:", ["Refrigerante Cola", "Água Mineral", "Cerveja", "Sumo Natural"], key=f"it_cx_{m_sel}")
+                            preco_add = st.number_input("Preço Unitário (Kz):", value=450.0, key=f"pr_cx_{m_sel}")
+                        elif cat_add == "Sobremesas":
+                            item_add = st.selectbox("Item:", ["Gelado", "Bolo de Chocolate", "Pudim"], key=f"it_cx_{m_sel}")
+                            preco_add = st.number_input("Preço Unitário (Kz):", value=1200.0, key=f"pr_cx_{m_sel}")
+                        else:
+                            item_add = st.selectbox("Item:", ["Frango à Grega", "Bife com Batata", "Arroz de Marisco"], key=f"it_cx_{m_sel}")
+                            preco_add = st.number_input("Preço Unitário (Kz):", value=3500.0, key=f"pr_cx_{m_sel}")
+                            
+                        qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
+                        
+                        btn_salvar_novo_item = st.form_submit_button("💾 Salvar e Adicionar à Mesa", use_container_width=True)
+                        if btn_salvar_novo_item:
+                            novo_pedido = {
+                                "item": item_add,
+                                "quantidade": qtd_add,
+                                "preco": preco_add,
+                                "categoria": cat_add,
+                                "status": "Confirmado",
+                                "cozinha_status": "Pendente"
+                            }
+                            dados_m_sel["pedidos"].append(novo_pedido)
+                            dados_m_sel["total"] = sum(p['quantidade'] * p['preco'] for p in dados_m_sel["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                            if dados_m_sel["status"] == "Fechada":
+                                dados_m_sel["status"] = "Aberta"
+                            
+                            salvar_mesas_disco(mesas_data)
+                            st.session_state[f"modo_adicao_caixa_{m_sel}"] = False
+                            st.success("Item adicionado com sucesso!")
+                            st.rerun()
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 solicitou_fecho = dados_m_sel.get("solicitou_fecho", False)
                 
-                # Alerta visual se o cliente pediu fecho
                 if solicitou_fecho:
                     st.warning(f"🚨 **O cliente da Mesa {m_sel} solicitou o fecho da conta!**")
                 
                 if total_a_pagar > 0 or cli_atual:
-                    if not solicitou_fecho:
-                        st.info(f"Mesa {m_sel} ativa. O operador pode proceder ao fecho manual da conta abaixo a qualquer momento.")
-                        if st.button(f"🔔 Marcar Mesa {m_sel} como 'Fecho Solicitado'", key=f"forcar_fecho_{m_sel}", use_container_width=True):
-                            dados_m_sel["solicitou_fecho"] = True
-                            salvar_mesas_disco(mesas_data)
-                            st.rerun()
-
                     if solicitou_fecho or total_a_pagar > 0:
                         st.markdown(f"### 💵 Total: **{total_a_pagar:,.2f} Kz**")
                         
@@ -989,39 +1020,41 @@ def area_caixa_mesas():
                             v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_{m_sel}")
                             v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_{m_sel}")
 
-                        if st.button("✅ Fechar Conta", type="primary", use_container_width=True):
-                            nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
-                            tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
-                            
-                            registo_venda = {
-                                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "Mesa": m_sel,
-                                "Cliente": nome_c,
-                                "Telefone": tel_c,
-                                "Operador": sessao_op['operador'],
-                                "Período": sessao_op['periodo'],
-                                "Valor Dinheiro": v_dinheiro,
-                                "Valor TPA": v_tpa,
-                                "Total": total_a_pagar,
-                                "pedidos": dados_m_sel.get("pedidos", [])
-                            }
-                            
-                            hist_vendas.append(registo_venda)
-                            salvar_historico_vendas(hist_vendas)
-                            
-                            # Reseta a mesa inteira para o estado inicial
-                            mesas_data[str(m_sel)] = {
-                                "status": "Fechada",
-                                "cliente": None,
-                                "pedidos": [],
-                                "total": 0.0,
-                                "garcon": "",
-                                "solicitou_fecho": False
-                            }
-                            salvar_mesas_disco(mesas_data)
-                            
-                            st.success(f"Conta da Mesa {m_sel} encerrada com sucesso! Mesa limpa e resetada.")
-                            st.rerun()
+                        # Botão Fechar Conta com tamanho reduzido (centralizado com colunas)
+                        col_esp_esq, col_btn_centro, col_esp_dir = st.columns([1, 1.5, 1])
+                        with col_btn_centro:
+                            if st.button("✅ Fechar Conta", type="primary", key=f"btn_fechar_conta_{m_sel}", use_container_width=True):
+                                nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
+                                tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
+                                
+                                registo_venda = {
+                                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "Mesa": m_sel,
+                                    "Cliente": nome_c,
+                                    "Telefone": tel_c,
+                                    "Operador": sessao_op['operador'],
+                                    "Período": sessao_op['periodo'],
+                                    "Valor Dinheiro": v_dinheiro,
+                                    "Valor TPA": v_tpa,
+                                    "Total": total_a_pagar,
+                                    "pedidos": dados_m_sel.get("pedidos", [])
+                                }
+                                
+                                hist_vendas.append(registo_venda)
+                                salvar_historico_vendas(hist_vendas)
+                                
+                                mesas_data[str(m_sel)] = {
+                                    "status": "Fechada",
+                                    "cliente": None,
+                                    "pedidos": [],
+                                    "total": 0.0,
+                                    "garcon": "",
+                                    "solicitou_fecho": False
+                                }
+                                salvar_mesas_disco(mesas_data)
+                                
+                                st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
+                                st.rerun()
                 else:
                     st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                     
