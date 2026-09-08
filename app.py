@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 import json
+import weasyprint
 
 # Configuração da Página
 st.set_page_config(
@@ -58,44 +59,7 @@ def carregar_historico_vendas():
                     return dados
         except:
             pass
-    
-    ontem = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
-    hoje = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    dados_exemplo = [
-        {
-            "Data": ontem,
-            "Mesa": 3,
-            "Cliente": "Carlos Silva",
-            "Telefone": "923111222",
-            "Valor Total": 12500.0,
-            "Valor Dinheiro": 12500.0,
-            "Valor TPA": 0.0,
-            "Modo Pagamento": "Dinheiro"
-        },
-        {
-            "Data": ontem,
-            "Mesa": 7,
-            "Cliente": "Maria Santos",
-            "Telefone": "912333444",
-            "Valor Total": 8400.0,
-            "Valor Dinheiro": 0.0,
-            "Valor TPA": 8400.0,
-            "Modo Pagamento": "TPA"
-        },
-        {
-            "Data": hoje,
-            "Mesa": 1,
-            "Cliente": "António Costa",
-            "Telefone": "935666777",
-            "Valor Total": 15000.0,
-            "Valor Dinheiro": 5000.0,
-            "Valor TPA": 10000.0,
-            "Modo Pagamento": "Dinheiro: 5,000.00 Kz | TPA: 10,000.00 Kz"
-        }
-    ]
-    salvar_historico_vendas(dados_exemplo)
-    return dados_exemplo
+    return []
 
 def salvar_historico_vendas(hist_list):
     try:
@@ -144,6 +108,79 @@ def salvar_stock_disco(df):
         df.to_json(ARQUIVO_STOCK, orient="split", index=False)
     except:
         pass
+
+def gerar_pdf_fatura(fat_data, num_mesa):
+    nif_str = f"<div><b>NIF:</b> {fat_data.get('nif', 'Consumidor Final')}</div>" if fat_data.get('nif') else ""
+    
+    linhas_tabela = ""
+    for item in fat_data['itens']:
+        sub_item = item['quantidade'] * item['preco']
+        linhas_tabela += f"""
+            <tr>
+                <td>{item['item']}</td>
+                <td style="text-align: center;">{item['quantidade']}</td>
+                <td style="text-align: right;">{item['preco']:,.2f} Kz</td>
+                <td style="text-align: right;">{sub_item:,.2f} Kz</td>
+            </tr>
+        """
+        
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+      body {{ font-family: Arial, sans-serif; color: #333; margin: 0; padding: 20px; background: #fff; }}
+      .invoice-box {{ max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); font-size: 14px; line-height: 22px; color: #555; }}
+      .title {{ font-size: 22px; font-weight: bold; color: #111; text-align: center; margin-bottom: 5px; }}
+      .subtitle {{ font-size: 14px; color: #666; text-align: center; margin-bottom: 20px; }}
+      table {{ width: 100%; line-height: inherit; text-align: left; border-collapse: collapse; margin-top: 15px; }}
+      table th {{ background: #f4f4f4; padding: 10px; border-bottom: 2px solid #ddd; color: #333; }}
+      table td {{ padding: 10px; border-bottom: 1px solid #eee; }}
+      .total-box {{ font-weight: bold; font-size: 16px; text-align: right; margin-top: 20px; color: #111; }}
+      .info-section {{ margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 6px; }}
+    </style>
+    </head>
+    <body>
+      <div class="invoice-box">
+        <div class="title">Restaurante Nobre Sabor</div>
+        <div class="subtitle">Fatura / Recibo — Mesa {num_mesa}</div>
+        
+        <div class="info-section">
+            <div><b>Data:</b> {fat_data['data']}</div>
+            <div><b>Cliente:</b> {fat_data['cliente']}</div>
+            <div><b>Telefone:</b> {fat_data['telefone']}</div>
+            {nif_str}
+        </div>
+        
+        <table>
+          <tr>
+            <th>Descrição do Item</th>
+            <th style="text-align: center;">Qtd</th>
+            <th style="text-align: right;">Preço Unit.</th>
+            <th style="text-align: right;">Total</th>
+          </tr>
+          {linhas_tabela}
+        </table>
+        
+        <div style="margin-top: 15px; font-size: 13px;">
+            <b>Forma de Pagamento:</b> {fat_data['pagamento_detalhe']}
+        </div>
+        
+        <div class="total-box">
+          Total Pago: {fat_data['total']:,.2f} Kz
+        </div>
+        
+        <div style="text-align: center; margin-top: 35px; font-size: 12px; color: #888;">
+            Muito obrigado pela sua preferência! Volte sempre ao Restaurante Nobre Sabor.
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    nome_arquivo = f"fatura_mesa_{num_mesa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    weasyprint.HTML(string=html_content).write_pdf(nome_arquivo)
+    return nome_arquivo
 
 # Estilos CSS Corrigidos
 st.markdown("""
@@ -216,7 +253,7 @@ st.markdown("""
     .fatura-box {
         background-color: #141428;
         border: 2px dashed #ffb703;
-        padding: 15px;
+        padding: 20px;
         border-radius: 10px;
     }
     
@@ -286,6 +323,8 @@ def area_cliente():
         st.markdown("<h2 style='text-align: center;'>🧾 Restaurante Nobre Sabor - Fatura / Recibo</h2>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center;'><b>Mesa:</b> {num_mesa} | <b>Data:</b> {fat['data']}</p>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center;'><b>Cliente:</b> {fat['cliente']} | <b>Telefone:</b> {fat['telefone']}</p>", unsafe_allow_html=True)
+        if fat.get('nif'):
+            st.markdown(f"<p style='text-align: center;'><b>NIF:</b> {fat['nif']}</p>", unsafe_allow_html=True)
         st.divider()
         
         for item in fat['itens']:
@@ -294,7 +333,23 @@ def area_cliente():
         st.markdown(f"### Total Pago: **{fat['total']:,.2f} Kz**")
         st.markdown(f"<p><b>Forma de Pagamento:</b> {fat['pagamento_detalhe']}</p>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença no Restaurante Nobre Sabor! Volte sempre!</h3>", unsafe_allow_html=True)
+        
+        # Gerar e disponibilizar Botão de Download PDF
+        try:
+            pdf_path = gerar_pdf_fatura(fat, num_mesa)
+            if os.path.exists(pdf_path):
+                with open(pdf_path, "rb") as pdf_file:
+                    st.download_button(
+                        label="📥 Descarregar Fatura em PDF",
+                        data=pdf_file,
+                        file_name=f"Fatura_Mesa_{num_mesa}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+        except Exception as e:
+            st.warning("Não foi possível gerar o PDF de download automático.")
+
+        st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença! Volte sempre!</h3>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
@@ -307,6 +362,7 @@ def area_cliente():
             with st.form(f"form_cli_{num_mesa}"):
                 nome_cli = st.text_input("Nome:")
                 tel_cli = st.text_input("Telefone:")
+                nif_cli = st.text_input("NIF (Opcional):", placeholder="Ex: 5000000000")
                 whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp?")
                 
                 btn_reg = st.form_submit_button("Entrar e Ver Menu", use_container_width=True)
@@ -314,6 +370,7 @@ def area_cliente():
                     dados_m["cliente"] = {
                         "nome": nome_cli,
                         "telefone": tel_cli,
+                        "nif": nif_cli if nif_cli else "",
                         "whatsapp": whatsapp_opt
                     }
                     dados_m["status"] = "Aberta"
@@ -425,47 +482,79 @@ def area_cozinha():
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
         return
 
-    tem_pedidos = False
-    for i in range(1, 31):
-        str_i = str(i)
-        dados_m = mesas_data[str_i]
-        for idx_p, ped in enumerate(dados_m["pedidos"]):
-            cat_p = str(ped.get("tipo", "")).lower()
-            if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and ped.get("cozinha_status") != "Feito":
-                tem_pedidos = True
-                
-                col_c1, col_c2, col_c3 = st.columns([3, 2, 3])
-                with col_c1:
-                    st.write(f"### 🍽️ Mesa {i}")
-                    st.write(f"**Refeição:** {ped['item']} | **Qtd:** {ped['quantidade']}")
-                    st.write(f"Obs: _{ped['obs']}_")
-                with col_c2:
-                    st.write(f"Estado: **{ped.get('cozinha_status', 'Pendente')}**")
-                with col_c3:
-                    estado_atual = ped.get('cozinha_status', 'Pendente')
-                    if estado_atual == "Pendente":
-                        if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}"):
-                            mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
-                            mesas_data[str_i]["pedidos"][idx_p]["status"] = "Confirmado"
-                            salvar_mesas_disco(mesas_data)
-                            st.rerun()
-                        if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}"):
-                            mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
-                            mesas_data[str_i]["pedidos"][idx_p]["status"] = "Recusado pela Cozinha"
-                            salvar_mesas_disco(mesas_data)
-                            st.rerun()
-                    elif estado_atual == "Aprovado":
-                        if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}"):
-                            mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
-                            salvar_mesas_disco(mesas_data)
-                            st.rerun()
-                st.divider()
-                
-    if not tem_pedidos:
-        st.success("🎉 Sem refeições pendentes de momento!")
+    tab_pendentes, tab_historico_cozinha = st.tabs(["🔥 Pedidos Pendentes e Ativos", "📋 Histórico de Pratos Preparados no Dia"])
+
+    with tab_pendentes:
+        st.subheader("Pedidos de Refeições vindos das Mesas / Caixa")
+        tem_pedidos = False
+        for i in range(1, 31):
+            str_i = str(i)
+            dados_m = mesas_data[str_i]
+            for idx_p, ped in enumerate(dados_m["pedidos"]):
+                cat_p = str(ped.get("tipo", "")).lower()
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and ped.get("cozinha_status") != "Feito" and ped.get("cozinha_status") != "Entregue":
+                    tem_pedidos = True
+                    
+                    col_c1, col_c2, col_c3 = st.columns([3, 2, 3])
+                    with col_c1:
+                        st.write(f"### 🍽️ Mesa {i}")
+                        st.write(f"**Refeição:** {ped['item']} | **Qtd:** {ped['quantidade']}")
+                        st.write(f"Obs: _{ped.get('obs', 'Nenhuma')}_ | Hora: `{ped.get('hora', 'N/A')}`")
+                    with col_c2:
+                        st.write(f"Estado: **{ped.get('cozinha_status', 'Pendente')}**")
+                    with col_c3:
+                        estado_atual = ped.get('cozinha_status', 'Pendente')
+                        if estado_atual == "Pendente":
+                            if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
+                                mesas_data[str_i]["pedidos"][idx_p]["status"] = "Confirmado"
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                            if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
+                                mesas_data[str_i]["pedidos"][idx_p]["status"] = "Recusado pela Cozinha"
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                        elif estado_atual == "Aprovado":
+                            if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                    st.divider()
+                    
+        if not tem_pedidos:
+            st.success("🎉 Sem refeições pendentes de momento!")
+
+    with tab_historico_cozinha:
+        st.subheader("📋 Registo de Pratos Preparados e Finalizados")
+        st.write("Aqui pode consultar todos os pratos que já foram marcados como feitos ou entregues hoje, para seu controlo pessoal.")
+        
+        lista_pratos_feitos = []
+        for i in range(1, 31):
+            str_i = str(i)
+            dados_m = mesas_data[str_i]
+            for ped in dados_m["pedidos"]:
+                cat_p = str(ped.get("tipo", "")).lower()
+                c_status = ped.get("cozinha_status", "")
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and c_status in ["Feito", "Entregue"]:
+                    lista_pratos_feitos.append({
+                        "Mesa": i,
+                        "Prato / Refeição": ped['item'],
+                        "Quantidade": ped['quantidade'],
+                        "Observações": ped.get('obs', ''),
+                        "Hora": ped.get('hora', ''),
+                        "Estado na Cozinha": c_status
+                    })
+        
+        if not lista_pratos_feitos:
+            st.info("Ainda nenhum prato foi finalizado hoje.")
+        else:
+            df_feitos = pd.DataFrame(lista_pratos_feitos)
+            st.dataframe(df_feitos, use_container_width=True)
+            st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (Com Controlo de Caixa)
+# ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
@@ -652,6 +741,23 @@ def area_caixa_mesas():
             
             if dados_mesa.get("fatura_emitida"):
                 st.success("✅ Esta mesa já teve a conta fechada e a fatura emitida.")
+                
+                fat_emitida_atual = dados_mesa["fatura_emitida"]
+                try:
+                    pdf_path_caixa = gerar_pdf_fatura(fat_emitida_atual, m_ativa)
+                    if os.path.exists(pdf_path_caixa):
+                        with open(pdf_path_caixa, "rb") as pdf_file_c:
+                            st.download_button(
+                                label="📥 Descarregar Fatura em PDF",
+                                data=pdf_file_c,
+                                file_name=f"Fatura_Mesa_{m_ativa}.pdf",
+                                mime="application/pdf",
+                                key=f"btn_dl_caixa_{m_ativa}",
+                                use_container_width=True
+                            )
+                except:
+                    pass
+
                 if st.button("🧹 Limpar e Liberar Mesa", type="primary", key=f"btn_limpar_{m_ativa}"):
                     mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None}
                     salvar_mesas_disco(mesas_data)
@@ -669,7 +775,8 @@ def area_caixa_mesas():
 
             if dados_mesa.get("cliente"):
                 cli = dados_mesa["cliente"]
-                st.info(f"👤 **Cliente:** {cli['nome']} | 📞 {cli['telefone']}")
+                nif_info = f" | NIF: {cli.get('nif')}" if cli.get('nif') else ""
+                st.info(f"👤 **Cliente:** {cli['nome']} | 📞 {cli['telefone']}{nif_info}")
 
             st.markdown("#### 📝 Pedidos Lançados")
             if not dados_mesa['pedidos']:
@@ -721,6 +828,7 @@ def area_caixa_mesas():
                 if st.button("💳 Fechar Conta e Emitir Fatura", type="primary", key=f"btn_fechar_{m_ativa}"):
                     nome_c_fatura = dados_mesa['cliente']['nome'] if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else 'Cliente Mesa'
                     tel_c_fatura = dados_mesa['cliente']['telefone'] if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else 'N/A'
+                    nif_c_fatura = dados_mesa['cliente'].get('nif', '') if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else ''
                     
                     detalhe_pag = f"Dinheiro: {val_dinheiro:,.2f} Kz | TPA: {val_tpa:,.2f} Kz" if tipo_pagamento == "Ambos (Dinheiro + TPA)" else tipo_pagamento
 
@@ -729,6 +837,7 @@ def area_caixa_mesas():
                         "Mesa": int(m_ativa),
                         "Cliente": str(nome_c_fatura),
                         "Telefone": str(tel_c_fatura),
+                        "NIF": str(nif_c_fatura),
                         "Valor Total": float(dados_mesa["total"]),
                         "Valor Dinheiro": float(val_dinheiro),
                         "Valor TPA": float(val_tpa),
@@ -741,6 +850,7 @@ def area_caixa_mesas():
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "cliente": str(nome_c_fatura),
                         "telefone": str(tel_c_fatura),
+                        "nif": str(nif_c_fatura),
                         "itens": list(dados_mesa["pedidos"]),
                         "total": float(dados_mesa["total"]),
                         "pagamento_detalhe": str(detalhe_pag)
@@ -748,7 +858,7 @@ def area_caixa_mesas():
                     
                     dados_mesa["status"] = "Fechada"
                     salvar_mesas_disco(mesas_data)
-                    st.success("Conta fechada com sucesso! Fatura emitida e gravada no histórico.")
+                    st.success("Conta fechada com sucesso! Fatura emitida, gravada no histórico e disponível para download em PDF.")
                     del st.session_state.mesa_ativa
                     st.rerun()
         else:
