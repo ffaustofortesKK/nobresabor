@@ -145,7 +145,7 @@ def salvar_stock_disco(df):
     except:
         pass
 
-# Estilos CSS Corrigidos (Texto preto nos inputs e dropdowns abertos)
+# Estilos CSS Corrigidos
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -167,7 +167,6 @@ st.markdown("""
         font-weight: bold !important;
     }
 
-    /* Correção para forçar texto preto dentro dos inputs, selects e listas suspensas abertas */
     input, select, option, div[data-baseweb="select"] *, div[data-baseweb="popover"] *, [data-baseweb="menu"] * {
         color: #000000 !important;
     }
@@ -423,7 +422,7 @@ def area_cozinha():
     mesas_data = carregar_mesas_disco()
 
     if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.**")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
         return
 
     tem_pedidos = False
@@ -466,11 +465,11 @@ def area_cozinha():
         st.success("🎉 Sem refeições pendentes de momento!")
 
 # ==========================================
-# ÁREA: ADMINISTRADOR
+# ÁREA: ADMINISTRADOR (Com Controlo de Caixa)
 # ==========================================
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
-    tab_fin, tab_saidas, tab_stk, tab_dch = st.tabs(["💰 Finanças & Histórico", "💸 Saídas de Caixa", "📦 Stock & Menu", "👥 DCH"])
+    tab_fin, tab_saidas, tab_stk, tab_dch = st.tabs(["💰 Finanças, Caixa & Histórico", "💸 Saídas de Caixa", "📦 Stock & Menu", "👥 DCH"])
     
     with tab_fin:
         if "financas_autenticado" not in st.session_state:
@@ -479,18 +478,43 @@ def area_administrador():
         if not st.session_state.financas_autenticado:
             with st.form("form_senha_financas"):
                 senha_digitada = st.text_input("Senha:", type="password")
-                if st.form_submit_button("Desbloquear Finanças"):
+                if st.form_submit_button("Desbloquear Painel do Administrador"):
                     if senha_digitada == "123123123":
                         st.session_state.financas_autenticado = True
                         st.rerun()
                     else:
                         st.error("Senha incorreta!")
         else:
-            if st.button("🔒 Bloquear Finanças"):
+            if st.button("🔒 Bloquear Painel"):
                 st.session_state.financas_autenticado = False
                 st.rerun()
-            st.success("Finanças desbloqueadas com sucesso.")
+            st.success("Painel desbloqueado com sucesso.")
             
+            st.markdown("---")
+            st.subheader("⚙️ Controlo de Abertura e Fecho de Caixa")
+            st.session_state.caixa_aberto = ler_estado_caixa_disco()
+            
+            col_adm_c1, col_adm_c2 = st.columns([1, 3])
+            with col_adm_c1:
+                if st.session_state.caixa_aberto:
+                    if st.button("🔒 Fechar Caixa", type="primary"):
+                        gravar_estado_caixa_disco(False)
+                        st.session_state.caixa_aberto = False
+                        st.success("Caixa fechado com sucesso!")
+                        st.rerun()
+                else:
+                    if st.button("🟢 Abrir Caixa", type="primary"):
+                        gravar_estado_caixa_disco(True)
+                        st.session_state.caixa_aberto = True
+                        st.success("Caixa aberto com sucesso!")
+                        st.rerun()
+            with col_adm_c2:
+                if st.session_state.caixa_aberto:
+                    st.info("🟢 O Caixa encontra-se atualmente **ABERTO** para operações e vendas.")
+                else:
+                    st.warning("🔴 O Caixa encontra-se atualmente **FECHADO**. As mesas e a cozinha estão bloqueadas.")
+
+            st.markdown("---")
             st.subheader("📊 Histórico de Faturação e Vendas Registadas")
             hist_vendas = carregar_historico_vendas()
             
@@ -595,22 +619,9 @@ def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
 
-    col_cx_btn1, col_cx_btn2 = st.columns([1, 4])
-    with col_cx_btn1:
-        if st.session_state.caixa_aberto:
-            if st.button("🔒 Fechar Caixa", type="primary"):
-                gravar_estado_caixa_disco(False)
-                st.session_state.caixa_aberto = False
-                st.rerun()
-        else:
-            if st.button("🟢 Abrir Caixa", type="primary"):
-                gravar_estado_caixa_disco(True)
-                st.session_state.caixa_aberto = True
-                st.rerun()
-    with col_cx_btn2:
-        if not st.session_state.caixa_aberto:
-            st.error("⚠️ **O Caixa encontra-se atualmente FECHADO.** Abra o caixa para iniciar operações.")
-            return
+    if not st.session_state.caixa_aberto:
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.** Peça ao administrador para abrir o caixa no painel de controlo.")
+        return
 
     total_dinheiro_caixa = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas)
     total_tpa_caixa = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
@@ -620,7 +631,7 @@ def area_caixa_mesas():
         <div style="background-color: #141428; padding: 12px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; padding-bottom: 8px;">
                 <span style="font-size: 1.15rem;">📊 Total: <b style="color: #4ac26b; font-size: 1.25rem;">{total_geral_caixa:,.2f} Kz</b></span>
-                <span style="font-size: 0.85rem; background-color: #0f2316; color: #4ac26b; padding: 3px 10px; border-radius: 12px; border: 1px solid #2ea44f;">🟢 Aberto</span>
+                <span style="font-size: 0.85rem; background-color: #0f2316; color: #4ac26b; padding: 3px 10px; border-radius: 12px; border: 1px solid #2ea44f;">🟢 Caixa Aberto</span>
             </div>
             <div style="display: flex; justify-content: space-around; align-items: center; padding-top: 2px;">
                 <span style="font-size: 0.95rem;">💵 Dinheiro: <b>{total_dinheiro_caixa:,.2f} Kz</b></span>
