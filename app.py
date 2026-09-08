@@ -156,7 +156,7 @@ def carregar_sessao_operador():
                 return json.load(f)
         except:
             pass
-    return {"logado": False, "operador": "Nenhum", "periodo": "N/A", "turno_aberto": False, "saldo_inicial": 0.0}
+    return {"logado": False, "operador": "Nenhum", "periodo": "N/A", "turno_aberto": False, "saldo_inicial": 0.0, "hora_abertura": ""}
 
 def salvar_sessao_operador(sessao_dict):
     try:
@@ -670,6 +670,9 @@ def area_caixa_mesas():
                     sessao_op["logado"] = True
                     sessao_op["operador"] = utilizador_input
                     sessao_op["periodo"] = periodo_input
+                    sessao_op["turno_aberto"] = False
+                    sessao_op["saldo_inicial"] = 0.0
+                    sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     salvar_sessao_operador(sessao_op)
                     st.success(f"Bem-vindo(a), {utilizador_input}! Faça agora a abertura do período.")
                     st.rerun()
@@ -701,6 +704,7 @@ def area_caixa_mesas():
             if st.button("🟢 Abertura do Caixa do Período", type="primary", use_container_width=True):
                 sessao_op["turno_aberto"] = True
                 sessao_op["saldo_inicial"] = saldo_inicial_recebido
+                sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 salvar_sessao_operador(sessao_op)
                 st.success("Caixa aberto com sucesso para este período!")
                 st.rerun()
@@ -718,8 +722,15 @@ def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
 
-    total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas)
-    total_tpa_vendas = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
+    # Filtra as vendas efetuadas a partir do momento em que este operador abriu o turno atual
+    hora_abertura_turno = sessao_op.get("hora_abertura", "2000-01-01 00:00:00")
+    vendas_turno = [
+        v for v in hist_vendas 
+        if v.get("Data", "") >= hora_abertura_turno and v.get("Operador", sessao_op['operador']) == sessao_op['operador']
+    ]
+
+    total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in vendas_turno)
+    total_tpa_vendas = sum(float(v.get('Valor TPA', 0)) for v in vendas_turno)
     
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
@@ -764,7 +775,7 @@ def area_caixa_mesas():
             salvar_fechos_caixa(fechos_list)
             
             # Limpa sessão do operador
-            salvar_sessao_operador({"logado": False, "operador": "Nenhum", "periodo": "N/A", "turno_aberto": False, "saldo_inicial": 0.0})
+            salvar_sessao_operador({"logado": False, "operador": "Nenhum", "periodo": "N/A", "turno_aberto": False, "saldo_inicial": 0.0, "hora_abertura": ""})
             st.success("Turno encerrado e enviado para as finanças com sucesso!")
             st.rerun()
 
@@ -943,6 +954,7 @@ def area_caixa_mesas():
                     hist = carregar_historico_vendas()
                     hist.append({
                         "Data": fatura_dados["data"],
+                        "Operador": sessao_op['operador'],
                         "Mesa": m_sel,
                         "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
                         "Cliente": fatura_dados["cliente"],
@@ -1075,7 +1087,14 @@ def area_administrador():
             # --- SALDO DISPONÍVEL EM CAIXA ADICIONADO AQUI POR ABAIXO DO AVISO ---
             sessao_op_adm = carregar_sessao_operador()
             hist_vendas_adm = carregar_historico_vendas()
-            vendas_dinheiro_adm = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas_adm)
+            
+            hora_abertura_adm = sessao_op_adm.get("hora_abertura", "2000-01-01 00:00:00")
+            vendas_turno_adm = [
+                v for v in hist_vendas_adm 
+                if v.get("Data", "") >= hora_abertura_adm and v.get("Operador", sessao_op_adm.get('operador')) == sessao_op_adm.get('operador')
+            ]
+            
+            vendas_dinheiro_adm = sum(float(v.get('Valor Dinheiro', 0)) for v in vendas_turno_adm)
             fundo_inicial_adm = float(sessao_op_adm.get("saldo_inicial", 0.0))
             saldo_fisico_atual = fundo_inicial_adm + vendas_dinheiro_adm
             
