@@ -90,6 +90,17 @@ st.markdown("""
         100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
     }
 
+    .piscar-alerta {
+        animation: piscar-aviso 1s infinite;
+        color: #ff4b4b !important;
+    }
+
+    @keyframes piscar-aviso {
+        0% { opacity: 1; }
+        50% { opacity: 0.3; }
+        100% { opacity: 1; }
+    }
+
     .fatura-box {
         background-color: #141428;
         border: 2px dashed #ffb703;
@@ -119,6 +130,7 @@ ARQUIVO_STOCK = "stock_dados.json"
 ARQUIVO_FECHOS_CAIXA = "fechos_caixa_historico.json"
 ARQUIVO_ATENDIMENTOS_GARCON = "atendimentos_garcon.json"
 ARQUIVO_RH_COLABORADORES = "rh_colaboradores.json"
+ARQUIVO_VENDAS_EXCLUIDAS = "vendas_excluidas.json"
 
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
@@ -199,6 +211,22 @@ def salvar_saidas_caixa(saidas_list):
     try:
         with open(ARQUIVO_SAIDAS_CAIXA, "w", encoding="utf-8") as f:
             json.dump(saidas_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_vendas_excluidas():
+    if os.path.exists(ARQUIVO_VENDAS_EXCLUIDAS):
+        try:
+            with open(ARQUIVO_VENDAS_EXCLUIDAS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_vendas_excluidas(exc_list):
+    try:
+        with open(ARQUIVO_VENDAS_EXCLUIDAS, "w", encoding="utf-8") as f:
+            json.dump(exc_list, f, ensure_ascii=False, indent=4)
     except:
         pass
 
@@ -692,9 +720,9 @@ def area_caixa_mesas():
             </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Acumulado em Caixa:</span><br>
+                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo em Caixa (Fundo Inicial + Dinheiro):</span><br>
                     <b style="color: #4ac26b; font-size: 1.2rem;">{saldo_em_caixa_fisico:,.2f} Kz</b><br><br>
-                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Total Geral (Dinheiro + TPA):</span><br>
+                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Total Geral (Caixa + TPA):</span><br>
                     <b style="color: #ffb703; font-size: 1.2rem;">{saldo_total_geral:,.2f} Kz</b>
                 </div>
                 <div style="text-align: right; display: flex; flex-direction: column; gap: 4px;">
@@ -708,26 +736,44 @@ def area_caixa_mesas():
 
     # Se o turno ainda não foi fechado, mostra a opção para fechar
     if not st.session_state.turno_fechado:
-        with st.expander("🔒 Fazer o Fecho do Período & Extrato de Vendas", expanded=True):
+        with st.expander("🔒 Fazer o Fecho do Período & Extrato Detalhado", expanded=True):
             st.write("Confira os dados abaixo e clique no botão para efetuar o fecho do período.")
             
             if st.button("✅ Confirmar Fecho de Período", type="primary"):
                 st.session_state.turno_fechado = True
                 st.rerun()
     else:
-        # SE O TURNO JÁ FOI FECHADO: Mostra somente o painel de confronto / extrato e botão de encerramento definitivo (como na 2ª imagem)
-        st.markdown("### 📊 Extrato de Vendas do Turno para Confrontar com o Saldo em Caixa")
-        if hist_vendas:
-            df_ext = pd.DataFrame(hist_vendas)
-            st.dataframe(df_ext, use_container_width=True)
+        # SE O TURNO JÁ FOI FECHADO: Mostra somente o painel de confronto / extrato detalhado e botão de encerramento definitivo
+        st.markdown("### 📊 Extrato Detalhado de Vendas do Turno (Produtos Consumidos, Totais e Preços)")
+        
+        # Constrói extrato detalhado expandindo os itens consumidos
+        extrato_detalhado = []
+        for v in hist_vendas:
+            # Se a venda tiver itens detalhados guardados, usamos, senão puxamos da respetiva mesa ou registo
+            itens_venda = v.get("itens", [{"item": "Consumo Geral", "quantidade": 1, "preco": v.get("Valor Total", 0)}])
+            for it in itens_venda:
+                extrato_detalhado.append({
+                    "Data/Hora": v.get("Data"),
+                    "Mesa": v.get("Mesa"),
+                    "Cliente": v.get("Cliente"),
+                    "Produto": it.get("item"),
+                    "Qtd": it.get("quantidade"),
+                    "Preço Unit.": it.get("preco"),
+                    "Total Item": it.get("quantidade") * it.get("preco"),
+                    "Modo Pagamento": v.get("Pagamento")
+                })
+        
+        if extrato_detalhado:
+            df_ext_det = pd.DataFrame(extrato_detalhado)
+            st.dataframe(df_ext_det, use_container_width=True)
         else:
-            st.info("Nenhuma venda registada neste turno.")
+            st.info("Nenhum item consumido registado neste turno.")
 
         st.markdown(f"""
             <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-top: 15px; margin-bottom: 15px;">
                 <p>💡 <b>Resumo para o Fecho:</b></p>
                 <ul>
-                    <li>Dinheiro em Caixa (Fundo + Vendas): <b>{saldo_em_caixa_fisico:,.2f} Kz</b></li>
+                    <li>Dinheiro em Caixa (Fundo Inicial + Vendas Dinheiro): <b>{saldo_em_caixa_fisico:,.2f} Kz</b></li>
                     <li>Vendas em TPA: <b>{total_tpa_vendas:,.2f} Kz</b></li>
                     <li>Total Geral Apurado: <b>{saldo_total_geral:,.2f} Kz</b></li>
                 </ul>
@@ -735,7 +781,6 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
 
         if st.button("🔒 Encerrar Turno e Sair (Enviar para Finanças)", type="primary", use_container_width=True):
-            # Grava efetivamente o fecho nas finanças do ADM
             fechos_list = carregar_fechos_caixa()
             novo_fecho = {
                 "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -749,18 +794,16 @@ def area_caixa_mesas():
             fechos_list.append(novo_fecho)
             salvar_fechos_caixa(fechos_list)
             
-            # Reseta a sessão para voltar à tela de login (3ª imagem)
             st.session_state.caixa_logado = False
             st.session_state.caixa_turno_aberto = False
             st.session_state.turno_fechado = False
             st.success("Turno encerrado e enviado para as finanças com sucesso!")
             st.rerun()
 
-        return  # Sai da função para esconder a grelha de mesas e manter apenas o ecrã de fecho/extrato
+        return
 
     st.markdown("---")
 
-    # Layout de 2 colunas: Esquerda (Detalhes da Mesa Selecionada + QR Code) | Direita (Grelha de Mesas)
     col_esq, col_dir = st.columns([1, 1])
 
     with col_dir:
@@ -857,13 +900,37 @@ def area_caixa_mesas():
                     subtotal_m_sel += t_item
                 
                 st.write(f"- {p['quantidade']}x {p['item']} ({t_item:,.2f} Kz) [{p['status']}]")
+                
+                # Opção de Anular com Justificação Obrigatória
                 if p['status'] != "Anulado":
-                    if st.button("🗑️ Anular Item", key=f"anular_item_{m_sel}_{idx_p}"):
-                        mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
-                        total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                        mesas_data[str(m_sel)]['total'] = float(total_novo)
-                        salvar_mesas_disco(mesas_data)
-                        st.rerun()
+                    with st.expander(f"🗑️ Anular Item: {p['item']} (Mesa {m_sel})"):
+                        justificacao_anulacao = st.text_input(f"Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
+                        if st.button(f"Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
+                            if justificacao_anulacao.strip():
+                                # Marca como anulado na mesa
+                                mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
+                                total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                                mesas_data[str(m_sel)]['total'] = float(total_novo)
+                                salvar_mesas_disco(mesas_data)
+                                
+                                # Regista em Vendas Excluídas para o ADM
+                                vendas_exc = carregar_vendas_excluidas()
+                                vendas_exc.append({
+                                    "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "Mesa": m_sel,
+                                    "Produto": p['item'],
+                                    "Quantidade": p['quantidade'],
+                                    "Preço Unitário": p['preco'],
+                                    "Preço Total": t_item,
+                                    "Utilizador": st.session_state.operador_nome,
+                                    "Observação": justificacao_anulacao
+                                })
+                                salvar_vendas_excluidas(vendas_exc)
+                                
+                                st.success("Item anulado e justificação enviada para o ADM!")
+                                st.rerun()
+                            else:
+                                st.warning("Por favor, preencha o motivo/justificação da anulação.")
 
             st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**")
             
@@ -916,7 +983,8 @@ def area_caixa_mesas():
                         "Valor Total": subtotal_m_sel,
                         "Pagamento": tipo_pagamento,
                         "Valor Dinheiro": val_dinheiro,
-                        "Valor TPA": val_tpa
+                        "Valor TPA": val_tpa,
+                        "itens": itens_validos_fatura
                     })
                     salvar_historico_vendas(hist)
                     
@@ -978,12 +1046,20 @@ def area_administrador():
     st.success("Painel de Administração desbloqueado com sucesso.")
     st.markdown("---")
 
-    tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch = st.tabs([
+    vendas_exc_check = carregar_vendas_excluidas()
+    tem_novas_exclusoes = len(vendas_exc_check) > 0
+    
+    nome_aba_excluidas = "🚨 Vendas Excluídas"
+    if tem_novas_exclusoes:
+        nome_aba_excluidas = "🚨 Vendas Excluídas (NOVO!)"
+
+    tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch, tab_exc = st.tabs([
         "💰 Finanças & Abertura do Dia", 
         "📋 Fechos de Período (Caixa)", 
         "💸 Saídas de Caixa", 
         "📦 Stock & Menu", 
-        "👥 DCH (Colaboradores & Bónus)"
+        "👥 DCH (Colaboradores & Bónus)",
+        nome_aba_excluidas
     ])
     
     with tab_fin:
@@ -1201,6 +1277,25 @@ def area_administrador():
             
             st.markdown("#### 📋 Histórico Detalhado de Atendimentos")
             st.dataframe(df_atend, use_container_width=True)
+
+    with tab_exc:
+        # Aplica efeito visual a piscar se houver vendas excluídas pendentes de visualização
+        if tem_novas_exclusoes:
+            st.markdown("<h3 class='piscar-alerta'>🚨 ALERTA: Existem Vendas/Itens Excluídos e Anulados pelos Operadores!</h3>", unsafe_allow_html=True)
+        else:
+            st.subheader("🚨 Registo de Vendas e Itens Excluídos / Anulados")
+
+        vendas_excluidas_list = carregar_vendas_excluidas()
+        if not vendas_excluidas_list:
+            st.info("Nenhum item ou venda foi excluído ou anulado até ao momento.")
+        else:
+            df_exc = pd.DataFrame(vendas_excluidas_list)
+            st.dataframe(df_exc, use_container_width=True)
+            
+            if st.button("🧹 Limpar / Marcar como Visto o Registo de Excluídos"):
+                salvar_vendas_excluidas([])
+                st.success("Registo limpo com sucesso!")
+                st.rerun()
 
 # ==========================================
 # ROTEADOR PRINCIPAL DA APLICAÇÃO
