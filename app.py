@@ -65,62 +65,65 @@ def salvar_historico_vendas(hist_list):
     except:
         pass
 
-# Estilos CSS atualizados com formato de mesa realista e suporte ao emoji flutuante por cima
+# Estilos CSS otimizados com cartões mais compactos e ajustados à tela
 st.markdown("""
     <style>
     @keyframes borda-vermelha-piscar {
-        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #fff5f5; }
-        50% { border: 3px solid #ffa0a0; box-shadow: none; background-color: #ffffff; }
-        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #fff5f5; }
+        0% { border: 2px solid #ff4b4b; box-shadow: 0 0 8px #ff4b4b; background-color: #fff5f5; }
+        50% { border: 2px solid #ffa0a0; box-shadow: none; background-color: #ffffff; }
+        100% { border: 2px solid #ff4b4b; box-shadow: 0 0 8px #ff4b4b; background-color: #fff5f5; }
     }
     @keyframes flutuar-emoji {
         0% { transform: translateY(0px); }
-        50% { transform: translateY(-5px); }
+        50% { transform: translateY(-4px); }
         100% { transform: translateY(0px); }
     }
     .emoji-refeicao-topo {
-        font-size: 1.6em;
+        font-size: 1.4em;
         text-align: center;
-        margin-bottom: -10px;
+        margin-bottom: -8px;
         z-index: 10;
         position: relative;
         animation: flutuar-emoji 1.2s infinite ease-in-out;
     }
     .mesa-pronta-alerta {
-        padding: 15px;
-        border-radius: 60px / 30px;
+        padding: 8px 10px;
+        border-radius: 40px / 20px;
         text-align: center;
         font-weight: bold;
         animation: borda-vermelha-piscar 1s infinite;
         color: #d32f2f;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        font-size: 0.9em;
     }
     .mesa-aberta {
-        padding: 15px;
-        border-radius: 60px / 30px;
+        padding: 8px 10px;
+        border-radius: 40px / 20px;
         text-align: center;
         font-weight: bold;
         border: 2px solid #28a745;
         background-color: #f4fff6;
         color: #155724;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        font-size: 0.9em;
     }
     .mesa-fechada {
-        padding: 15px;
-        border-radius: 60px / 30px;
+        padding: 8px 10px;
+        border-radius: 40px / 20px;
         text-align: center;
         font-weight: bold;
         border: 2px solid #d6d8db;
         background-color: #f8f9fa;
         color: #6c757d;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        font-size: 0.9em;
     }
     .bloco-seccao {
-        padding: 25px;
+        padding: 20px;
         border-radius: 12px;
         background-color: #ffffff;
         border: 1px solid #e0e0e0;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
     }
     .fatura-box {
         background-color: #f9f9f9;
@@ -393,10 +396,10 @@ def area_cozinha():
 # ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
-    st.markdown("<hr style='margin-top: 40px; margin-bottom: 40px;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin-top: 20px; margin-bottom: 20px;'>", unsafe_allow_html=True)
     st.title("👑 Painel do Administrador - NobreSabor")
     
-    with st.expander("🔗 Links Oficiais do Sistema", expanded=True):
+    with st.expander("🔗 Links Oficiais do Sistema", expanded=False):
         st.text_input("Link Direto do Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
         st.text_input("Link Direto da Cozinha:", f"{URL_OFICIAL}/?perfil=cozinha")
         
@@ -443,99 +446,104 @@ def area_administrador():
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tab_stk:
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("➕ Registo de Produtos com Categoria")
+        # Sub-abas criadas conforme pedido para o Stock do Administrador
+        sub_tab_reg, sub_tab_beb, sub_tab_ger, sub_tab_ed = st.tabs([
+            "➕ Registo de Produtos com Categoria",
+            "🍾 Stock de Bebidas",
+            "📦 Stock de Produtos (Geral / Refeições / Sobremesas / Outros)",
+            "🛠️ Editar ou Remover Qualquer Item do Stock"
+        ])
         
-        with st.form("form_registo_produto_novo"):
-            st.write("Insira os dados do novo item/produto para o menu e stock:")
-            col_rp1, col_rp2 = st.columns(2)
-            with col_rp1:
-                nome_novo_prod = st.text_input("Nome do Produto (ex: Cuca, Frango, Sumu...):")
-                categoria_nova = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Diversos"])
-            with col_rp2:
-                qtd_nova = st.number_input("Quantidade em Stock:", min_value=0, value=10)
-                preco_novo = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=1000.0)
-                
-            if st.form_submit_button("💾 Registar Produto", use_container_width=True):
-                if nome_novo_prod.strip():
-                    if not st.session_state.stock[st.session_state.stock['Produto'].str.lower() == nome_novo_prod.strip().lower()].empty:
-                        st.error("Já existe um produto com este nome no stock!")
+        with sub_tab_reg:
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("➕ Registo de Produtos com Categoria")
+            with st.form("form_registo_produto_novo"):
+                st.write("Insira os dados do novo item/produto para o menu e stock:")
+                col_rp1, col_rp2 = st.columns(2)
+                with col_rp1:
+                    nome_novo_prod = st.text_input("Nome do Produto (ex: Cuca, Frango, Sumu...):")
+                    categoria_nova = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Diversos"])
+                with col_rp2:
+                    qtd_nova = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                    preco_novo = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=1000.0)
+                    
+                if st.form_submit_button("💾 Registar Produto", use_container_width=True):
+                    if nome_novo_prod.strip():
+                        if not st.session_state.stock[st.session_state.stock['Produto'].str.lower() == nome_novo_prod.strip().lower()].empty:
+                            st.error("Já existe um produto com este nome no stock!")
+                        else:
+                            novo_reg = pd.DataFrame([[nome_novo_prod.strip(), categoria_nova, int(qtd_nova), float(preco_novo)]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+                            st.session_state.stock = pd.concat([st.session_state.stock, novo_reg], ignore_index=True)
+                            st.success(f"Produto '{nome_novo_prod.strip()}' registado com sucesso na categoria '{categoria_nova}'!")
+                            st.rerun()
                     else:
-                        novo_reg = pd.DataFrame([[nome_novo_prod.strip(), categoria_nova, int(qtd_nova), float(preco_novo)]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-                        st.session_state.stock = pd.concat([st.session_state.stock, novo_reg], ignore_index=True)
-                        st.success(f"Produto '{nome_novo_prod.strip()}' registado com sucesso na categoria '{categoria_nova}'!")
-                        st.rerun()
-                else:
-                    st.warning("Por favor, insira o nome do produto.")
+                        st.warning("Por favor, insira o nome do produto.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        with sub_tab_beb:
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("🍾 Stock de Bebidas")
+            df_bebidas = st.session_state.stock[st.session_state.stock['Categoria'].str.lower() == "bebidas"]
+            if df_bebidas.empty:
+                st.info("Nenhuma bebida registada no stock.")
+            else:
+                st.dataframe(df_bebidas, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # Secção: Stock de Bebidas
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("🍾 Stock de Bebidas")
-        df_bebidas = st.session_state.stock[st.session_state.stock['Categoria'].str.lower() == "bebidas"]
-        if df_bebidas.empty:
-            st.info("Nenhuma bebida registada no stock.")
-        else:
-            st.dataframe(df_bebidas, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with sub_tab_ger:
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("📦 Stock de Produtos (Geral / Refeições / Sobremesas / Outros)")
+            df_produtos = st.session_state.stock[st.session_state.stock['Categoria'].str.lower() != "bebidas"]
+            if df_produtos.empty:
+                st.info("Nenhum produto geral registado.")
+            else:
+                st.dataframe(df_produtos, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # Secção: Stock de Produtos (Geral / Outras Categorias)
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("📦 Stock de Produtos (Geral / Refeições / Sobremesas / Outros)")
-        df_produtos = st.session_state.stock[st.session_state.stock['Categoria'].str.lower() != "bebidas"]
-        if df_produtos.empty:
-            st.info("Nenhum produto geral registado.")
-        else:
-            st.dataframe(df_produtos, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        # Gestão e Edição Completa de Qualquer Item
-        st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("🛠️ Editar ou Remover Qualquer Item do Stock")
-        
-        if st.session_state.stock.empty:
-            st.info("O stock está totalmente vazio.")
-        else:
-            lista_todos_produtos = st.session_state.stock['Produto'].tolist()
-            prod_selecionado_gestao = st.selectbox("Selecione o produto para editar ou remover:", lista_todos_produtos, key="sel_gestao_produto_geral")
-            
-            if prod_selecionado_gestao:
-                idx_encontrado = st.session_state.stock[st.session_state.stock['Produto'] == prod_selecionado_gestao].index[0]
-                dado_item = st.session_state.stock.loc[idx_encontrado]
+        with sub_tab_ed:
+            st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
+            st.subheader("🛠️ Editar ou Remover Qualquer Item do Stock")
+            if st.session_state.stock.empty:
+                st.info("O stock está totalmente vazio.")
+            else:
+                lista_todos_produtos = st.session_state.stock['Produto'].tolist()
+                prod_selecionado_gestao = st.selectbox("Selecione o produto para editar ou remover:", lista_todos_produtos, key="sel_gestao_produto_geral")
                 
-                with st.form(f"form_edicao_item_{idx_encontrado}"):
-                    edit_nome = st.text_input("Nome do Produto:", value=str(dado_item['Produto']))
+                if prod_selecionado_gestao:
+                    idx_encontrado = st.session_state.stock[st.session_state.stock['Produto'] == prod_selecionado_gestao].index[0]
+                    dado_item = st.session_state.stock.loc[idx_encontrado]
                     
-                    cats_possiveis = ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Diversos"]
-                    cat_atual_val = dado_item['Categoria']
-                    if cat_atual_val not in cats_possiveis:
-                        cats_possiveis.append(cat_atual_val)
+                    with st.form(f"form_edicao_item_{idx_encontrado}"):
+                        edit_nome = st.text_input("Nome do Produto:", value=str(dado_item['Produto']))
                         
-                    edit_cat = st.selectbox("Categoria:", cats_possiveis, index=cats_possiveis.index(cat_atual_val))
-                    edit_qtd = st.number_input("Quantidade:", min_value=0, value=int(dado_item['Quantidade']))
-                    edit_prc = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=float(dado_item['Preço Unitário']))
-                    
-                    col_b_ed1, col_b_ed2 = st.columns(2)
-                    with col_b_ed1:
-                        btn_salvar_edicao = st.form_submit_button("🔄 Atualizar Produto", use_container_width=True)
-                    with col_b_ed2:
-                        btn_apagar_prod = st.form_submit_button("🗑️ Remover Produto", use_container_width=True)
+                        cats_possiveis = ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Diversos"]
+                        cat_atual_val = dado_item['Categoria']
+                        if cat_atual_val not in cats_possiveis:
+                            cats_possiveis.append(cat_atual_val)
+                            
+                        edit_cat = st.selectbox("Categoria:", cats_possiveis, index=cats_possiveis.index(cat_atual_val))
+                        edit_qtd = st.number_input("Quantidade:", min_value=0, value=int(dado_item['Quantidade']))
+                        edit_prc = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=float(dado_item['Preço Unitário']))
                         
-                    if btn_salvar_edicao:
-                        st.session_state.stock.at[idx_encontrado, 'Produto'] = edit_nome.strip()
-                        st.session_state.stock.at[idx_encontrado, 'Categoria'] = edit_cat
-                        st.session_state.stock.at[idx_encontrado, 'Quantidade'] = int(edit_qtd)
-                        st.session_state.stock.at[idx_encontrado, 'Preço Unitário'] = float(edit_prc)
-                        st.success("Produto atualizado com sucesso!")
-                        st.rerun()
-                        
-                    if btn_apagar_prod:
-                        st.session_state.stock = st.session_state.stock.drop(idx_encontrado).reset_index(drop=True)
-                        st.success("Produto removido do stock com sucesso!")
-                        st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
+                        col_b_ed1, col_b_ed2 = st.columns(2)
+                        with col_b_ed1:
+                            btn_salvar_edicao = st.form_submit_button("🔄 Atualizar Produto", use_container_width=True)
+                        with col_b_ed2:
+                            btn_apagar_prod = st.form_submit_button("🗑️ Remover Produto", use_container_width=True)
+                            
+                        if btn_salvar_edicao:
+                            st.session_state.stock.at[idx_encontrado, 'Produto'] = edit_nome.strip()
+                            st.session_state.stock.at[idx_encontrado, 'Categoria'] = edit_cat
+                            st.session_state.stock.at[idx_encontrado, 'Quantidade'] = int(edit_qtd)
+                            st.session_state.stock.at[idx_encontrado, 'Preço Unitário'] = float(edit_prc)
+                            st.success("Produto atualizado com sucesso!")
+                            st.rerun()
+                            
+                        if btn_apagar_prod:
+                            st.session_state.stock = st.session_state.stock.drop(idx_encontrado).reset_index(drop=True)
+                            st.success("Produto removido do stock com sucesso!")
+                            st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
         
     with tab_dch:
         st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
@@ -575,8 +583,8 @@ def area_caixa_mesas():
     total_geral_caixa = total_dinheiro_caixa + total_tpa_caixa
 
     st.markdown("""
-        <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #d1d5db;">
-            <h3 style="margin-top: 0; color: #1f2937;">📊 Resumo Total em Caixa</h3>
+        <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #d1d5db;">
+            <h4 style="margin-top: 0; color: #1f2937;">📊 Resumo Total em Caixa</h4>
     """, unsafe_allow_html=True)
     
     col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
@@ -737,7 +745,6 @@ def area_caixa_mesas():
                     
                     if tem_refeicao_pronta:
                         classe_css = "mesa-pronta-alerta"
-                        # Emoji flutuante animado exatamente por cima do cartão da mesa
                         emoji_topo_html = "<div class='emoji-refeicao-topo'>🍲</div>"
                     else:
                         classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
@@ -746,11 +753,11 @@ def area_caixa_mesas():
                     with cols[c]:
                         st.markdown(emoji_topo_html, unsafe_allow_html=True)
                         
-                        alerta_pronto_html = "<div style='color: #d32f2f; font-size: 0.85em; font-weight: bold; margin-bottom: 2px;'>🚨 Refeição Pronta!</div>" if tem_refeicao_pronta else ""
+                        alerta_pronto_html = "<div style='color: #d32f2f; font-size: 0.8em; font-weight: bold; margin-bottom: 1px;'>🚨 Pronta!</div>" if tem_refeicao_pronta else ""
                         
-                        nome_cli_formatado = f"<br><span style='font-size: 0.8em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
+                        nome_cli_formatado = f"<br><span style='font-size: 0.75em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
 
-                        valor_formatado = f"<span style='color: black; font-weight: bold;'>{dados_m['total']:,.2f} Kz</span>"
+                        valor_formatado = f"<span style='color: black; font-weight: bold; font-size: 0.85em;'>{dados_m['total']:,.2f} Kz</span>"
 
                         conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>{valor_formatado}</div>"
                         
