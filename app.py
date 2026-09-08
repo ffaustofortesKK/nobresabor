@@ -746,10 +746,8 @@ def area_caixa_mesas():
         # SE O TURNO JÁ FOI FECHADO: Mostra somente o painel de confronto / extrato detalhado e botão de encerramento definitivo
         st.markdown("### 📊 Extrato Detalhado de Vendas do Turno (Produtos Consumidos, Totais e Preços)")
         
-        # Constrói extrato detalhado expandindo os itens consumidos
         extrato_detalhado = []
         for v in hist_vendas:
-            # Se a venda tiver itens detalhados guardados, usamos, senão puxamos da respetiva mesa ou registo
             itens_venda = v.get("itens", [{"item": "Consumo Geral", "quantidade": 1, "preco": v.get("Valor Total", 0)}])
             for it in itens_venda:
                 extrato_detalhado.append({
@@ -857,8 +855,6 @@ def area_caixa_mesas():
         m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
         st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
         
-        url_mesa_qr = f"?mesa={m_sel}"
-        
         col_qr1, col_qr2 = st.columns([1, 1])
         with col_qr1:
             img_qr_bytes = gerar_qrcode_bytes(f"Mesa {m_sel} — NobreSabor")
@@ -901,19 +897,16 @@ def area_caixa_mesas():
                 
                 st.write(f"- {p['quantidade']}x {p['item']} ({t_item:,.2f} Kz) [{p['status']}]")
                 
-                # Opção de Anular com Justificação Obrigatória
                 if p['status'] != "Anulado":
                     with st.expander(f"🗑️ Anular Item: {p['item']} (Mesa {m_sel})"):
                         justificacao_anulacao = st.text_input(f"Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
                         if st.button(f"Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
                             if justificacao_anulacao.strip():
-                                # Marca como anulado na mesa
                                 mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
                                 total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
                                 mesas_data[str(m_sel)]['total'] = float(total_novo)
                                 salvar_mesas_disco(mesas_data)
                                 
-                                # Regista em Vendas Excluídas para o ADM
                                 vendas_exc = carregar_vendas_excluidas()
                                 vendas_exc.append({
                                     "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1106,14 +1099,27 @@ def area_administrador():
                 else:
                     st.warning("🔴 O Sistema encontra-se atualmente **FECHADO** pelo Administrador.")
 
+            # Cálculo e exibição do Saldo Disponível no Caixa para controlo do ADM
+            saidas_todas = carregar_saidas_caixa()
+            total_saidas_caixa_geral = sum(float(s.get('Valor', 0)) for s in saidas_todas)
+            hist_vendas_geral = carregar_historico_vendas()
+            total_dinheiro_geral = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas_geral)
+            saldo_disponivel_caixa = total_saidas_caixa_geral + total_dinheiro_geral
+
+            st.markdown(f"""
+                <div style="background-color: #141428; padding: 12px 18px; border-radius: 8px; border: 1px solid #ffb703; margin-top: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 0.95rem; color: #ffb703;">💵 <b>Saldo Disponível no Caixa (Fundo Atribuído + Vendas em Dinheiro):</b></span><br>
+                    <b style="color: #4ac26b; font-size: 1.3rem;">{saldo_disponivel_caixa:,.2f} Kz</b>
+                </div>
+            """, unsafe_allow_html=True)
+
             st.markdown("---")
             st.subheader("📊 Histórico Geral de Vendas")
-            hist_vendas = carregar_historico_vendas()
             
-            if not hist_vendas:
+            if not hist_vendas_geral:
                 st.info("Ainda não existem vendas faturadas registadas.")
             else:
-                df_vendas = pd.DataFrame(hist_vendas)
+                df_vendas = pd.DataFrame(hist_vendas_geral)
                 st.dataframe(df_vendas, use_container_width=True)
                 total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
                 st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
@@ -1279,7 +1285,6 @@ def area_administrador():
             st.dataframe(df_atend, use_container_width=True)
 
     with tab_exc:
-        # Aplica efeito visual a piscar se houver vendas excluídas pendentes de visualização
         if tem_novas_exclusoes:
             st.markdown("<h3 class='piscar-alerta'>🚨 ALERTA: Existem Vendas/Itens Excluídos e Anulados pelos Operadores!</h3>", unsafe_allow_html=True)
         else:
