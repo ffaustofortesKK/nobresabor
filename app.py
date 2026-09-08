@@ -811,7 +811,7 @@ def area_caixa_mesas():
     with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
         if hist_vendas:
-            pesquisa_cli = st.text_input("Filtrar por Nome do Cliente ou Telefone:", placeholder="Digite o nome ou telemóvel...")
+            pesquisa_cli = st.text_input("Filtrar por Nome do Cliente ou Telefone:", placeholder="Digite o nome ou telemóvel...", key="filtro_hist_cli_caixa")
             
             vendas_filtradas = hist_vendas
             if pesquisa_cli:
@@ -910,7 +910,7 @@ def area_caixa_mesas():
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_{mesa_idx}", use_container_width=True):
+                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.rerun()
                         
@@ -953,10 +953,8 @@ def area_caixa_mesas():
                         with col_i3: st.write(f"{preco_u:,.2f} Kz")
                         with col_i4: st.write(f"{subtotal_item:,.2f} Kz")
                         
-                        # Opção de remover ou anular o item diretamente na linha
-                        if st.button(f"🗑️ Anular Item {p.get('item')} (Mesa {m_sel})", key=f"anular_item_cx_{m_sel}_{idx_p}"):
+                        if st.button(f"🗑️ Anular Item {p.get('item')} (Mesa {m_sel})", key=f"anular_item_mesa_{m_sel}_idx_{idx_p}"):
                             p['status'] = "Anulado"
-                            # Recalcula o total da mesa
                             novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                             dados_m_sel["total"] = novo_total
                             salvar_mesas_disco(mesas_data)
@@ -968,11 +966,11 @@ def area_caixa_mesas():
 
                 # --- BOTÃO ADICIONAR BEBIDA / COMIDA / SOBREMSA (CAIXA) ---
                 with st.expander("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)"):
-                    with st.form(f"form_adicionar_item_caixa_{m_sel}"):
-                        cat_add = st.selectbox("Categoria:", ["Bebidas", "Comidas", "Sobremesas"], key=f"cat_add_cx_{m_sel}")
-                        item_add = st.text_input("Produto / Item:", key=f"item_add_cx_{m_sel}")
-                        qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_add_cx_{m_sel}")
-                        preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"preco_add_cx_{m_sel}")
+                    with st.form(key=f"form_adicionar_item_caixa_mesa_{m_sel}"):
+                        cat_add = st.selectbox("Categoria:", ["Bebidas", "Comidas", "Sobremesas"], key=f"cat_add_cx_m_{m_sel}")
+                        item_add = st.text_input("Produto / Item:", key=f"item_add_cx_m_{m_sel}")
+                        qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_add_cx_m_{m_sel}")
+                        preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"preco_add_cx_m_{m_sel}")
                         
                         btn_salvar_novo_item = st.form_submit_button("Adicionar à Mesa", use_container_width=True)
                         if btn_salvar_novo_item:
@@ -987,7 +985,6 @@ def area_caixa_mesas():
                                     "origem": "Caixa"
                                 }
                                 dados_m_sel["pedidos"].append(novo_pedido)
-                                # Recalcula total
                                 novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                                 dados_m_sel["total"] = novo_total
                                 if not dados_m_sel.get("status") or dados_m_sel["status"] == "Fechada":
@@ -1003,7 +1000,7 @@ def area_caixa_mesas():
                 if total_a_pagar > 0 or cli_atual:
                     st.markdown(f"### 💵 Total: **{total_a_pagar:,.2f} Kz**")
                     
-                    tipo_pagamento = st.radio("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_{m_sel}")
+                    tipo_pagamento = st.radio("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
                     
                     v_dinheiro = 0.0
                     v_tpa = 0.0
@@ -1012,13 +1009,13 @@ def area_caixa_mesas():
                     elif tipo_pagamento == "TPA":
                         v_tpa = total_a_pagar
                     else:
-                        v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_{m_sel}")
-                        v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_{m_sel}")
+                        v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
+                        v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
 
                     # Botão Fechar Conta com tamanho reduzido centralizado em colunas
                     col_b1, col_b2, col_b3 = st.columns([1, 1.5, 1])
                     with col_b2:
-                        if st.button("✅ Fechar Conta", type="primary", use_container_width=True, key=f"btn_fechar_conta_{m_sel}"):
+                        if st.button("✅ Fechar Conta", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
                             nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
                             tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
                             
@@ -1038,7 +1035,6 @@ def area_caixa_mesas():
                             hist_vendas.append(registo_venda)
                             salvar_historico_vendas(hist_vendas)
                             
-                            # Reseta a mesa inteira para o estado inicial
                             mesas_data[str(m_sel)] = {
                                 "status": "Fechada",
                                 "cliente": None,
