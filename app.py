@@ -1065,7 +1065,7 @@ def area_caixa_mesas():
                         st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
                         st.rerun()
                 else:
-                    st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
+                    st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.") 
                     
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
