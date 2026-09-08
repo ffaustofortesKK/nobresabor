@@ -547,9 +547,19 @@ def area_administrador():
                     st.error("Senha incorreta!")
         return
 
-    if st.button("🔒 Bloquear Painel / Sair"):
-        st.session_state.financas_autenticado = False
-        st.rerun()
+    col_btn_sair, col_links_rapidos = st.columns([1, 3])
+    with col_btn_sair:
+        if st.button("🔒 Bloquear Painel / Sair"):
+            st.session_state.financas_autenticado = False
+            st.rerun()
+            
+    with col_links_rapidos:
+        st.markdown("""
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <a href="?perfil=caixa" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer;">💻 Aceder ao Caixa</button></a>
+                <a href="?perfil=cozinha" target="_self"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍳 Aceder à Cozinha</button></a>
+            </div>
+        """, unsafe_allow_html=True)
         
     st.success("Painel de Administração desbloqueado com sucesso.")
     st.markdown("---")
@@ -563,13 +573,13 @@ def area_administrador():
         col_adm_c1, col_adm_c2 = st.columns([1, 3])
         with col_adm_c1:
             if st.session_state.caixa_aberto:
-                if st.button("🔒 Fechar Caixa", type="primary"):
+                if st.button("🔒 Fechar Caixa do Dia", type="primary"):
                     gravar_estado_caixa_disco(False)
                     st.session_state.caixa_aberto = False
                     st.success("Caixa fechado com sucesso!")
                     st.rerun()
             else:
-                if st.button("🟢 Abrir Caixa", type="primary"):
+                if st.button("🟢 Abrir Caixa do Dia", type="primary"):
                     gravar_estado_caixa_disco(True)
                     st.session_state.caixa_aberto = True
                     st.success("Caixa aberto com sucesso!")
@@ -877,10 +887,11 @@ def main():
                 st.rerun()
         with col3:
             if st.button("👑 Aceder à Administração", use_container_width=True):
+                st.query_params["perfil"] = "perfil" # corrigido para admin abaixo
                 st.query_params["perfil"] = "admin"
                 st.rerun()
                 
-        st.info("💡 Dica: Para links diretos, utilize `?perfil=caixa`, `?perfil=cozinha` ou `perfil=admin` no final do link da aplicação.")
+        st.info("💡 Dica: Para links diretos, utilize `?perfil=admin`, `?perfil=caixa` ou `?perfil=cozinha` no final do link da aplicação.")
 
 if __name__ == "__main__":
     main()
