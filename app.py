@@ -528,163 +528,6 @@ def area_cozinha():
             st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
 
 # ==========================================
-# ÁREA: ADMINISTRADOR
-# ==========================================
-def area_administrador():
-    st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
-    
-    if "financas_autenticado" not in st.session_state:
-        st.session_state.financas_autenticado = False
-
-    if not st.session_state.financas_autenticado:
-        with st.form("form_senha_financas"):
-            senha_digitada = st.text_input("Senha de Administrador:", type="password")
-            if st.form_submit_button("Desbloquear Painel"):
-                if senha_digitada == "123123123":
-                    st.session_state.financas_autenticado = True
-                    st.rerun()
-                else:
-                    st.error("Senha incorreta!")
-        return
-
-    col_btn_sair, col_links_rapidos = st.columns([1, 3])
-    with col_btn_sair:
-        if st.button("🔒 Bloquear Painel / Sair"):
-            st.session_state.financas_autenticado = False
-            st.rerun()
-            
-    with col_links_rapidos:
-        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos (Abrem numa Nova Aba):</div>", unsafe_allow_html=True)
-        col_lnk1, col_lnk2 = st.columns(2)
-        with col_lnk1:
-            st.link_button("💻 Abrir Painel do Caixa", "?perfil=caixa", use_container_width=True)
-        with col_lnk2:
-            st.link_button("🍳 Abrir Painel da Cozinha", "?perfil=cozinha", use_container_width=True)
-            
-    st.success("Painel de Administração desbloqueado com sucesso.")
-    st.markdown("---")
-
-    tab_fin, tab_saidas, tab_stk, tab_dch = st.tabs(["💰 Finanças & Caixa", "💸 Saídas de Caixa", "📦 Stock & Menu", "👥 DCH"])
-    
-    with tab_fin:
-        st.subheader("⚙️ Controlo de Abertura e Fecho de Caixa")
-        st.session_state.caixa_aberto = ler_estado_caixa_disco()
-        
-        col_adm_c1, col_adm_c2 = st.columns([1, 3])
-        with col_adm_c1:
-            if st.session_state.caixa_aberto:
-                if st.button("🔒 Fechar Caixa do Dia", type="primary"):
-                    gravar_estado_caixa_disco(False)
-                    st.session_state.caixa_aberto = False
-                    st.success("Caixa fechado com sucesso!")
-                    st.rerun()
-            else:
-                if st.button("🟢 Abrir Caixa do Dia", type="primary"):
-                    gravar_estado_caixa_disco(True)
-                    st.session_state.caixa_aberto = True
-                    st.success("Caixa aberto com sucesso!")
-                    st.rerun()
-        with col_adm_c2:
-            if st.session_state.caixa_aberto:
-                st.info("🟢 O Caixa encontra-se atualmente **ABERTO** para operações e vendas.")
-            else:
-                st.warning("🔴 O Caixa encontra-se atualmente **FECHADO**. As mesas e a cozinha estão bloqueadas.")
-
-        st.markdown("---")
-        st.subheader("📊 Histórico de Faturação e Vendas Registadas")
-        hist_vendas = carregar_historico_vendas()
-        
-        if not hist_vendas:
-            st.info("Ainda não existem vendas faturadas registadas.")
-        else:
-            df_vendas = pd.DataFrame(hist_vendas)
-            st.dataframe(df_vendas, use_container_width=True)
-            
-            total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
-            st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
-
-    with tab_saidas:
-        st.subheader("💸 Gestão e Registo de Saídas de Caixa")
-        
-        with st.form("form_registar_saida"):
-            col_sc1, col_sc2 = st.columns(2)
-            with col_sc1:
-                motivo_saida = st.text_input("Motivo da Saída (Ex: Compra de Gelo, Trocos, Fornecedor):")
-            with col_sc2:
-                valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=1000.0, step=500.0)
-            
-            responsavel_saida = st.text_input("Responsável / Autorizado por:")
-            
-            btn_salvar_saida = st.form_submit_button("🚀 Registar Saída de Caixa", use_container_width=True)
-            if btn_salvar_saida and motivo_saida and valor_saida > 0:
-                saidas_list = carregar_saidas_caixa()
-                nova_saida = {
-                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Motivo": motivo_saida,
-                    "Valor": float(valor_saida),
-                    "Responsável": responsavel_saida if responsavel_saida else "Administração"
-                }
-                saidas_list.append(nova_saida)
-                salvar_saidas_caixa(saidas_list)
-                st.success("Saída de caixa registada com sucesso!")
-                st.rerun()
-
-        st.divider()
-        st.markdown("#### Histórico de Saídas de Caixa")
-        saidas_registadas = carregar_saidas_caixa()
-        if not saidas_registadas:
-            st.info("Nenhuma saída de caixa registada.")
-        else:
-            df_saidas = pd.DataFrame(saidas_registadas)
-            st.dataframe(df_saidas, use_container_width=True)
-            total_saidas = df_saidas['Valor'].sum() if 'Valor' in df_saidas.columns else 0
-            st.markdown(f"### Total Retirado em Saídas: **{total_saidas:,.2f} Kz**")
-
-    with tab_stk:
-        st.subheader("📦 Gestão de Stock e Produtos/Pratos")
-        
-        with st.form("form_add_produto"):
-            st.markdown("#### Adicionar / Atualizar Item no Menu")
-            col_s1, col_s2 = st.columns(2)
-            with col_s1:
-                novo_produto = st.text_input("Nome do Produto/Prato:")
-                nova_categoria = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Outros"])
-            with col_s2:
-                nova_qtd = st.number_input("Quantidade em Stock:", min_value=0, value=10)
-                novo_preco = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=500.0, step=100.0)
-                
-            btn_salvar_prod = st.form_submit_button("💾 Salvar / Atualizar Produto", use_container_width=True)
-            if btn_salvar_prod and novo_produto:
-                df_stk = st.session_state.stock
-                if not df_stk.empty and novo_produto in df_stk['Produto'].values:
-                    df_stk.loc[df_stk['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
-                    st.success(f"Produto '{novo_produto}' atualizado com sucesso!")
-                else:
-                    novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-                    st.session_state.stock = pd.concat([df_stk, novo_df_linha], ignore_index=True)
-                    st.success(f"Produto '{novo_produto}' adicionado com sucesso!")
-                
-                salvar_stock_disco(st.session_state.stock)
-                st.rerun()
-
-        st.divider()
-        st.markdown("#### Lista Atual de Produtos")
-        st.dataframe(st.session_state.stock, use_container_width=True)
-        
-        if not st.session_state.stock.empty:
-            with st.form("form_del_produto"):
-                produto_a_remover = st.selectbox("Selecionar produto para remover:", st.session_state.stock['Produto'].tolist())
-                btn_remover = st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True)
-                if btn_remover:
-                    st.session_state.stock = st.session_state.stock[st.session_state.stock['Produto'] != produto_a_remover].reset_index(drop=True)
-                    salvar_stock_disco(st.session_state.stock)
-                    st.success(f"Produto '{produto_a_remover}' removido!")
-                    st.rerun()
-        
-    with tab_dch:
-        st.dataframe(st.session_state.rh, use_container_width=True)
-
-# ==========================================
 # ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
 @st.fragment(run_every=6)
@@ -861,6 +704,166 @@ def area_caixa_mesas():
                     st.rerun()
 
 # ==========================================
+# ÁREA: ADMINISTRADOR (COM OS LINKS DE CAIXA E COZINHA DENTRO)
+# ==========================================
+def area_administrador():
+    st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
+    
+    if "financas_autenticado" not in st.session_state:
+        st.session_state.financas_autenticado = False
+
+    # 1. PASSO DE AUTENTICAÇÃO (PEDE A SENHA AO ADM NA ÚNICA PÁGINA)
+    if not st.session_state.financas_autenticado:
+        with st.form("form_senha_financas"):
+            st.markdown("### 🔒 Autenticação de Administrador")
+            senha_digitada = st.text_input("Introduza a Senha de Administrador:", type="password")
+            if st.form_submit_button("Desbloquear Painel"):
+                if senha_digitada == "123123123":
+                    st.session_state.financas_autenticado = True
+                    st.rerun()
+                else:
+                    st.error("Senha incorreta!")
+        return
+
+    # 2. DENTRO DO PAINEL DO ADM LOGADO: APRESENTAÇÃO DOS LINKS E OPÇÕES
+    col_btn_sair, col_links_rapidos = st.columns([1, 3])
+    with col_btn_sair:
+        if st.button("🔒 Bloquear Painel / Sair"):
+            st.session_state.financas_autenticado = False
+            st.rerun()
+            
+    with col_links_rapidos:
+        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos (Abrir noutra janela sem fechar o ADM):</div>", unsafe_allow_html=True)
+        col_lnk1, col_lnk2 = st.columns(2)
+        with col_lnk1:
+            st.link_button("💻 Abrir Painel do Caixa", "?perfil=caixa", use_container_width=True)
+        with col_lnk2:
+            st.link_button("🍳 Abrir Painel da Cozinha", "?perfil=cozinha", use_container_width=True)
+            
+    st.success("Painel de Administração desbloqueado com sucesso.")
+    st.markdown("---")
+
+    tab_fin, tab_saidas, tab_stk, tab_dch = st.tabs(["💰 Finanças & Caixa", "💸 Saídas de Caixa", "📦 Stock & Menu", "👥 DCH"])
+    
+    with tab_fin:
+        st.subheader("⚙️ Controlo de Abertura e Fecho de Caixa")
+        st.session_state.caixa_aberto = ler_estado_caixa_disco()
+        
+        col_adm_c1, col_adm_c2 = st.columns([1, 3])
+        with col_adm_c1:
+            if st.session_state.caixa_aberto:
+                if st.button("🔒 Fechar Caixa do Dia", type="primary"):
+                    gravar_estado_caixa_disco(False)
+                    st.session_state.caixa_aberto = False
+                    st.success("Caixa fechado com sucesso!")
+                    st.rerun()
+            else:
+                if st.button("🟢 Abrir Caixa do Dia", type="primary"):
+                    gravar_estado_caixa_disco(True)
+                    st.session_state.caixa_aberto = True
+                    st.success("Caixa aberto com sucesso!")
+                    st.rerun()
+        with col_adm_c2:
+            if st.session_state.caixa_aberto:
+                st.info("🟢 O Caixa encontra-se atualmente **ABERTO** para operações e vendas.")
+            else:
+                st.warning("🔴 O Caixa encontra-se atualmente **FECHADO**. As mesas e a cozinha estão bloqueadas.")
+
+        st.markdown("---")
+        st.subheader("📊 Histórico de Faturação e Vendas Registadas")
+        hist_vendas = carregar_historico_vendas()
+        
+        if not hist_vendas:
+            st.info("Ainda não existem vendas faturadas registadas.")
+        else:
+            df_vendas = pd.DataFrame(hist_vendas)
+            st.dataframe(df_vendas, use_container_width=True)
+            
+            total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
+            st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
+
+    with tab_saidas:
+        st.subheader("💸 Gestão e Registo de Saídas de Caixa")
+        
+        with st.form("form_registar_saida"):
+            col_sc1, col_sc2 = st.columns(2)
+            with col_sc1:
+                motivo_saida = st.text_input("Motivo da Saída (Ex: Compra de Gelo, Trocos, Fornecedor):")
+            with col_sc2:
+                valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=1000.0, step=500.0)
+            
+            responsavel_saida = st.text_input("Responsável / Autorizado por:")
+            
+            btn_salvar_saida = st.form_submit_button("🚀 Registar Saída de Caixa", use_container_width=True)
+            if btn_salvar_saida and motivo_saida and valor_saida > 0:
+                saidas_list = carregar_saidas_caixa()
+                nova_saida = {
+                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Motivo": motivo_saida,
+                    "Valor": float(valor_saida),
+                    "Responsável": responsavel_saida if responsavel_saida else "Administração"
+                }
+                saidas_list.append(nova_saida)
+                salvar_saidas_caixa(saidas_list)
+                st.success("Saída de caixa registada com sucesso!")
+                st.rerun()
+
+        st.divider()
+        st.markdown("#### Histórico de Saídas de Caixa")
+        saidas_registadas = carregar_saidas_caixa()
+        if not saidas_registadas:
+            st.info("Nenhuma saída de caixa registada.")
+        else:
+            df_saidas = pd.DataFrame(saidas_registadas)
+            st.dataframe(df_saidas, use_container_width=True)
+            total_saidas = df_saidas['Valor'].sum() if 'Valor' in df_saidas.columns else 0
+            st.markdown(f"### Total Retirado em Saídas: **{total_saidas:,.2f} Kz**")
+
+    with tab_stk:
+        st.subheader("📦 Gestão de Stock e Produtos/Pratos")
+        
+        with st.form("form_add_produto"):
+            st.markdown("#### Adicionar / Atualizar Item no Menu")
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+                novo_produto = st.text_input("Nome do Produto/Prato:")
+                nova_categoria = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Outros"])
+            with col_s2:
+                nova_qtd = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                novo_preco = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=500.0, step=100.0)
+                
+            btn_salvar_prod = st.form_submit_button("💾 Salvar / Atualizar Produto", use_container_width=True)
+            if btn_salvar_prod and novo_produto:
+                df_stk = st.session_state.stock
+                if not df_stk.empty and novo_produto in df_stk['Produto'].values:
+                    df_stk.loc[df_stk['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
+                    st.success(f"Produto '{novo_produto}' atualizado com sucesso!")
+                else:
+                    novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+                    st.session_state.stock = pd.concat([df_stk, novo_df_linha], ignore_index=True)
+                    st.success(f"Produto '{novo_produto}' adicionado com sucesso!")
+                
+                salvar_stock_disco(st.session_state.stock)
+                st.rerun()
+
+        st.divider()
+        st.markdown("#### Lista Atual de Produtos")
+        st.dataframe(st.session_state.stock, use_container_width=True)
+        
+        if not st.session_state.stock.empty:
+            with st.form("form_del_produto"):
+                produto_a_remover = st.selectbox("Selecionar produto para remover:", st.session_state.stock['Produto'].tolist())
+                btn_remover = st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True)
+                if btn_remover:
+                    st.session_state.stock = st.session_state.stock[st.session_state.stock['Produto'] != produto_a_remover].reset_index(drop=True)
+                    salvar_stock_disco(st.session_state.stock)
+                    st.success(f"Produto '{produto_a_remover}' removido!")
+                    st.rerun()
+        
+    with tab_dch:
+        st.dataframe(st.session_state.rh, use_container_width=True)
+
+# ==========================================
 # ROTEADOR PRINCIPAL DA APLICAÇÃO
 # ==========================================
 def main():
@@ -870,27 +873,9 @@ def main():
         area_caixa_mesas()
     elif perfil_url == "cozinha":
         area_cozinha()
-    elif perfil_url == "admin":
-        area_administrador()
     else:
-        st.markdown("<h1>🍽️ NobreSabor - Portal de Acesso</h1>", unsafe_allow_html=True)
-        st.write("Selecione o painel que deseja aceder:")
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("💻 Aceder ao Caixa & Mesas", use_container_width=True):
-                st.query_params["perfil"] = "caixa"
-                st.rerun()
-        with col2:
-            if st.button("🍳 Aceder à Cozinha", use_container_width=True):
-                st.query_params["perfil"] = "cozinha"
-                st.rerun()
-        with col3:
-            if st.button("👑 Aceder à Administração", use_container_width=True):
-                st.query_params["perfil"] = "admin"
-                st.rerun()
-                
-        st.info("💡 Dica: Para links diretos, utilize `?perfil=admin`, `?perfil=caixa` ou `?perfil=cozinha` no final do link da aplicação.")
+        # Por padrão, abre o painel do ADM (onde ele insere a senha e depois vê os links)
+        area_administrador()
 
 if __name__ == "__main__":
     main()
