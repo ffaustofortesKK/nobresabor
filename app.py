@@ -1,522 +1,1041 @@
 import streamlit as st
 import pandas as pd
-import json
-import os
 from datetime import datetime
-import io
+import os
+import json
+from fpdf import FPDF
+import qrcode
+from io import BytesIO
 
-# ==========================================
-# CONFIGURAÇÃO DA PÁGINA
-# ==========================================
+# Configuração da Página
 st.set_page_config(
     page_title="NobreSabor - Sistema de Gestão",
     page_icon="🍽️",
     layout="wide"
 )
 
-# Estilos CSS Customizados
+# Estilos CSS
 st.markdown("""
     <style>
-        .main { background-color: #0e0e1a; color: #ffffff; }
-        .stButton>button { border-radius: 8px; font-weight: bold; }
-        .piscar-alerta {
-            color: #ff4b4b;
-            animation: piscar 1.5s infinite;
-        }
-        @keyframes piscar {
-            0% { opacity: 1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
+    .stApp, body, html {
+        background-color: #0c0c16 !important;
+    }
+    
+    .block-container {
+        padding-top: 3.5rem !important;
+        padding-bottom: 1.5rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 85% !important;
+        margin: 0 auto !important;
+        background-color: #0c0c16 !important;
+    }
+
+    html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+        font-weight: bold !important;
+    }
+
+    input, select, option {
+        color: #000000 !important;
+    }
+
+    div[data-baseweb="popover"], div[data-baseweb="menu"], div[role="listbox"] {
+        background-color: #ffffff !important;
+    }
+    
+    div[data-baseweb="popover"] *, div[data-baseweb="menu"] *, div[role="listbox"] * {
+        color: #000000 !important;
+    }
+
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+
+    .mesa-circle {
+        width: 62px;
+        height: 62px;
+        border-radius: 50%;
+        margin: 0 auto 2px auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .mesa-aberta {
+        border: 3px solid #2ea44f;
+        background-color: #0f2316;
+        color: #4ac26b !important;
+    }
+
+    .mesa-fechada {
+        border: 3px solid #30363d;
+        background-color: #161b22;
+        color: #ffffff !important;
+    }
+
+    .mesa-pronta-alerta {
+        border: 3px solid #ff4b4b;
+        background-color: #2b0d0d;
+        color: #ff6b6b !important;
+        animation: borda-vermelha-piscar 1s infinite;
+    }
+
+    @keyframes borda-vermelha-piscar {
+        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+        50% { border: 3px solid #ffa0a0; box-shadow: none; }
+        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+    }
+
+    .piscar-alerta {
+        animation: piscar-aviso 1s infinite;
+        color: #ff4b4b !important;
+    }
+
+    @keyframes piscar-aviso {
+        0% { opacity: 1; }
+        50% { opacity: 0.3; }
+        100% { opacity: 1; }
+    }
+
+    .fatura-box {
+        background-color: #141428;
+        border: 2px dashed #ffb703;
+        padding: 20px;
+        border-radius: 10px;
+    }
+    
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: bold !important;
+        padding: 4px 8px !important;
+        font-size: 0.85rem !important;
+        color: #000000 !important;
+    }
+    
+    .stButton>button p, .stButton>button span {
+        color: #000000 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# GESTÃO DE FICHEIROS E PERSISTÊNCIA (JSON)
-# ==========================================
-ARQUIVO_ESTADO_CAIXA = "estado_caixa.json"
+ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
+ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
-ARQUIVO_FECHOS = "fechos_caixa.json"
-ARQUIVO_SAIDAS = "saidas_caixa.json"
-ARQUIVO_STOCK = "stock_menu.json"
-ARQUIVO_RH = "recurso_humano.json"
-ARQUIVO_ATENDIMENTOS = "atendimentos_garcon.json"
-ARQUIVO_EXCLUIDAS = "vendas_excluidas.json"
-ARQUIVO_MESAS = "estado_mesas.json"
-ARQUIVO_SESSAO_OP = "sessao_operador.json"
-
-def ler_json(arquivo, default):
-    if os.path.exists(arquivo):
-        try:
-            with open(arquivo, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            return default
-    return default
-
-def salvar_json(arquivo, dados):
-    with open(arquivo, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
+ARQUIVO_SAIDAS_CAIXA = "saidas_caixa.json"
+ARQUIVO_STOCK = "stock_dados.json"
+ARQUIVO_FECHOS_CAIXA = "fechos_caixa_historico.json"
+ARQUIVO_ATENDIMENTOS_GARCON = "atendimentos_garcon.json"
+ARQUIVO_RH_COLABORADORES = "rh_colaboradores.json"
+ARQUIVO_VENDAS_EXCLUIDAS = "vendas_excluidas.json"
+ARQUIVO_SESSAO_CAIXA_OPERADOR = "sessao_caixa_operador.json"
 
 def ler_estado_caixa_disco():
-    return ler_json(ARQUIVO_ESTADO_CAIXA, False)
+    if os.path.exists(ARQUIVO_ESTADO_CAIXA):
+        try:
+            with open(ARQUIVO_ESTADO_CAIXA, "r") as f:
+                return f.read().strip() == "aberto"
+        except:
+            pass
+    return False
 
-def gravar_estado_caixa_disco(estado):
-    salvar_json(ARQUIVO_ESTADO_CAIXA, estado)
-
-def carregar_historico_vendas():
-    return ler_json(ARQUIVO_HISTORICO_VENDAS, [])
-
-def salvar_historico_vendas(dados):
-    salvar_json(ARQUIVO_HISTORICO_VENDAS, dados)
-
-def carregar_fechos_caixa():
-    return ler_json(ARQUIVO_FECHOS, [])
-
-def salvar_fechos_caixa(dados):
-    salvar_json(ARQUIVO_FECHOS, dados)
-
-def carregar_saidas_caixa():
-    return ler_json(ARQUIVO_SAIDAS, [])
-
-def salvar_saidas_caixa(dados):
-    salvar_json(ARQUIVO_SAIDAS, dados)
-
-def carregar_stock_disco():
-    dados = ler_json(ARQUIVO_STOCK, [])
-    if not dados:
-        # Stock inicial padrão
-        df_init = pd.DataFrame([
-            {"Produto": "Água Mineral", "Categoria": "Bebidas", "Quantidade": 100, "Preço Unitário": 300.0},
-            {"Produto": "Refrigerante Cola", "Categoria": "Bebidas", "Quantidade": 80, "Preço Unitário": 500.0},
-            {"Produto": "Cerveja Cuca", "Categoria": "Bebidas", "Quantidade": 120, "Preço Unitário": 600.0},
-            {"Produto": "Funge com Carne Seca", "Categoria": "Refeições", "Quantidade": 40, "Preço Unitário": 3500.0},
-            {"Produto": "Moamba de Galinha", "Categoria": "Refeições", "Quantidade": 35, "Preço Unitário": 4000.0},
-            {"Produto": "Picanha Grelhada", "Categoria": "Refeições", "Quantidade": 25, "Preço Unitário": 6000.0},
-            {"Produto": "Pudim de Leite", "Categoria": "Sobremesas", "Quantidade": 30, "Preço Unitário": 1500.0},
-            {"Produto": "Salada de Frutas", "Categoria": "Sobremesas", "Quantidade": 25, "Preço Unitário": 1000.0},
-        ])
-        salvar_json(ARQUIVO_STOCK, df_init.to_dict(orient="records"))
-        return df_init
-    return pd.DataFrame(dados)
-
-def salvar_stock_disco(df):
-    salvar_json(ARQUIVO_STOCK, df.to_dict(orient="records"))
-
-def carregar_rh_disco():
-    dados = ler_json(ARQUIVO_RH, [])
-    if not dados:
-        df_init = pd.DataFrame([
-            {"Código": "G001", "Nome": "Carlos Manuel", "Categoria": "Garçon", "Telefone": "923000001", "BI": "001234567LA042"},
-            {"Código": "G002", "Nome": "Ana Paula", "Categoria": "Garçon", "Telefone": "923000002", "BI": "009876543LA041"}
-        ])
-        salvar_json(ARQUIVO_RH, df_init.to_dict(orient="records"))
-        return df_init
-    return pd.DataFrame(dados)
-
-def salvar_rh_disco(df):
-    salvar_json(ARQUIVO_RH, df.to_dict(orient="records"))
-
-def carregar_atendimentos_garcon():
-    return ler_json(ARQUIVO_ATENDIMENTOS, [])
-
-def salvar_atendimentos_garcon(dados):
-    salvar_json(ARQUIVO_ATENDIMENTOS, dados)
-
-def carregar_vendas_excluidas():
-    return ler_json(ARQUIVO_EXCLUIDAS, [])
-
-def salvar_vendas_excluidas(dados):
-    salvar_json(ARQUIVO_EXCLUIDAS, dados)
+def gravar_estado_caixa_disco(aberto: bool):
+    try:
+        with open(ARQUIVO_ESTADO_CAIXA, "w") as f:
+            f.write("aberto" if aberto else "fechado")
+    except:
+        pass
 
 def carregar_sessao_operador():
-    return ler_json(ARQUIVO_SESSAO_OP, {"logado": False, "operador": "", "periodo": "", "saldo_inicial": 0.0, "hora_abertura": ""})
+    if os.path.exists(ARQUIVO_SESSAO_CAIXA_OPERADOR):
+        try:
+            with open(ARQUIVO_SESSAO_CAIXA_OPERADOR, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"logado": False, "operador": "Nenhum", "periodo": "N/A", "turno_aberto": False, "saldo_inicial": 0.0, "hora_abertura": ""}
 
-def salvar_sessao_operador(dados):
-    salvar_json(ARQUIVO_SESSAO_OP, dados)
+def salvar_sessao_operador(sessao_dict):
+    try:
+        with open(ARQUIVO_SESSAO_CAIXA_OPERADOR, "w", encoding="utf-8") as f:
+            json.dump(sessao_dict, f, ensure_ascii=False, indent=4)
+    except:
+        pass
 
-def carregar_estado_mesas():
-    # Zera ou inicializa mesas limpas (tudo zerado / vazio por padrão)
-    default_mesas = {f"Mesa {i}": {"itens": [], "estado": "Livre", "garcon": ""} for i in range(1, 13)}
-    return ler_json(ARQUIVO_MESAS, default_mesas)
+def carregar_mesas_disco():
+    if os.path.exists(ARQUIVO_DADOS_MESAS):
+        try:
+            with open(ARQUIVO_DADOS_MESAS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {str(i): {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "garcon": "Não atribuído", "fatura_emitida": None} for i in range(1, 31)}
 
-def salvar_estado_mesas(dados):
-    salvar_json(ARQUIVO_MESAS, dados)
+def salvar_mesas_disco(mesas_dict):
+    try:
+        with open(ARQUIVO_DADOS_MESAS, "w", encoding="utf-8") as f:
+            json.dump(mesas_dict, f, ensure_ascii=False, indent=4)
+    except:
+        pass
 
-def converter_df_para_excel(df):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Relatorio_NobreSabor')
-    return output.getvalue()
+def carregar_historico_vendas():
+    if os.path.exists(ARQUIVO_HISTORICO_VENDAS):
+        try:
+            with open(ARQUIVO_HISTORICO_VENDAS, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+                if dados:
+                    return dados
+        except:
+            pass
+    return []
 
-# ==========================================
-# INICIALIZAÇÃO DO SESSION STATE
-# ==========================================
+def salvar_historico_vendas(hist_list):
+    try:
+        with open(ARQUIVO_HISTORICO_VENDAS, "w", encoding="utf-8") as f:
+            json.dump(hist_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_fechos_caixa():
+    if os.path.exists(ARQUIVO_FECHOS_CAIXA):
+        try:
+            with open(ARQUIVO_FECHOS_CAIXA, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_fechos_caixa(fechos_list):
+    try:
+        with open(ARQUIVO_FECHOS_CAIXA, "w", encoding="utf-8") as f:
+            json.dump(fechos_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_saidas_caixa():
+    if os.path.exists(ARQUIVO_SAIDAS_CAIXA):
+        try:
+            with open(ARQUIVO_SAIDAS_CAIXA, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_saidas_caixa(saidas_list):
+    try:
+        with open(ARQUIVO_SAIDAS_CAIXA, "w", encoding="utf-8") as f:
+            json.dump(saidas_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_vendas_excluidas():
+    if os.path.exists(ARQUIVO_VENDAS_EXCLUIDAS):
+        try:
+            with open(ARQUIVO_VENDAS_EXCLUIDAS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_vendas_excluidas(exc_list):
+    try:
+        with open(ARQUIVO_VENDAS_EXCLUIDAS, "w", encoding="utf-8") as f:
+            json.dump(exc_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_atendimentos_garcon():
+    if os.path.exists(ARQUIVO_ATENDIMENTOS_GARCON):
+        try:
+            with open(ARQUIVO_ATENDIMENTOS_GARCON, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_atendimentos_garcon(atend_list):
+    try:
+        with open(ARQUIVO_ATENDIMENTOS_GARCON, "w", encoding="utf-8") as f:
+            json.dump(atend_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_rh_disco():
+    if os.path.exists(ARQUIVO_RH_COLABORADORES):
+        try:
+            df_loaded = pd.read_json(ARQUIVO_RH_COLABORADORES)
+            if not df_loaded.empty:
+                return df_loaded
+        except:
+            pass
+    return pd.DataFrame([
+        ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
+        ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
+    ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+
+def salvar_rh_disco(df):
+    try:
+        df.to_json(ARQUIVO_RH_COLABORADORES, orient="split", index=False)
+    except:
+        pass
+
+def carregar_stock_disco():
+    if os.path.exists(ARQUIVO_STOCK):
+        try:
+            df_loaded = pd.read_json(ARQUIVO_STOCK)
+            if not df_loaded.empty:
+                return df_loaded
+        except:
+            pass
+    return pd.DataFrame([
+        ["Água 0.5L", "Bebidas", 50, 300.0],
+        ["Refrigerante Cola", "Bebidas", 40, 450.0],
+        ["Cerveja Cuca", "Bebidas", 60, 500.0],
+        ["Vinho Tinto", "Bebidas", 15, 4500.0],
+        ["Frango à Grega", "Refeições", 20, 3500.0],
+        ["Bife a Cavalo", "Refeições", 15, 4000.0],
+        ["Pudim de Leite", "Sobremesas", 25, 1500.0],
+        ["Salada de Frutas", "Sobremesas", 30, 1200.0]
+    ], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+
+def salvar_stock_disco(df):
+    try:
+        df.to_json(ARQUIVO_STOCK, orient="split", index=False)
+    except:
+        pass
+
+def gerar_qrcode_bytes(url_texto):
+    qr = qrcode.QRCode(version=1, box_size=6, border=2)
+    qr.add_data(url_texto)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+def gerar_pdf_fatura(fat_data, num_mesa):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Restaurante Nobre Sabor", ln=True, align="C")
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(0, 10, f"Fatura / Recibo — Mesa {num_mesa}", ln=True, align="C")
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 7, f"Data: {fat_data['data']}", ln=True)
+    pdf.cell(0, 7, f"Cliente: {fat_data['cliente']}", ln=True)
+    pdf.cell(0, 7, f"Telefone: {fat_data['telefone']}", ln=True)
+    if fat_data.get('nif'):
+        pdf.cell(0, 7, f"NIF: {fat_data['nif']}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(90, 8, "Descrição do Item", 1)
+    pdf.cell(20, 8, "Qtd", 1, align="C")
+    pdf.cell(40, 8, "Preço Unit.", 1, align="R")
+    pdf.cell(40, 8, "Total", 1, align="R", ln=True)
+    
+    pdf.set_font("Arial", "", 10)
+    for item in fat_data['itens']:
+        sub_item = item['quantidade'] * item['preco']
+        pdf.cell(90, 8, str(item['item']), 1)
+        pdf.cell(20, 8, str(item['quantidade']), 1, align="C")
+        pdf.cell(40, 8, f"{item['preco']:,.2f} Kz", 1, align="R")
+        pdf.cell(40, 8, f"{sub_item:,.2f} Kz", 1, align="R", ln=True)
+        
+    pdf.ln(5)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 8, f"Forma de Pagamento: {fat_data['pagamento_detalhe']}", ln=True)
+    
+    pdf.set_font("Arial", "B", 13)
+    pdf.cell(0, 10, f"Total Pago: {fat_data['total']:,.2f} Kz", ln=True, align="R")
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(0, 8, "Muito obrigado pela sua preferência! Volte sempre ao Restaurante Nobre Sabor.", ln=True, align="C")
+    
+    nome_arquivo = f"fatura_mesa_{num_mesa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    pdf.output(nome_arquivo)
+    return nome_arquivo
+
+# Parâmetros URL
+mesa_detectada = None
+perfil_url = None
+
+try:
+    query_params = st.query_params
+    if "mesa" in query_params:
+        mesa_detectada = int(query_params.get("mesa"))
+    if "perfil" in query_params:
+        perfil_url = query_params.get("perfil")
+except Exception:
+    try:
+        old_params = st.experimental_get_query_params()
+        if "mesa" in old_params:
+            mesa_detectada = int(old_params["mesa"][0])
+        if "perfil" in old_params:
+            perfil_url = old_params["perfil"][0]
+    except Exception:
+        pass
+
+st.session_state.caixa_aberto = ler_estado_caixa_disco()
+
 if "stock" not in st.session_state:
     st.session_state.stock = carregar_stock_disco()
 
-if "caixa_aberto" not in st.session_state:
-    st.session_state.caixa_aberto = ler_estado_caixa_disco()
-
-if "mesas" not in st.session_state:
-    st.session_state.mesas = carregar_estado_mesas()
+if "rh" not in st.session_state:
+    st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ROTEAMENTO DE URL (PARÂMETROS)
+# ÁREA: CLIENTE
 # ==========================================
-query_params = st.query_params
-mesa_detectada = query_params.get("mesa", None)
-perfil_url = query_params.get("perfil", None)
-
-# ==========================================
-# ÁREA: CLIENTE (VIA QR CODE DA MESA)
-# ==========================================
+@st.fragment(run_every=4)
 def area_cliente():
-    st.markdown(f"<h1 style='text-align: center; color: #ffb703;'>🍽️ Restaurante NobreSabor - {mesa_detectada}</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #d0d0e0;'>Faça o seu pedido diretamente da mesa com total comodidade.</p>", unsafe_allow_html=True)
-    
-    if not st.session_state.caixa_aberto:
-        st.warning("🔴 O restaurante encontra-se atualmente encerrado ou com o sistema fechado pela Administração. Volte mais tarde!")
-        return
-
-    st.markdown("---")
-    st.subheader("📋 Cardápio Disponível")
-    
-    df_stk = st.session_state.stock
-    if df_stk.empty:
-        st.info("O cardápio está temporariamente vazio.")
-        return
-
-    categorias = df_stk['Categoria'].unique().tolist()
-    cat_selecionada = st.selectbox("Filtrar por Categoria:", ["Todas"] + categorias)
-    
-    if cat_selecionada != "Todas":
-        df_filtrado = df_stk[df_stk['Categoria'] == cat_selecionada]
+    if mesa_detectada and 1 <= mesa_detectada <= 30:
+        num_mesa = mesa_detectada
     else:
-        df_filtrado = df_stk
+        st.error("⚠️ Nenhum número de mesa detetado no link! Por favor, escaneie o QR Code correto da sua mesa.")
+        return
 
-    for index, row in df_filtrado.iterrows():
-        col_c1, col_c2, col_c3 = st.columns([3, 2, 2])
-        with col_c1:
-            st.markdown(f"**{row['Produto']}**")
-            st.caption(f"Categoria: {row['Categoria']} | Stock: {row['Quantidade']}")
-        with col_c2:
-            st.markdown(f"<span style='color: #4ac26b; font-weight: bold;'>{row['Preço Unitário']:,.2f} Kz</span>", unsafe_allow_html=True)
-        with col_c3:
-            qtd_pedida = st.number_input(f"Qtd##{row['Produto']}", min_value=0, max_value=int(row['Quantidade']), value=0, step=1, key=f"cli_{mesa_detectada}_{row['Produto']}")
-            if qtd_pedida > 0:
-                # Armazenar temporariamente no estado da mesa
-                pass
+    mesas_data = carregar_mesas_disco()
+    str_mesa = str(num_mesa)
+    dados_m = mesas_data[str_mesa]
+
+    if dados_m.get("fatura_emitida"):
+        fat = dados_m["fatura_emitida"]
+        st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center;'>🧾 Restaurante Nobre Sabor - Fatura / Recibo</h2>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center;'><b>Mesa:</b> {num_mesa} | <b>Data:</b> {fat['data']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center;'><b>Cliente:</b> {fat['cliente']} | <b>Telefone:</b> {fat['telefone']}</p>", unsafe_allow_html=True)
+        if fat.get('nif'):
+            st.markdown(f"<p style='text-align: center;'><b>NIF:</b> {fat['nif']}</p>", unsafe_allow_html=True)
         st.divider()
-
-    if mesa_detectada not in st.session_state.mesas:
-        st.session_state.mesas[mesa_detectada] = {"itens": [], "estado": "Ocupada", "garcon": "Auto-Atendimento"}
-
-    if st.button("🚀 Enviar Pedido para a Cozinha / Caixa", type="primary", use_container_width=True):
-        novos_itens = []
-        for index, row in df_stk.iterrows():
-            q = st.session_state.get(f"cli_{mesa_detectada}_{row['Produto']}", 0)
-            if q > 0:
-                novos_itens.append({
-                    "Produto": row['Produto'],
-                    "Quantidade": int(q),
-                    "Preço Unitário": float(row['Preço Unitário']),
-                    "Subtotal": float(q * row['Preço Unitário']),
-                    "Estado": "Pendente"
-                })
         
-        if not novos_itens:
-            st.warning("Selecione pelo menos um produto antes de enviar o pedido.")
-        else:
-            st.session_state.mesas[mesa_detectada]["itens"].extend(novos_itens)
-            st.session_state.mesas[mesa_detectada]["estado"] = "Ocupada"
-            salvar_estado_mesas(st.session_state.mesas)
-            st.success("✅ Pedido enviado com sucesso para a cozinha e caixa!")
-            st.rerun()
+        for item in fat['itens']:
+            st.write(f"- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.2f} Kz")
+        
+        st.markdown(f"### Total Pago: **{fat['total']:,.2f} Kz**")
+        st.markdown(f"<p><b>Forma de Pagamento:</b> {fat['pagamento_detalhe']}</p>", unsafe_allow_html=True)
+        st.divider()
+        
+        try:
+            pdf_path = gerar_pdf_fatura(fat, num_mesa)
+            if os.path.exists(pdf_path):
+                with open(pdf_path, "rb") as pdf_file:
+                    st.download_button(
+                        label="📥 Descarregar Fatura em PDF",
+                        data=pdf_file,
+                        file_name=f"Fatura_Mesa_{num_mesa}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+        except Exception as e:
+            st.warning("Não foi possível gerar o PDF de download automático.")
 
-    st.markdown("---")
-    st.subheader(f"🧾 Estado Atual da {mesa_detectada}")
-    mesa_info = st.session_state.mesas.get(mesa_detectada, {"itens": []})
-    if not mesa_info["itens"]:
-        st.info("Ainda não há pedidos registados nesta mesa.")
+        st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença! Volte sempre!</h3>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
+
+    if not dados_m.get("cliente"):
+        st.markdown("<h2 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='text-align: center;'>Registo de Entrada - Mesa {num_mesa}</h4>", unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            with st.form(f"form_cli_{num_mesa}"):
+                nome_cli = st.text_input("Nome:")
+                tel_cli = st.text_input("Telefone:")
+                nif_cli = st.text_input("NIF (Opcional):", placeholder="Ex: 5000000000")
+                whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp?")
+                
+                btn_reg = st.form_submit_button("Entrar e Ver Menu", use_container_width=True)
+                if btn_reg and nome_cli and tel_cli:
+                    dados_m["cliente"] = {
+                        "nome": nome_cli,
+                        "telefone": tel_cli,
+                        "nif": nif_cli if nif_cli else "",
+                        "whatsapp": whatsapp_opt
+                    }
+                    dados_m["status"] = "Aberta"
+                    salvar_mesas_disco(mesas_data)
+                    st.success("Registo efetuado com sucesso!")
+                    st.rerun()
+                elif btn_reg:
+                    st.warning("Preencha o seu nome e telefone.")
     else:
-        df_mesa_atual = pd.DataFrame(mesa_info["itens"])
-        st.dataframe(df_mesa_atual, use_container_width=True)
-        total_mesa = df_mesa_atual['Subtotal'].sum() if 'Subtotal' in df_mesa_atual.columns else 0
-        st.markdown(f"### Total Consumido: **{total_mesa:,.2f} Kz**")
-
-# ==========================================
-# ÁREA: CAIXA / OPERADOR
-# ==========================================
-def area_caixa_mesas():
-    st.markdown("<h1>💻 Painel do Operador de Caixa & Gestão de Mesas</h1>", unsafe_allow_html=True)
-    
-    sessao_op = carregar_sessao_operador()
-    
-    if not sessao_op.get("logado"):
-        st.markdown("### 🔐 Autenticação do Operador de Caixa")
-        with st.form("form_login_operador"):
-            op_nome = st.text_input("Nome do Operador de Caixa:")
-            op_periodo = st.selectbox("Período de Trabalho:", ["Dia", "Noite"])
-            senha_caixa = st.text_input("Senha de Caixa:", type="password")
+        cli = dados_m["cliente"]
+        st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; align-items: center; background-color: #141428; padding: 10px 14px; border-radius: 8px; border: 1px solid #2a2a4a; margin-bottom: 10px;">
+                <span style="font-size: 1.1rem; color: #ffb703;">🍽️ NobreSabor | Mesa {num_mesa}</span>
+                <span style="font-size: 0.9rem;">👤 Bem-vindo(a), <b>{cli['nome']}</b></span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        categorias_disponiveis = st.session_state.stock['Categoria'].unique().tolist()
+        tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo & Fatura", "🎉 Programas"])
+        
+        with tab_menu:
+            cat_escolhida = st.selectbox("Categoria:", categorias_disponiveis, key="cat_cli_sel")
+            stock_df = st.session_state.stock
+            itens_cat = stock_df[stock_df['Categoria'] == cat_escolhida]
             
-            btn_login = st.form_submit_button("Entrar no Caixa", use_container_width=True)
-            if btn_login:
-                if senha_caixa == "123123123" and op_nome:
-                    # Ao abrir o caixa para o operador, garantimos que o saldo inicial
-                    # vem rigorosamente da última saída de caixa enviada pelo ADM para este utilizador/período,
-                    # ou 0.0 caso não haja saída estipulada.
-                    saidas_disp = carregar_saidas_caixa()
-                    saldo_inicial_atribuido = 0.0
-                    for s in reversed(saidas_disp):
-                        if s.get("Destino Utilizador", "").lower() == op_nome.lower() or s.get("Período") == op_periodo:
-                            saldo_inicial_atribuido = float(s.get("Valor", 0.0))
-                            break
+            if not itens_cat.empty:
+                with st.form(key=f"form_pedido_{num_mesa}", clear_on_submit=True):
+                    col_f1, col_f2 = st.columns([2, 1])
+                    with col_f1:
+                        item_escolhido = st.selectbox("Item:", itens_cat['Produto'].tolist())
+                    with col_f2:
+                        qtd = st.number_input("Qtd:", min_value=1, value=1)
                     
-                    sessao_op = {
-                        "logado": True,
-                        "operador": op_nome,
-                        "periodo": op_periodo,
-                        "saldo_inicial": saldo_inicial_atribuido,
-                        "hora_abertura": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }
-                    salvar_sessao_operador(sessao_op)
-                    st.success(f"Sessão iniciada para {op_nome} ({op_periodo}). Fundo inicial carregado: {saldo_inicial_atribuido:,.2f} Kz")
-                    st.rerun()
-                else:
-                    st.error("Preencha o nome e introduza a senha correta (123123123)!")
-        return
+                    obs = st.text_input("Observações (Ex: Sem gelo, bem passado):")
+                    
+                    btn_enviar_pedido = st.form_submit_button("🚀 Enviar Pedido", use_container_width=True)
+                    
+                    if btn_enviar_pedido:
+                        row_prod = itens_cat[itens_cat['Produto'] == item_escolhido].iloc[0]
+                        is_refeicao = (cat_escolhida.lower() in ["refeições", "refeicoes", "pratos", "comida"])
+                        novo_pedido = {
+                            "item": item_escolhido,
+                            "tipo": cat_escolhida,
+                            "quantidade": int(qtd),
+                            "preco": float(row_prod['Preço Unitário']),
+                            "origem": f"Cliente ({cli['nome']})",
+                            "obs": obs,
+                            "status": "Confirmado" if not is_refeicao else "Pendente",
+                            "cozinha_status": "N/A" if not is_refeicao else "Pendente",
+                            "hora": datetime.now().strftime("%H:%M:%S")
+                        }
+                        
+                        dados_m["pedidos"].append(novo_pedido)
+                        dados_m["status"] = "Aberta"
+                        
+                        total_calc = sum(
+                            p['quantidade'] * p['preco'] 
+                            for p in dados_m["pedidos"] 
+                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                        )
+                        dados_m["total"] = float(total_calc)
+                        
+                        salvar_mesas_disco(mesas_data)
+                        
+                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado!"
+                        st.rerun()
 
-    # Cabeçalho da Sessão Ativa
-    col_op1, col_op2, col_op3 = st.columns([3, 2, 1])
-    with col_op1:
-        st.info(f"👤 **Operador:** {sessao_op.get('operador')} | **Período:** {sessao_op.get('periodo')} | **Fundo Inicial:** {sessao_op.get('saldo_inicial', 0.0):,.2f} Kz")
-    with col_op2:
-        st.info(f"🟢 **Abertura:** {sessao_op.get('hora_abertura')}")
-    with col_op3:
-        if st.button("🚪 Terminar Sessão"):
-            salvar_sessao_operador({"logado": False, "operador": "", "periodo": "", "saldo_inicial": 0.0, "hora_abertura": ""})
-            st.rerun()
-
-    st.markdown("---")
-    
-    tab_mesas, tab_pedidos_cx, tab_fecho_turno = st.tabs(["🪑 Gestão de Mesas & Lançamentos", "📊 Vendas e Faturação", "📋 Fecho de Período / Caixa"])
-    
-    with tab_mesas:
-        st.subheader("🪑 Salas e Mesas do Restaurante")
-        
-        st.session_state.mesas = carregar_estado_mesas()
-        
-        # Seleção de mesa
-        lista_mesas = list(st.session_state.mesas.keys())
-        mesa_selecionada = st.selectbox("Selecione a Mesa para Atendimento / Lançamento:", lista_mesas)
-        
-        info_mesa = st.session_state.mesas[mesa_selecionada]
-        
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.markdown(f"#### Estado da Mesa: **{info_mesa['estado']}**")
-            garcon_atribuido = st.selectbox("Garçon Responsável:", ["Selecione..."] + carregar_rh_disco()['Nome'].tolist(), index=0 if not info_mesa.get('garcon') else 0)
-            if garcon_atribuido != "Selecione...":
-                info_mesa['garcon'] = garcon_atribuido
-        
-        with col_m2:
-            st.markdown("#### ⚡ Ações Rápidas de Mesa")
-            col_b1, col_b2 = st.columns(2)
-            with col_b1:
-                if st.button("🧹 Limpar / Zerar Mesa", use_container_width=True):
-                    st.session_state.mesas[mesa_selecionada] = {"itens": [], "estado": "Livre", "garcon": ""}
-                    salvar_estado_mesas(st.session_state.mesas)
-                    st.success(f"A {mesa_selecionada} foi totalmente limpa e zerada com sucesso!")
-                    st.rerun()
-            with col_b2:
-                # Gerar QR Code link visual simulado
-                st.link_button("🔗 Ver QR Code da Mesa", f"/?mesa={mesa_selecionada.replace(' ', '_')}", use_container_width=True)
-
-        st.divider()
-        st.markdown("#### ➕ Adicionar Itens à Mesa (Filtros por Categoria)")
-        
-        # 3 BOTÕES DE CATEGORIA NO CAIXA SOLICITADOS
-        col_f1, col_f2, col_f3 = st.columns(3)
-        if "filtro_caixa_cat" not in st.session_state:
-            st.session_state.filtro_caixa_cat = "Todas"
-            
-        with col_f1:
-            if st.button("🥤 Bebidas", use_container_width=True):
-                st.session_state.filtro_caixa_cat = "Bebidas"
-        with col_f2:
-            if st.button("🍲 Refeições", use_container_width=True):
-                st.session_state.filtro_caixa_cat = "Refeições"
-        with col_f3:
-            if st.button("🍰 Sobremesas", use_container_width=True):
-                st.session_state.filtro_caixa_cat = "Sobremesas"
-
-        st.caption(f"Filtro ativo atual: **{st.session_state.filtro_caixa_cat}**")
-        if st.button("🔄 Mostrar Todas as Categorias"):
-            st.session_state.filtro_caixa_cat = "Todas"
-            st.rerun()
-
-        df_stk = st.session_state.stock
-        if not df_stk.empty:
-            if st.session_state.filtro_caixa_cat != "Todas":
-                df_cat_filtrado = df_stk[df_stk['Categoria'] == st.session_state.filtro_caixa_cat]
+            chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
+            if chave_aviso in st.session_state:
+                st.success(st.session_state[chave_aviso])
+                del st.session_state[chave_aviso]
+                
+        with tab_consumo:
+            st.subheader("O Meu Consumo & Estado dos Pedidos")
+            pedidos_mesa = dados_m["pedidos"]
+            if not pedidos_mesa:
+                st.info("Ainda não tem pedidos.")
             else:
-                df_cat_filtrado = df_stk
-
-            with st.form("form_lancar_item_caixa"):
-                produto_escolhido = st.selectbox("Selecionar Produto:", df_cat_filtrado['Produto'].tolist())
-                qtd_lancar = st.number_input("Quantidade:", min_value=1, value=1)
+                subtotal_geral = 0
+                for p in pedidos_mesa:
+                    total_item = p['quantidade'] * p['preco']
+                    if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
+                        subtotal_geral += total_item
+                    
+                    status_txt = p['status']
+                    if p.get('cozinha_status') == "Feito":
+                        status_txt = "🍽️ Refeição Pronta!"
+                    elif p.get('cozinha_status') == "Aprovado":
+                        status_txt = "Preparando 🍳"
+                        
+                    st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — **{status_txt}**")
+                    
+                st.markdown(f"### Total: {subtotal_geral:,.2f} Kz")
                 
-                btn_lancar = st.form_submit_button("🛒 Lançar Item na Mesa", use_container_width=True)
-                if btn_lancar and produto_escolhido:
-                    preco_unit = float(df_stk.loc[df_stk['Produto'] == produto_escolhido, 'Preço Unitário'].values[0])
-                    novo_item = {
-                        "Produto": produto_escolhido,
-                        "Quantidade": int(qtd_lancar),
-                        "Preço Unitário": preco_unit,
-                        "Subtotal": float(qtd_lancar * preco_unit),
-                        "Estado": "Pronto para Cozinha"
-                    }
-                    st.session_state.mesas[mesa_selecionada]["itens"].append(novo_item)
-                    st.session_state.mesas[mesa_selecionada]["estado"] = "Ocupada"
-                    salvar_estado_mesas(st.session_state.mesas)
-                    st.success(f"Item '{produto_escolhido}' adicionado à {mesa_selecionada}!")
-                    st.rerun()
-
-        st.markdown("---")
-        st.markdown(f"#### 🧾 Consumo Atual da {mesa_selecionada}")
-        itens_mesa = info_mesa.get("itens", [])
-        if not itens_mesa:
-            st.info("Nenhum item lançado nesta mesa.")
-        else:
-            df_itens = pd.DataFrame(itens_mesa)
-            st.dataframe(df_itens, use_container_width=True)
-            total_consumo = df_itens['Subtotal'].sum() if 'Subtotal' in df_itens.columns else 0
-            st.markdown(f"### Total a Pagar: **{total_consumo:,.2f} Kz**")
-            
-            with st.form("form_pagamento_mesa"):
-                st.markdown("#### 💳 Efetuar Pagamento / Fechar Conta")
-                forma_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA / Multicaixa", "Misto"])
-                
-                val_dinheiro = 0.0
-                val_tpa = 0.0
-                if forma_pagamento == "Dinheiro":
-                    val_dinheiro = total_consumo
-                elif forma_pagamento == "TPA / Multicaixa":
-                    val_tpa = total_consumo
-                else:
-                    val_dinheiro = st.number_input("Valor em Dinheiro (Kz):", min_value=0.0, value=total_consumo/2)
-                    val_tpa = st.number_input("Valor em TPA (Kz):", min_value=0.0, value=total_consumo/2)
-
-                btn_finalizar_pagamento = st.form_submit_button("💰 Confirmar Pagamento e Emitir Fatura", use_container_width=True)
-                if btn_finalizar_pagamento:
-                    # Registar venda no histórico
-                    hist_vendas = carregar_historico_vendas()
-                    registo_venda = {
-                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "Mesa": mesa_selecionada,
-                        "Operador": sessao_op.get("operador"),
-                        "Período": sessao_op.get("periodo"),
-                        "Forma Pagamento": forma_pagamento,
-                        "Valor Dinheiro": float(val_dinheiro),
-                        "Valor TPA": float(val_tpa),
-                        "Valor Total": float(total_consumo),
-                        "Itens": itens_mesa
-                    }
-                    hist_vendas.append(registo_venda)
-                    salvar_historico_vendas(hist_vendas)
-
-                    # Registar atendimento para bónus (500 Kz por mesa atendida)
-                    if info_mesa.get("garcon"):
-                        atendimentos = carregar_atendimentos_garcon()
-                        atendimentos.append({
-                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Garçon": info_mesa.get("garcon"),
-                            "Mesa": mesa_selecionada,
-                            "Valor Venda": float(total_consumo)
-                        })
-                        salvar_atendimentos_garcon(atendimentos)
-
-                    # Limpar mesa após pagamento
-                    st.session_state.mesas[mesa_selecionada] = {"itens": [], "estado": "Livre", "garcon": ""}
-                    salvar_estado_mesas(st.session_state.mesas)
-                    st.success(f"Pagamento da {mesa_selecionada} processado com sucesso! Venda registada.")
-                    st.rerun()
-
-    with tab_pedidos_cx:
-        st.subheader("📊 Histórico de Vendas do Turno")
-        hist_vendas = carregar_historico_vendas()
-        if not hist_vendas:
-            st.info("Nenhuma venda registada ainda.")
-        else:
-            df_v = pd.DataFrame(hist_vendas)
-            st.dataframe(df_v, use_container_width=True)
-
-    with tab_fecho_turno:
-        st.subheader("📋 Fecho de Período do Caixa")
-        with st.form("form_fecho_caixa"):
-            vendas_turno = [v for v in carregar_historico_vendas() if v.get("Operador") == sessao_op.get("operador")]
-            total_dinheiro_turno = sum(float(v.get("Valor Dinheiro", 0)) for v in vendas_turno)
-            total_tpa_turno = sum(float(v.get("Valor TPA", 0)) for v in vendas_turno)
-            fundo_inicial = float(sessao_op.get("saldo_inicial", 0))
-            
-            total_geral_fecho = fundo_inicial + total_dinheiro_turno + total_tpa_turno
-            
-            st.markdown(f"""
-                * **Fundo Inicial (Saída ADM):** {fundo_inicial:,.2f} Kz
-                * **Total Vendas em Dinheiro:** {total_dinheiro_turno:,.2f} Kz
-                * **Total Vendas em TPA:** {total_tpa_turno:,.2f} Kz
-                ### **Total Geral do Fecho:** {total_geral_fecho:,.2f} Kz
-            """)
-            
-            obs_fecho = st.text_area("Observações do Fecho:")
-            btn_submeter_fecho = st.form_submit_button("📤 Submeter Fecho de Período ao Administrador", use_container_width=True)
-            if btn_submeter_fecho:
-                fechos = carregar_fechos_caixa()
-                fechos.append({
-                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Operador": sessao_op.get("operador"),
-                    "Período": sessao_op.get("periodo"),
-                    "Fundo Inicial": fundo_inicial,
-                    "Total Dinheiro": total_dinheiro_turno,
-                    "Total TPA": total_tpa_turno,
-                    "Total Fecho": total_geral_fecho,
-                    "Observações": obs_fecho
-                })
-                salvar_fechos_caixa(fechos)
-                st.success("Fecho de período submetido com sucesso à Administração!")
-                st.rerun()
+        with tab_eventos:
+            st.subheader("Eventos da Semana")
+            st.markdown("- Sexta: Música ao Vivo\n- Sábado: Karaoke (Grupo FF Karaoke)")
 
 # ==========================================
 # ÁREA: COZINHA
 # ==========================================
+@st.fragment(run_every=6)
 def area_cozinha():
-    st.markdown("<h1>🍳 Painel da Cozinha - NobreSabor</h1>", unsafe_allow_html=True)
-    
+    st.title("🍳 Área da Cozinha - Gestão de Refeições")
+    st.session_state.caixa_aberto = ler_estado_caixa_disco()
+    mesas_data = carregar_mesas_disco()
+
     if not st.session_state.caixa_aberto:
-        st.warning("🔴 O restaurante encontra-se encerrado. Cozinha inativa.")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
         return
 
-    st.subheader("📋 Pedidos Atuais nas Mesas para Preparação")
-    st.session_state.mesas = carregar_estado_mesas()
-    
-    tem_pedidos = False
-    for nome_mesa, info in st.session_state.mesas.items():
-        if info.get("itens"):
-            tem_pedidos = True
-            with st.expander(f"📌 {nome_mesa} (Estado: {info['estado']} | Garçon: {info.get('garcon', 'N/A')})", expanded=True):
-                df_itens_mesa = pd.DataFrame(info["itens"])
-                st.dataframe(df_itens_mesa, use_container_width=True)
-                
-                if st.button(f"✅ Marcar todos os itens da {nome_mesa} como Prontos", key=f"coz_{nome_mesa}"):
-                    for item in info["itens"]:
-                        item["Estado"] = "Pronto"
-                    salvar_estado_mesas(st.session_state.mesas)
-                    st.success(f"Pedidos da {nome_mesa} atualizados para PRONTO!")
-                    st.rerun()
+    tab_pendentes, tab_historico_cozinha = st.tabs(["🔥 Pedidos Pendentes e Ativos", "📋 Histórico de Pratos Preparados no Dia"])
 
-    if not tem_pedidos:
-        st.info("Nenhum pedido pendente na cozinha neste momento.")
+    with tab_pendentes:
+        st.subheader("Pedidos de Refeições vindos das Mesas / Caixa")
+        tem_pedidos = False
+        for i in range(1, 31):
+            str_i = str(i)
+            dados_m = mesas_data[str_i]
+            for idx_p, ped in enumerate(dados_m["pedidos"]):
+                cat_p = str(ped.get("tipo", "")).lower()
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and ped.get("cozinha_status") != "Feito" and ped.get("cozinha_status") != "Entregue":
+                    tem_pedidos = True
+                    
+                    col_c1, col_c2, col_c3 = st.columns([3, 2, 3])
+                    with col_c1:
+                        st.write(f"### 🍽️ Mesa {i}")
+                        st.write(f"**Refeição:** {ped['item']} | **Qtd:** {ped['quantidade']}")
+                        st.write(f"Obs: _{ped.get('obs', 'Nenhuma')}_ | Hora: `{ped.get('hora', 'N/A')}`")
+                    with col_c2:
+                        st.write(f"Estado: **{ped.get('cozinha_status', 'Pendente')}**")
+                    with col_c3:
+                        estado_atual = ped.get('cozinha_status', 'Pendente')
+                        if estado_atual == "Pendente":
+                            if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
+                                mesas_data[str_i]["pedidos"][idx_p]["status"] = "Confirmado"
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                            if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
+                                mesas_data[str_i]["pedidos"][idx_p]["status"] = "Recusado pela Cozinha"
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                        elif estado_atual == "Aprovado":
+                            if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                    st.divider()
+                    
+        if not tem_pedidos:
+            st.success("🎉 Sem refeições pendentes de momento!")
+
+    with tab_historico_cozinha:
+        st.subheader("📋 Registo de Pratos Preparados e Finalizados")
+        
+        lista_pratos_feitos = []
+        for i in range(1, 31):
+            str_i = str(i)
+            dados_m = mesas_data[str_i]
+            for ped in dados_m["pedidos"]:
+                cat_p = str(ped.get("tipo", "")).lower()
+                c_status = ped.get("cozinha_status", "")
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and c_status in ["Feito", "Entregue"]:
+                    lista_pratos_feitos.append({
+                        "Mesa": i,
+                        "Prato / Refeição": ped['item'],
+                        "Quantidade": ped['quantidade'],
+                        "Observações": ped.get('obs', ''),
+                        "Hora": ped.get('hora', ''),
+                        "Estado na Cozinha": c_status
+                    })
+        
+        if not lista_pratos_feitos:
+            st.info("Ainda nenhum prato foi finalizado hoje.")
+        else:
+            df_feitos = pd.DataFrame(lista_pratos_feitos)
+            st.dataframe(df_feitos, use_container_width=True)
+            st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
+
+# ==========================================
+# ÁREA: CAIXA / GESTÃO DE MESAS
+# ==========================================
+@st.fragment(run_every=6)
+def area_caixa_mesas():
+    st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
+    
+    st.session_state.caixa_aberto = ler_estado_caixa_disco()
+
+    if not st.session_state.caixa_aberto:
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.** O administrador precisa abrir o dia.")
+        return
+
+    sessao_op = carregar_sessao_operador()
+
+    # 1. LOGIN DO OPERADOR DE CAIXA
+    if not sessao_op["logado"]:
+        with st.form("form_login_caixa_operador"):
+            st.markdown("### 🔐 Autenticação do Funcionário de Caixa")
+            utilizador_input = st.text_input("Utilizador:")
+            periodo_input = st.selectbox("Período:", ["Dia", "Noite"])
+            senha_input = st.text_input("Senha:", type="password")
+            
+            btn_login_cx = st.form_submit_button("Entrar no Caixa", use_container_width=True)
+            if btn_login_cx:
+                if utilizador_input and senha_input:
+                    sessao_op["logado"] = True
+                    sessao_op["operador"] = utilizador_input
+                    sessao_op["periodo"] = periodo_input
+                    sessao_op["turno_aberto"] = False
+                    sessao_op["saldo_inicial"] = 0.0
+                    sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    salvar_sessao_operador(sessao_op)
+                    st.success(f"Bem-vindo(a), {utilizador_input}! Faça agora a abertura do período.")
+                    st.rerun()
+                else:
+                    st.warning("Preencha o utilizador e a senha.")
+        return
+
+    # 2. ABERTURA DO CAIXA DO PERÍODO
+    if not sessao_op["turno_aberto"]:
+        st.markdown(f"""
+            <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;">
+                <p>👤 <b>Utilizador:</b> {sessao_op['operador']}</p>
+                <p>⏰ <b>Período:</b> {sessao_op['periodo']}</p>
+                <p style="color: #ffb703;">O saldo inicial provém estritamente do valor atribuído pelo ADM. Clique abaixo para abrir o seu turno.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        saidas_todas = carregar_saidas_caixa()
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
+        
+        if saidas_destinadas:
+            st.success(f"💵 Entrada detetada vinda do ADM: **{saldo_inicial_recebido:,.2f} Kz**")
+        else:
+            st.info("💵 Sem fundo de maneio atribuído pelo ADM (A iniciar com 0.00 Kz).")
+
+        col_op1, col_op2 = st.columns(2)
+        with col_op1:
+            if st.button("🟢 Abertura do Caixa do Período", type="primary", use_container_width=True):
+                sessao_op["turno_aberto"] = True
+                sessao_op["saldo_inicial"] = saldo_inicial_recebido
+                sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                salvar_sessao_operador(sessao_op)
+                st.success("Caixa aberto com sucesso para este período!")
+                st.rerun()
+        with col_op2:
+            if st.button("🚪 Terminar Sessão / Sair", use_container_width=True):
+                sessao_op["logado"] = False
+                sessao_op["operador"] = "Nenhum"
+                sessao_op["turno_aberto"] = False
+                sessao_op["saldo_inicial"] = 0.0
+                salvar_sessao_operador(sessao_op)
+                st.rerun()
+        return
+
+    # 3. CAIXA EM FUNCIONAMENTO / OU TURNO FECHADO E APURADO
+    mesas_data = carregar_mesas_disco()
+    hist_vendas = carregar_historico_vendas()
+
+    # Filtra as vendas efetuadas a partir do momento em que este operador abriu o turno atual
+    hora_abertura_turno = sessao_op.get("hora_abertura", "2000-01-01 00:00:00")
+    vendas_turno = [
+        v for v in hist_vendas 
+        if v.get("Data", "") >= hora_abertura_turno and v.get("Operador", sessao_op['operador']) == sessao_op['operador']
+    ]
+
+    total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in vendas_turno)
+    total_tpa_vendas = sum(float(v.get('Valor TPA', 0)) for v in vendas_turno)
+    
+    saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
+    saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
+    saldo_total_geral = saldo_em_caixa_fisico + total_tpa_vendas
+
+    st.markdown(f"""
+        <div style="background-color: #141428; padding: 14px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; padding-bottom: 8px;">
+                <span style="font-size: 1rem;">👤 Operador: <b>{sessao_op['operador']}</b> | ⏰ Período: <b>{sessao_op['periodo']}</b></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo em Caixa (Fundo Inicial + Dinheiro):</span><br>
+                    <b style="color: #4ac26b; font-size: 1.2rem;">{saldo_em_caixa_fisico:,.2f} Kz</b><br><br>
+                    <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo Total Geral (Caixa + TPA):</span><br>
+                    <b style="color: #ffb703; font-size: 1.2rem;">{saldo_total_geral:,.2f} Kz</b>
+                </div>
+                <div style="text-align: right; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 0.9rem;">📥 <b>Saldo Inicial (Fundo ADM):</b> {saldo_inicial_turno:,.2f} Kz</span>
+                    <span style="font-size: 0.9rem;">💵 <b>Vendas em Dinheiro:</b> {total_dinheiro_vendas:,.2f} Kz</span>
+                    <span style="font-size: 0.9rem;">💳 <b>Vendas em TPA:</b> {total_tpa_vendas:,.2f} Kz</span>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("🔒 Fazer o Fecho do Período & Extrato Detalhado", expanded=False):
+        st.write("Confira os dados abaixo e clique no botão para efetuar o fecho do período.")
+        
+        if st.button("✅ Confirmar Fecho de Período", type="primary"):
+            fechos_list = carregar_fechos_caixa()
+            novo_fecho = {
+                "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Utilizador": sessao_op['operador'],
+                "Período": sessao_op['periodo'],
+                "Saldo Inicial (ADM)": saldo_inicial_turno,
+                "Valor Dinheiro": total_dinheiro_vendas,
+                "Valor TPA": total_tpa_vendas,
+                "Total Fecho": saldo_total_geral
+            }
+            fechos_list.append(novo_fecho)
+            salvar_fechos_caixa(fechos_list)
+            
+            # Limpa sessão do operador
+            salvar_sessao_operador({"logado": False, "operador": "Nenhum", "periodo": "N/A", "turno_aberto": False, "saldo_inicial": 0.0, "hora_abertura": ""})
+            st.success("Turno encerrado e enviado para as finanças com sucesso!")
+            st.rerun()
+
+    st.markdown("---")
+
+    col_esq, col_dir = st.columns([1, 1])
+
+    with col_dir:
+        st.markdown("#### 🗺️ Grelha de Mesas (1 a 30)")
+        cols_grelha = 5
+        rows = 6
+        
+        mesa_idx = 1
+        for r in range(rows):
+            cols = st.columns(cols_grelha)
+            for c in range(cols_grelha):
+                if mesa_idx > 30:
+                    break
+                str_m = str(mesa_idx)
+                dados_m = mesas_data[str_m]
+                
+                status_m = dados_m.get("status", "Fechada")
+                total_m = dados_m.get("total", 0.0)
+                cli_m = dados_m.get("cliente")
+                
+                tem_pronto = any(
+                    p.get("cozinha_status") == "Feito" 
+                    for p in dados_m["pedidos"] 
+                    if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                )
+                
+                classe_css = "mesa-fechada"
+                if tem_pronto:
+                    classe_css = "mesa-pronta-alerta"
+                elif status_m == "Aberta" or cli_m:
+                    classe_css = "mesa-aberta"
+
+                with cols[c]:
+                    nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
+                    
+                    st.markdown(f"""
+                        <div class="mesa-circle {classe_css}">
+                            <span style="font-size: 0.75rem;">Mesa {mesa_idx}</span>
+                            <span style="font-size: 0.6rem;">{nome_cliente_curto}</span>
+                            <span style="font-size: 0.55rem;">{total_m:,.0f}Kz</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_{mesa_idx}", use_container_width=True):
+                        st.session_state.mesa_selecionada_caixa = mesa_idx
+                        st.rerun()
+                    
+                mesa_idx += 1
+
+    with col_esq:
+        m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
+        st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
+        
+        url_mesa_qr = f"?mesa={m_sel}"
+        
+        col_qr1, col_qr2 = st.columns([1, 1])
+        with col_qr1:
+            img_qr_bytes = gerar_qrcode_bytes(f"Mesa {m_sel} — NobreSabor")
+            st.image(img_qr_bytes, width=130, caption=f"QR Code Mesa {m_sel}")
+        with col_qr2:
+            st.markdown(f"📱 **Link direto:**")
+            st.code(f"/?mesa={m_sel}", language="text")
+            st.link_button(f"🔗 Abrir Mesa {m_sel} (Cliente)", f"/?mesa={m_sel}", use_container_width=True)
+
+        st.divider()
+
+        dados_m_sel = mesas_data[str(m_sel)]
+        
+        df_rh_atual = carregar_rh_disco()
+        lista_garcons_disponiveis = df_rh_atual['Nome'].tolist() if not df_rh_atual.empty else ["Carlos Manuel", "Ana Paula"]
+        garcon_atual = dados_m_sel.get("garcon", lista_garcons_disponiveis[0])
+        if garcon_atual not in lista_garcons_disponiveis:
+            lista_garcons_disponiveis.append(garcon_atual)
+            
+        novo_garcon = st.selectbox("👨‍🍳 Atribuir Garçon Responsável:", lista_garcons_disponiveis, index=lista_garcons_disponiveis.index(garcon_atual) if garcon_atual in lista_garcons_disponiveis else 0, key=f"garcon_sel_{m_sel}")
+        if novo_garcon != dados_m_sel.get("garcon"):
+            dados_m_sel["garcon"] = novo_garcon
+            salvar_mesas_disco(mesas_data)
+
+        cli_info = dados_m_sel.get("cliente")
+        if cli_info:
+            st.write(f"**Cliente:** {cli_info.get('nome')} | **Tel:** {cli_info.get('telefone')}")
+        else:
+            st.warning("Mesa sem cliente registado.")
+
+        # ==========================================
+        # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
+        # ==========================================
+        with st.expander("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)", expanded=False):
+            stock_df_cx = st.session_state.stock
+            if stock_df_cx.empty:
+                st.warning("O stock está vazio. Adicione itens no painel do ADM.")
+            else:
+                cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
+                cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
+                
+                itens_filtrados_cx = stock_df_cx[stock_df_cx['Categoria'] == cat_sel_cx]['Produto'].tolist()
+                
+                with st.form(key=f"form_adicionar_item_caixa_{m_sel}"):
+                    prod_sel_cx = st.selectbox("Produto / Item:", itens_filtrados_cx)
+                    qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
+                    obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_sel}")
+                    
+                    btn_add_cx = st.form_submit_button("🚀 Adicionar à Mesa", use_container_width=True)
+                    if btn_add_cx:
+                        row_p_cx = stock_df_cx[stock_df_cx['Produto'] == prod_sel_cx].iloc[0]
+                        is_refeicao_cx = (cat_sel_cx.lower() in ["refeições", "refeicoes", "pratos", "comida"])
+                        
+                        novo_pedido_cx = {
+                            "item": prod_sel_cx,
+                            "tipo": cat_sel_cx,
+                            "quantidade": int(qtd_cx),
+                            "preco": float(row_p_cx['Preço Unitário']),
+                            "origem": f"Caixa ({sessao_op['operador']})",
+                            "obs": obs_cx,
+                            "status": "Confirmado" if not is_refeicao_cx else "Pendente",
+                            "cozinha_status": "N/A" if not is_refeicao_cx else "Pendente",
+                            "hora": datetime.now().strftime("%H:%M:%S")
+                        }
+                        
+                        dados_m_sel["pedidos"].append(novo_pedido_cx)
+                        dados_m_sel["status"] = "Aberta"
+                        
+                        total_atualizado_cx = sum(
+                            p['quantidade'] * p['preco'] 
+                            for p in dados_m_sel["pedidos"] 
+                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                        )
+                        dados_m_sel["total"] = float(total_atualizado_cx)
+                        
+                        salvar_mesas_disco(mesas_data)
+                        st.success(f"Adicionado com sucesso: {qtd_cx}x {prod_sel_cx}!")
+                        st.rerun()
+
+        pedidos_sel = dados_m_sel["pedidos"]
+        if not pedidos_sel:
+            st.info("Esta mesa não tem pedidos efetuados.")
+        else:
+            subtotal_m_sel = 0
+            for idx_p, p in enumerate(pedidos_sel):
+                t_item = p['quantidade'] * p['preco']
+                if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
+                    subtotal_m_sel += t_item
+                
+                st.write(f"- {p['quantidade']}x {p['item']} ({t_item:,.2f} Kz) [{p['status']}]")
+                
+                # Opção de Anular com Justificação Obrigatória
+                if p['status'] != "Anulado":
+                    with st.expander(f"🗑️ Anular Item: {p['item']} (Mesa {m_sel})"):
+                        justificacao_anulacao = st.text_input(f"Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
+                        if st.button(f"Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
+                            if justificacao_anulacao.strip():
+                                # Marca como anulado na mesa (corrigido o fecho de parênteses)
+                                mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
+                                total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                                mesas_data[str(m_sel)]['total'] = float(total_novo)
+                                salvar_mesas_disco(mesas_data)
+                                
+                                # Regista em Vendas Excluídas para o ADM
+                                vendas_exc = carregar_vendas_excluidas()
+                                vendas_exc.append({
+                                    "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    "Mesa": m_sel,
+                                    "Produto": p['item'],
+                                    "Quantidade": p['quantidade'],
+                                    "Preço Unitário": p['preco'],
+                                    "Preço Total": t_item,
+                                    "Utilizador": sessao_op['operador'],
+                                    "Observação": justificacao_anulacao
+                                })
+                                salvar_vendas_excluidas(vendas_exc)
+                                
+                                st.success("Item anulado e justificação enviada para o ADM!")
+                                st.rerun()
+                            else:
+                                st.warning("Por favor, preencha o motivo/justificação da anulação.")
+
+            st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**")
+            
+            with st.form(f"form_pagamento_mesa_{m_sel}"):
+                st.markdown("#### 💳 Processar Pagamento e Emitir Recibo")
+                tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto (Dinheiro + TPA)"])
+                
+                val_dinheiro = 0.0
+                val_tpa = 0.0
+                if tipo_pagamento == "Dinheiro":
+                    val_dinheiro = subtotal_m_sel
+                elif tipo_pagamento == "TPA":
+                    val_tpa = subtotal_m_sel
+                else:
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        val_dinheiro = st.number_input("Dinheiro (Kz):", min_value=0.0, value=0.0)
+                    with col_m2:
+                        val_tpa = st.number_input("TPA (Kz):", min_value=0.0, value=0.0)
+
+                btn_concluir_pagamento = st.form_submit_button("✅ Concluir Pagamento & Libertar Mesa", use_container_width=True)
+                if btn_concluir_pagamento and subtotal_m_sel > 0:
+                    itens_validos_fatura = [
+                        {
+                            "item": p['item'],
+                            "quantidade": p['quantidade'],
+                            "preco": p['preco']
+                        }
+                        for p in pedidos_sel if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                    ]
+                    
+                    fatura_dados = {
+                        "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "cliente": cli_info['nome'] if cli_info else "Consumidor Final",
+                        "telefone": cli_info.get('telefone', 'N/A') if cli_info else "N/A",
+                        "nif": cli_info.get('nif', '') if cli_info else "",
+                        "itens": itens_validos_fatura,
+                        "total": subtotal_m_sel,
+                        "pagamento_detalhe": tipo_pagamento,
+                        "Valor Dinheiro": val_dinheiro,
+                        "Valor TPA": val_tpa
+                    }
+                    
+                    hist = carregar_historico_vendas()
+                    hist.append({
+                        "Data": fatura_dados["data"],
+                        "Operador": sessao_op['operador'],
+                        "Mesa": m_sel,
+                        "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
+                        "Cliente": fatura_dados["cliente"],
+                        "Valor Total": subtotal_m_sel,
+                        "Pagamento": tipo_pagamento,
+                        "Valor Dinheiro": val_dinheiro,
+                        "Valor TPA": val_tpa,
+                        "itens": itens_validos_fatura
+                    })
+                    salvar_historico_vendas(hist)
+                    
+                    atend_list = carregar_atendimentos_garcon()
+                    atend_list.append({
+                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
+                        "Mesa": m_sel,
+                        "Valor Venda": subtotal_m_sel
+                    })
+                    salvar_atendimentos_garcon(atend_list)
+                    
+                    # Guarda a fatura emitida na mesa para que o cliente veja a mensagem de agradecimento e a fatura final,
+                    # e limpa os pedidos, total e dados do cliente para resetar a mesa.
+                    mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
+                    mesas_data[str(m_sel)]["pedidos"] = []
+                    mesas_data[str(m_sel)]["total"] = 0.0
+                    mesas_data[str(m_sel)]["status"] = "Fechada"
+                    mesas_data[str(m_sel)]["cliente"] = None
+                    mesas_data[str(m_sel)]["garcon"] = "Não atribuído"
+                    salvar_mesas_disco(mesas_data)
+                    
+                    st.success("Pagamento efetuado com sucesso e perfil de cliente encerrado com mensagem de agradecimento!")
+                    st.rerun()
 
 # ==========================================
 # ÁREA: ADMINISTRADOR
@@ -546,7 +1065,7 @@ def area_administrador():
             st.rerun()
             
     with col_links_rapidos:
-        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos:</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos (Abrir noutra janela sem fechar o ADM):</div>", unsafe_allow_html=True)
         col_lnk1, col_lnk2 = st.columns(2)
         with col_lnk1:
             st.link_button("💻 Abrir Painel do Caixa", "?perfil=caixa", use_container_width=True)
@@ -558,7 +1077,10 @@ def area_administrador():
 
     vendas_exc_check = carregar_vendas_excluidas()
     tem_novas_exclusoes = len(vendas_exc_check) > 0
-    nome_aba_excluidas = "🚨 Vendas Excluídas (NOVO!)" if tem_novas_exclusoes else "🚨 Vendas Excluídas"
+    
+    nome_aba_excluidas = "🚨 Vendas Excluídas"
+    if tem_novas_exclusoes:
+        nome_aba_excluidas = "🚨 Vendas Excluídas (NOVO!)"
 
     tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch, tab_exc = st.tabs([
         "💰 Finanças & Abertura do Dia", 
@@ -570,16 +1092,16 @@ def area_administrador():
     ])
     
     with tab_fin:
-        st.subheader("⚙️ Controlo Geral de Abertura e Fecho do Dia")
+        st.subheader("⚙️ Controlo Geral de Abertura e Fecho do Dia (Caixa e Cozinha)")
         
         if "financa_aba_autenticada" not in st.session_state:
             st.session_state.financa_aba_autenticada = False
 
         if not st.session_state.financa_aba_autenticada:
             with st.form("form_senha_aba_financa"):
-                st.markdown("#### 🔒 Acesso Restrito às Finanças")
-                senha_fin = st.text_input("Senha:", type="password")
-                if st.form_submit_button("Desbloquear"):
+                st.markdown("#### 🔒 Acesso Restrito à Aba Finanças")
+                senha_fin = st.text_input("Introduza a senha de acesso às Finanças:", type="password")
+                if st.form_submit_button("Desbloquear Finanças"):
                     if senha_fin == "123123123":
                         st.session_state.financa_aba_autenticada = True
                         st.rerun()
@@ -599,23 +1121,47 @@ def area_administrador():
                     if st.button("🔒 Fechar Dia do Restaurante", type="primary"):
                         gravar_estado_caixa_disco(False)
                         st.session_state.caixa_aberto = False
-                        st.success("Dia fechado com sucesso!")
+                        st.success("Dia fechado com sucesso! Caixa e Cozinha bloqueados.")
                         st.rerun()
                 else:
                     if st.button("🟢 Abrir Dia do Restaurante", type="primary"):
                         gravar_estado_caixa_disco(True)
                         st.session_state.caixa_aberto = True
-                        st.success("Dia aberto com sucesso!")
+                        st.success("Dia aberto com sucesso! Caixa e Cozinha desbloqueados.")
                         st.rerun()
             with col_adm_c2:
                 if st.session_state.caixa_aberto:
-                    st.info("🟢 O Sistema encontra-se atualmente **ABERTO**.")
+                    st.info("🟢 O Sistema encontra-se atualmente **ABERTO** (Caixa e Cozinha operacionais).")
                 else:
-                    st.warning("🔴 O Sistema encontra-se atualmente **FECHADO**.")
+                    st.warning("🔴 O Sistema encontra-se atualmente **FECHADO** pelo Administrador.")
+
+            sessao_op_adm = carregar_sessao_operador()
+            hist_vendas_adm = carregar_historico_vendas()
+            
+            hora_abertura_adm = sessao_op_adm.get("hora_abertura", "2000-01-01 00:00:00")
+            vendas_turno_adm = [
+                v for v in hist_vendas_adm 
+                if v.get("Data", "") >= hora_abertura_adm and v.get("Operador", sessao_op_adm.get('operador')) == sessao_op_adm.get('operador')
+            ]
+            
+            vendas_dinheiro_adm = sum(float(v.get('Valor Dinheiro', 0)) for v in vendas_turno_adm)
+            fundo_inicial_adm = float(sessao_op_adm.get("saldo_inicial", 0.0))
+            saldo_fisico_atual = fundo_inicial_adm + vendas_dinheiro_adm
+            
+            operador_atual_nome = sessao_op_adm.get("operador", "Nenhum") if sessao_op_adm.get("logado") else "Nenhum operador logado"
+            periodo_atual_nome = sessao_op_adm.get("periodo", "N/A")
+
+            st.markdown(f"""
+                <div style="background-color: #141428; padding: 12px 16px; border-radius: 8px; border: 1px solid #ffb703; margin-top: 10px; margin-bottom: 15px;">
+                    <span style="font-size: 1rem; color: #ffb703;">💵 <b>Saldo Disponível em Caixa:</b> <span style="color: #4ac26b;">{saldo_fisico_atual:,.2f} Kz</span></span><br>
+                    <span style="font-size: 0.9rem; color: #d0d0e0;">👤 <b>Funcionário em Caixa:</b> {operador_atual_nome} (Período: {periodo_atual_nome}) | Fundo Inicial: {fundo_inicial_adm:,.2f} Kz | Vendas Dinheiro: {vendas_dinheiro_adm:,.2f} Kz</span>
+                </div>
+            """, unsafe_allow_html=True)
 
             st.markdown("---")
             st.subheader("📊 Histórico Geral de Vendas")
             hist_vendas = carregar_historico_vendas()
+            
             if not hist_vendas:
                 st.info("Ainda não existem vendas faturadas registadas.")
             else:
@@ -623,97 +1169,187 @@ def area_administrador():
                 st.dataframe(df_vendas, use_container_width=True)
                 total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
                 st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
-                
-                excel_data = converter_df_para_excel(df_vendas)
-                st.download_button(
-                    label="📥 Descarregar Relatório em Excel (.xlsx)",
-                    data=excel_data,
-                    file_name=f"Relatorio_Vendas_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
 
     with tab_fechos_cx:
-        st.subheader("📋 Relatórios de Fecho de Período")
+        st.subheader("📋 Relatórios de Fecho de Período enviados pelos Operadores")
         fechos_registados = carregar_fechos_caixa()
+        
         if not fechos_registados:
-            st.info("Nenhum fecho de período registado.")
+            st.info("Nenhum fecho de período registado pelos operadores de caixa ainda.")
         else:
             df_fechos = pd.DataFrame(fechos_registados)
             st.dataframe(df_fechos, use_container_width=True)
+            total_fechos_acumulado = df_fechos['Total Fecho'].sum() if 'Total Fecho' in df_fechos.columns else 0
+            st.markdown(f"### Total Registado em Fechos de Período: **{total_fechos_acumulado:,.2f} Kz**")
 
     with tab_saidas:
-        st.subheader("💸 Gestão e Registo de Saídas de Caixa (Fundo Inicial)")
+        st.subheader("💸 Gestão e Registo de Saídas de Caixa (Atribuição de Fundo / Troco)")
+        st.write("Quando o ADM faz uma saída para o caixa, deve selecionar o utilizador recetor e o período correspondente.")
+        
         with st.form("form_registar_saida"):
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
-                motivo_saida = st.text_input("Motivo:", value="Fundo de Maneio")
-                destino_utilizador = st.selectbox("Destinatário (Operador):", ["Carlos", "Ana", "OperadorCaixa1", "OperadorCaixa2"])
+                motivo_saida = st.text_input("Motivo da Saída (Ex: Fundo de Maneio, Trocos):")
+                lista_utilizadores_padrao = ["Carlos", "Ana", "OperadorCaixa1", "OperadorCaixa2"]
+                destino_utilizador = st.selectbox("Destinatário (Utilizador do Caixa):", lista_utilizadores_padrao)
             with col_sc2:
-                valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=20000.0, step=1000.0)
-                periodo_destino = st.selectbox("Período:", ["Dia", "Noite"])
+                valor_saida = st.number_input("Valor da Saída / Fundo (Kz):", min_value=0.0, value=20000.0, step=1000.0)
+                periodo_destino = st.selectbox("Período Destino:", ["Noite", "Dia"])
+            
+            responsavel_saida = st.text_input("Autorizado por (ADM):", value="Administração")
             
             btn_salvar_saida = st.form_submit_button("🚀 Registar Saída e Enviar para o Caixa", use_container_width=True)
-            if btn_salvar_saida and valor_saida > 0:
+            if btn_salvar_saida and motivo_saida and valor_saida > 0:
                 saidas_list = carregar_saidas_caixa()
-                saidas_list.append({
+                nova_saida = {
                     "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Motivo": motivo_saida,
                     "Destino Utilizador": destino_utilizador,
                     "Período": periodo_destino,
                     "Valor": float(valor_saida),
-                    "Responsável": "Administração"
-                })
+                    "Responsável": responsavel_saida
+                }
+                saidas_list.append(nova_saida)
                 salvar_saidas_caixa(saidas_list)
-                st.success("Saída registada com sucesso!")
+                st.success(f"Saída registada e enviada com sucesso para o utilizador {destino_utilizador} ({periodo_destino})!")
                 st.rerun()
 
         st.divider()
+        st.markdown("#### Histórico de Saídas de Caixa")
         saidas_registadas = carregar_saidas_caixa()
-        if saidas_registadas:
-            st.dataframe(pd.DataFrame(saidas_registadas), use_container_width=True)
+        if not saidas_registadas:
+            st.info("Nenhuma saída de caixa registada.")
+        else:
+            df_saidas = pd.DataFrame(saidas_registadas)
+            st.dataframe(df_saidas, use_container_width=True)
+            total_saidas = df_saidas['Valor'].sum() if 'Valor' in df_saidas.columns else 0
+            st.markdown(f"### Total Retirado em Saídas: **{total_saidas:,.2f} Kz**")
 
     with tab_stk:
-        st.subheader("📦 Gestão de Stock e Menu")
+        st.subheader("📦 Gestão de Stock e Produtos/Pratos")
+        
         with st.form("form_add_produto"):
+            st.markdown("#### Adicionar / Atualizar Item no Menu")
             col_s1, col_s2 = st.columns(2)
             with col_s1:
-                novo_produto = st.text_input("Nome do Produto:")
-                nova_categoria = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas"])
+                novo_produto = st.text_input("Nome do Produto/Prato:")
+                nova_categoria = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Outros"])
             with col_s2:
-                nova_qtd = st.number_input("Quantidade:", min_value=0, value=50)
-                novo_preco = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=500.0)
-            
-            if st.form_submit_button("💾 Salvar Produto", use_container_width=True) and novo_produto:
+                nova_qtd = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                novo_preco = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=500.0, step=100.0)
+                
+            btn_salvar_prod = st.form_submit_button("💾 Salvar / Atualizar Produto", use_container_width=True)
+            if btn_salvar_prod and novo_produto:
                 df_stk = st.session_state.stock
                 if not df_stk.empty and novo_produto in df_stk['Produto'].values:
                     df_stk.loc[df_stk['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
+                    st.success(f"Produto '{novo_produto}' atualizado com sucesso!")
                 else:
-                    novo_df = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-                    st.session_state.stock = pd.concat([df_stk, novo_df], ignore_index=True)
+                    novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+                    st.session_state.stock = pd.concat([df_stk, novo_df_linha], ignore_index=True)
+                    st.success(f"Produto '{novo_produto}' adicionado com sucesso!")
+                
                 salvar_stock_disco(st.session_state.stock)
-                st.success("Produto guardado com sucesso!")
                 st.rerun()
 
+        st.divider()
+        st.markdown("#### Lista Atual de Produtos")
         st.dataframe(st.session_state.stock, use_container_width=True)
-
+        
+        if not st.session_state.stock.empty:
+            with st.form("form_del_produto"):
+                produto_a_remover = st.selectbox("Selecionar produto para remover:", st.session_state.stock['Produto'].tolist())
+                btn_remover = st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True)
+                if btn_remover:
+                    st.session_state.stock = st.session_state.stock[st.session_state.stock['Produto'] != produto_a_remover].reset_index(drop=True)
+                    salvar_stock_disco(st.session_state.stock)
+                    st.success(f"Produto '{produto_a_remover}' removido!")
+                    st.rerun()
+        
     with tab_dch:
-        st.subheader("👥 DCH — Colaboradores & Bónus")
-        df_rh = carregar_rh_disco()
-        st.dataframe(df_rh, use_container_width=True)
+        st.subheader("👥 DCH — Cadastramento de Colaboradores & Bónus Acumulados")
+        st.write("Faça o registo da equipa (Garçons) e consulte o acumulado de bónus por mesas atendidas (**500 Kz por mesa**).")
+        
+        with st.expander("➕ Cadastrar Novo Colaborador / Garçon", expanded=False):
+            with st.form("form_cadastrar_colaborador"):
+                col_r1, col_r2 = st.columns(2)
+                with col_r1:
+                    cod_func = st.text_input("Código do Funcionário (Ex: G003):")
+                    nome_func = st.text_input("Nome Completo:")
+                    cat_func = st.selectbox("Categoria / Cargo:", ["Garçon", "Chefe de Sala", "Bartender", "Outro"])
+                with col_r2:
+                    tel_func = st.text_input("Telefone:")
+                    bi_func = st.text_input("Nº de BI:")
+                
+                btn_salvar_func = st.form_submit_button("💾 Salvar Colaborador", use_container_width=True)
+                if btn_salvar_func and cod_func and nome_func:
+                    df_rh = carregar_rh_disco()
+                    if not df_rh.empty and (cod_func in df_rh['Código'].values):
+                        df_rh.loc[df_rh['Código'] == cod_func, ['Nome', 'Categoria', 'Telefone', 'BI']] = [nome_func, cat_func, tel_func, bi_func]
+                        st.success(f"Colaborador '{nome_func}' atualizado com sucesso!")
+                    else:
+                        nova_linha_rh = pd.DataFrame([[cod_func, nome_func, cat_func, tel_func, bi_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+                        df_rh = pd.concat([df_rh, nova_linha_rh], ignore_index=True)
+                        st.success(f"Colaborador '{nome_func}' registado com sucesso!")
+                    
+                    salvar_rh_disco(df_rh)
+                    st.rerun()
+
+        st.markdown("#### 📋 Lista de Colaboradores Cadastrados")
+        df_rh_atual = carregar_rh_disco()
+        st.dataframe(df_rh_atual, use_container_width=True)
+
+        if not df_rh_atual.empty:
+            with st.form("form_remover_colaborador"):
+                func_remover = st.selectbox("Selecionar colaborador para remover:", df_rh_atual['Nome'].tolist())
+                btn_rem_func = st.form_submit_button("🗑️ Remover Colaborador Selecionado", use_container_width=True)
+                if btn_rem_func:
+                    df_rh_atual = df_rh_atual[df_rh_atual['Nome'] != func_remover].reset_index(drop=True)
+                    salvar_rh_disco(df_rh_atual)
+                    st.success(f"Colaborador '{func_remover}' removido com sucesso!")
+                    st.rerun()
+
+        st.markdown("---")
+        st.subheader("🏆 Resumo de Bónus Acumulados por Atendimento de Mesas")
+        atendimentos = carregar_atendimentos_garcon()
+        if not atendimentos:
+            st.info("Ainda não existem mesas atendidas registadas para calcular bónus.")
+        else:
+            df_atend = pd.DataFrame(atendimentos)
+            
+            df_resumo_bonus = df_atend.groupby("Garçon").agg(
+                Mesas_Atendidas=("Mesa", "count"),
+                Total_Vendido=("Valor Venda", "sum")
+            ).reset_index()
+            
+            VALOR_POR_PONTO = 500.0
+            df_resumo_bonus["Bónus Acumulado (Kz)"] = df_resumo_bonus["Mesas_Atendidas"] * VALOR_POR_PONTO
+            
+            st.dataframe(df_resumo_bonus, use_container_width=True)
+            
+            st.markdown("#### 📋 Histórico Detalhado de Atendimentos")
+            st.dataframe(df_atend, use_container_width=True)
 
     with tab_exc:
-        vendas_excluidas = carregar_vendas_excluidas()
-        if vendas_excluidas:
-            st.dataframe(pd.DataFrame(vendas_excluidas), use_container_width=True)
-            if st.button("🧹 Limpar Registo de Excluídos"):
-                salvar_vendas_excluidas([])
-                st.rerun()
+        if tem_novas_exclusoes:
+            st.markdown("<h3 class='piscar-alerta'>🚨 ALERTA: Existem Vendas/Itens Excluídos e Anulados pelos Operadores!</h3>", unsafe_allow_html=True)
         else:
-            st.info("Nenhuma exclusão registada.")
+            st.subheader("🚨 Registo de Vendas e Itens Excluídos / Anulados")
+
+        vendas_excluidas_list = carregar_vendas_excluidas()
+        if not vendas_excluidas_list:
+            st.info("Nenhum item ou venda foi excluído ou anulado até ao momento.")
+        else:
+            df_exc = pd.DataFrame(vendas_excluidas_list)
+            st.dataframe(df_exc, use_container_width=True)
+            
+            if st.button("🧹 Limpar / Marcar como Visto o Registo de Excluídos"):
+                salvar_vendas_excluidas([])
+                st.success("Registo limpo com sucesso!")
+                st.rerun()
 
 # ==========================================
-# ROTEADOR PRINCIPAL
+# ROTEADOR PRINCIPAL DA APLICAÇÃO
 # ==========================================
 def main():
     if mesa_detectada is not None:
