@@ -927,6 +927,28 @@ def area_caixa_mesas():
                 # Título com o nome do cliente
                 st.markdown(f"### ⚙️ Gestão da Mesa {m_sel} — <span style='color: #ffb703;'>{nome_cliente_titulo}</span>", unsafe_allow_html=True)
                 
+                # --- EXIBIÇÃO DO QR CODE DA MESA ---
+                with st.expander(f"📱 Ver QR Code da Mesa {m_sel}", expanded=False):
+                    url_mesa = f"https://ffkaraokecloud.streamlit.app/?mesa={m_sel}"  # ou o link base da aplicação
+                    st.markdown(f"**Link de acesso rápido para a Mesa {m_sel}:**")
+                    st.code(url_mesa, language="text")
+                    
+                    # Gerar imagem do QR Code se a biblioteca qrcode estiver disponível
+                    try:
+                        import qrcode
+                        from io import BytesIO
+                        
+                        img_qr = qrcode.make(url_mesa)
+                        buf = BytesIO()
+                        img_qr.save(buf, format="PNG")
+                        byte_im = buf.getvalue()
+                        
+                        col_qr1, col_qr2, col_qr3 = st.columns([1, 2, 1])
+                        with col_qr2:
+                            st.image(byte_im, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
+                    except Exception:
+                        st.info("Biblioteca qrcode não detetada. Instale o pacote 'qrcode[pil]' para visualizar a imagem do QR Code.")
+
                 # --- LISTA DOS PEDIDOS EM 4 COLUNAS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
@@ -1012,7 +1034,7 @@ def area_caixa_mesas():
                         v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
                         v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
 
-                    # Botão Fechar Conta com tamanho reduzido centralizado em colunas
+                    # Botão Fechar Conta centralizado
                     col_b1, col_b2, col_b3 = st.columns([1, 1.5, 1])
                     with col_b2:
                         if st.button("✅ Fechar Conta", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
