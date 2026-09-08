@@ -661,6 +661,21 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
+    # Injeção de CSS para a animação de oscilação/pulsação da mesa
+    st.markdown("""
+        <style>
+        @keyframes oscilarMesa {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 183, 3, 0.7); }
+            50% { transform: scale(1.06); box-shadow: 0 0 15px 8px rgba(255, 183, 3, 0.9); background-color: #ffb703 !important; color: #000 !important; }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 183, 3, 0); }
+        }
+        .mesa-conta-solicitada {
+            animation: oscilarMesa 1.2s infinite ease-in-out;
+            border: 2px solid #fff !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
     
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
@@ -706,7 +721,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -815,6 +830,7 @@ def area_caixa_mesas():
                 status_m = dados_m.get("status", "Fechada")
                 total_m = dados_m.get("total", 0.0)
                 cli_m = dados_m.get("cliente")
+                conta_pedida = dados_m.get("conta_pedida", False)
                 
                 tem_pronto = any(
                     p.get("cozinha_status") == "Feito" 
@@ -822,11 +838,15 @@ def area_caixa_mesas():
                     if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                 )
                 
-                classe_css = "mesa-fechada"
-                if tem_pronto:
+                # Prioridade máxima de visual: Se pediu a conta, aplica a classe de oscilação/alerta
+                if conta_pedida:
+                    classe_css = "mesa-conta-solicitada"
+                elif tem_pronto:
                     classe_css = "mesa-pronta-alerta"
                 elif status_m == "Aberta" or cli_m:
                     classe_css = "mesa-aberta"
+                else:
+                    classe_css = "mesa-fechada"
 
                 with cols[c]:
                     nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
@@ -849,6 +869,32 @@ def area_caixa_mesas():
         m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
         st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
         
+        dados_m_sel = mesas_data[str(m_sel)]
+        
+        # ALERTA VISUAL NO MENU DA MESA SE O CLIENTE PEDIU A CONTA
+        if dados_m_sel.get("conta_pedida", False):
+            st.warning(f"🚨 **Atenção!** O cliente da Mesa {m_sel} solicitou a **conta e o fecho**!")
+            
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                if st.button("✅ Atender / Imprimir Conta", type="primary", use_container_width=True):
+                    # Aqui pode integrar a lógica de impressão ou fecho direto
+                    st.success(f"Solicitação da Mesa {m_sel} em atendimento.")
+            with col_b2:
+                if st.button("❌ Desativar Alerta", use_container_width=True):
+                    dados_m_sel["conta_pedida"] = False
+                    salvar_mesas_disco(mesas_data)
+                    st.success("Alerta limpo com sucesso!")
+                    st.rerun()
+        else:
+            # Botão opcional para testes ou simulação direta pelo operador caso necessário
+            if st.button(f"🔔 Simular Pedido de Conta (Mesa {m_sel})", use_container_width=True):
+                dados_m_sel["conta_pedida"] = True
+                salvar_mesas_disco(mesas_data)
+                st.rerun()
+
+        st.divider()
+
         url_mesa_qr = f"?mesa={m_sel}" 
         col_qr1, col_qr2 = st.columns([1, 1])
         with col_qr1:
@@ -860,8 +906,6 @@ def area_caixa_mesas():
             st.link_button(f"🔗 Abrir Mesa {m_sel} (Cliente)", f"/?mesa={m_sel}", use_container_width=True)
 
         st.divider()
-
-        dados_m_sel = mesas_data[str(m_sel)]
         
         df_rh_atual = carregar_rh_disco()
         lista_garcons_disponiveis = df_rh_atual['Nome'].tolist() if not df_rh_atual.empty else ["Carlos Manuel", "Ana Paula"]
