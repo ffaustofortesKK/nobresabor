@@ -426,17 +426,72 @@ def area_administrador():
 
     with tab_stk:
         st.markdown("<div class='bloco-seccao'>", unsafe_allow_html=True)
-        st.subheader("📦 Stock")
+        st.subheader("📦 Gestão de Stock (Refeições, Sobremesas & Bebidas)")
+        
         with st.form("form_stock_adm"):
-            np = st.text_input("Produto")
-            cat = st.selectbox("Categoria", ["Bebidas", "Refeições", "Sobremesas"])
-            qtd = st.number_input("Quantidade", min_value=0)
-            prc = st.number_input("Preço (Kz)", min_value=0.0)
-            if st.form_submit_button("Adicionar") and np:
-                novo_df = pd.DataFrame([[np, cat, qtd, prc]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-                st.session_state.stock = pd.concat([st.session_state.stock, novo_df], ignore_index=True)
-                st.rerun()
-        st.dataframe(st.session_state.stock, use_container_width=True)
+            st.write("➕ **Registar Novo Item no Menu/Stock**")
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+                np = st.text_input("Nome do Item (ex: Frango Grelhado, Pudim...):")
+                cat = st.selectbox("Categoria:", ["Refeições", "Sobremesas", "Bebidas"])
+            with col_s2:
+                qtd = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                prc = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=1000.0)
+                
+            if st.form_submit_button("💾 Salvar Novo Item", use_container_width=True):
+                if np.strip():
+                    if not st.session_state.stock[st.session_state.stock['Produto'].str.lower() == np.strip().lower()].empty:
+                        st.error("Já existe um item com esse nome no stock!")
+                    else:
+                        novo_df = pd.DataFrame([[np.strip(), cat, int(qtd), float(prc)]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+                        st.session_state.stock = pd.concat([st.session_state.stock, novo_df], ignore_index=True)
+                        st.success(f"Item '{np}' registado com sucesso!")
+                        st.rerun()
+                else:
+                    st.warning("Por favor, insira o nome do item.")
+
+        st.divider()
+        st.subheader("📋 Lista Atual e Edição/Remoção de Itens")
+        
+        if st.session_state.stock.empty:
+            st.info("O stock está vazio.")
+        else:
+            st.dataframe(st.session_state.stock, use_container_width=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            st.write("🛠️ **Editar ou Remover Item Existente**")
+            lista_produtos = st.session_state.stock['Produto'].tolist()
+            produto_selecionado = st.selectbox("Selecione o item para gerir:", lista_produtos, key="sel_prod_gestao")
+            
+            if produto_selecionado:
+                idx_linha = st.session_state.stock[st.session_state.stock['Produto'] == produto_selecionado].index[0]
+                item_atual = st.session_state.stock.loc[idx_linha]
+                
+                with st.form(f"form_edicao_{idx_linha}"):
+                    novo_nome = st.text_input("Nome do Produto:", value=str(item_atual['Produto']))
+                    nova_cat = st.selectbox("Categoria:", ["Refeições", "Sobremesas", "Bebidas"], index=["Refeições", "Sobremesas", "Bebidas"].index(item_atual['Categoria']) if item_atual['Categoria'] in ["Refeições", "Sobremesas", "Bebidas"] else 0)
+                    nova_qtd = st.number_input("Quantidade:", min_value=0, value=int(item_atual['Quantidade']))
+                    novo_prc = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=float(item_atual['Preço Unitário']))
+                    
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1:
+                        btn_atualizar = st.form_submit_button("🔄 Atualizar Item", use_container_width=True)
+                    with col_b2:
+                        btn_remover = st.form_submit_button("🗑️ Remover Item", use_container_width=True)
+                        
+                    if btn_atualizar:
+                        st.session_state.stock.at[idx_linha, 'Produto'] = novo_nome.strip()
+                        st.session_state.stock.at[idx_linha, 'Categoria'] = nova_cat
+                        st.session_state.stock.at[idx_linha, 'Quantidade'] = int(nova_qtd)
+                        st.session_state.stock.at[idx_linha, 'Preço Unitário'] = float(novo_prc)
+                        st.success("Item atualizado com sucesso!")
+                        st.rerun()
+                        
+                    if btn_remover:
+                        st.session_state.stock = st.session_state.stock.drop(idx_linha).reset_index(drop=True)
+                        st.success("Item removido do stock com sucesso!")
+                        st.rerun()
+                        
         st.markdown("</div>", unsafe_allow_html=True)
         
     with tab_dch:
@@ -637,7 +692,6 @@ def area_caixa_mesas():
                         for p in dados_m['pedidos']
                     )
                     
-                    # Se tiver refeição pronta, usa a classe com borda vermelha a piscar
                     if tem_refeicao_pronta:
                         classe_css = "mesa-pronta-alerta"
                     else:
@@ -648,8 +702,8 @@ def area_caixa_mesas():
                         
                         nome_cli_formatado = f"<br><span style='font-size: 0.8em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
 
-                        # String HTML plana para evitar erro de indentação
-                        conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br><span style='font-size: 0.8em;'>{dados_m['total']:,.2f} Kz</span></div>"
+                        # Utilizando o emoji de mesa 🪑 no lugar da palavra "Mesa"
+                        conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br><span style='font-size: 0.8em;'>{dados_m['total']:,.2f} Kz</span></div>"
                         
                         st.markdown(conteudo_html, unsafe_allow_html=True)
                         
