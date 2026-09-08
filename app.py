@@ -677,7 +677,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -757,7 +757,6 @@ def area_caixa_mesas():
         st.markdown("#### 📦 Extrato de Produtos Vendidos no Turno")
         
         if vendas_turno:
-            # Consolidar itens vendidos no turno
             itens_consolidados = {}
             for v in vendas_turno:
                 for p in v.get("pedidos", []):
@@ -772,7 +771,6 @@ def area_caixa_mesas():
                     itens_consolidados[nome_prod]["quantidade"] += qtd_prod
                     itens_consolidados[nome_prod]["total"] += (qtd_prod * preco_prod)
             
-            # Tabela de resumo
             col_t1, col_t2, col_t3, col_t4 = st.columns([2, 1, 1, 1.2])
             with col_t1: st.markdown("**Produto / Item**")
             with col_t2: st.markdown("**Qtd Total**")
@@ -790,7 +788,6 @@ def area_caixa_mesas():
             st.markdown("---")
             total_geral_turno = sum(d["total"] for d in itens_consolidados.values())
             
-            # Destacando o Valor em Caixa e a Faturação Total
             st.markdown(f"### 💰 Faturação Total do Turno: **{total_geral_turno:,.2f} Kz**")
             st.markdown(f"### 💵 Valor de Caixa (Dinheiro em Gaveta): **{saldo_em_caixa_fisico:,.2f} Kz**")
             
@@ -940,41 +937,28 @@ def area_caixa_mesas():
                     with col_qr2:
                         st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
 
-                # --- LISTA DOS PEDIDOS EM 4 COLUNAS ---
+                # --- LISTA DOS PEDIDOS (SEM O BOTÃO DE ANULAR) ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
                 if pedidos_mesa:
-                    col_h1, col_h2, col_h3, col_h4 = st.columns([2, 0.8, 1.2, 1.2])
-                    with col_h1: st.markdown("**Itens**")
-                    with col_h2: st.markdown("**Qtd**")
-                    with col_h3: st.markdown("**Valor**")
-                    with col_h4: st.markdown("**Subtotal**")
-                    st.divider()
-                    
-                    for idx_p, p in enumerate(pedidos_mesa):
+                    for p in pedidos_mesa:
                         if p.get('status') in ["Anulado", "Recusado pela Cozinha"]:
                             continue
-                        
                         q = p.get('quantidade', 1)
                         preco_u = p.get('preco', 0.0)
                         subtotal_item = q * preco_u
-                        
-                        col_i1, col_i2, col_i3, col_i4 = st.columns([2, 0.8, 1.2, 1.2])
-                        with col_i1: st.write(p.get('item', ''))
-                        with col_i2: st.write(str(q))
-                        with col_i3: st.write(f"{preco_u:,.2f} Kz")
-                        with col_i4: st.write(f"{subtotal_item:,.2f} Kz")
-                        st.divider()
+                        st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — Subtotal: **{subtotal_item:,.2f} Kz** [{p.get('status', 'Pendente')}]")
                 else:
                     st.info("Ainda não existem registos nesta mesa.")
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
+                st.markdown(f"### 💵 Total Atual da Mesa: **{total_a_pagar:,.2f} Kz**")
                 
                 if total_a_pagar > 0 or cli_atual:
-                    st.markdown(f"### 💵 Total: **{total_a_pagar:,.2f} Kz**")
-                    
-                    tipo_pagamento = st.radio("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
+                    st.markdown("---")
+                    st.markdown("### 💳 Processar Pagamento e Emitir Recibo")
+                    tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
                     
                     v_dinheiro = 0.0
                     v_tpa = 0.0
@@ -986,40 +970,38 @@ def area_caixa_mesas():
                         v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
                         v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
 
-                    col_b1, col_b2, col_b3 = st.columns([1, 1.5, 1])
-                    with col_b2:
-                        if st.button("✅ Fechar Conta", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
-                            nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
-                            tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
-                            
-                            registo_venda = {
-                                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "Mesa": m_sel,
-                                "Cliente": nome_c,
-                                "Telefone": tel_c,
-                                "Operador": sessao_op['operador'],
-                                "Período": sessao_op['periodo'],
-                                "Valor Dinheiro": v_dinheiro,
-                                "Valor TPA": v_tpa,
-                                "Total": total_a_pagar,
-                                "pedidos": dados_m_sel.get("pedidos", [])
-                            }
-                            
-                            hist_vendas.append(registo_venda)
-                            salvar_historico_vendas(hist_vendas)
-                            
-                            mesas_data[str(m_sel)] = {
-                                "status": "Fechada",
-                                "cliente": None,
-                                "pedidos": [],
-                                "total": 0.0,
-                                "garcon": "",
-                                "solicitou_fecho": False
-                            }
-                            salvar_mesas_disco(mesas_data)
-                            
-                            st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
-                            st.rerun()
+                    if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
+                        nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
+                        tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
+                        
+                        registo_venda = {
+                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Mesa": m_sel,
+                            "Cliente": nome_c,
+                            "Telefone": tel_c,
+                            "Operador": sessao_op['operador'],
+                            "Período": sessao_op['periodo'],
+                            "Valor Dinheiro": v_dinheiro,
+                            "Valor TPA": v_tpa,
+                            "Total": total_a_pagar,
+                            "pedidos": dados_m_sel.get("pedidos", [])
+                        }
+                        
+                        hist_vendas.append(registo_venda)
+                        salvar_historico_vendas(hist_vendas)
+                        
+                        mesas_data[str(m_sel)] = {
+                            "status": "Fechada",
+                            "cliente": None,
+                            "pedidos": [],
+                            "total": 0.0,
+                            "garcon": "",
+                            "solicitou_fecho": False
+                        }
+                        salvar_mesas_disco(mesas_data)
+                        
+                        st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
+                        st.rerun()
                 else:
                     st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                     
