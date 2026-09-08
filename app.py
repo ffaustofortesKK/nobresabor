@@ -721,7 +721,8 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
+        # Correção aplicada aqui nos parênteses:
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -838,7 +839,6 @@ def area_caixa_mesas():
                     if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
                 )
                 
-                # Prioridade máxima de visual: Se pediu a conta, aplica a classe de oscilação/alerta
                 if conta_pedida:
                     classe_css = "mesa-conta-solicitada"
                 elif tem_pronto:
@@ -871,14 +871,12 @@ def area_caixa_mesas():
         
         dados_m_sel = mesas_data[str(m_sel)]
         
-        # ALERTA VISUAL NO MENU DA MESA SE O CLIENTE PEDIU A CONTA
         if dados_m_sel.get("conta_pedida", False):
             st.warning(f"🚨 **Atenção!** O cliente da Mesa {m_sel} solicitou a **conta e o fecho**!")
             
             col_b1, col_b2 = st.columns(2)
             with col_b1:
                 if st.button("✅ Atender / Imprimir Conta", type="primary", use_container_width=True):
-                    # Aqui pode integrar a lógica de impressão ou fecho direto
                     st.success(f"Solicitação da Mesa {m_sel} em atendimento.")
             with col_b2:
                 if st.button("❌ Desativar Alerta", use_container_width=True):
@@ -887,7 +885,6 @@ def area_caixa_mesas():
                     st.success("Alerta limpo com sucesso!")
                     st.rerun()
         else:
-            # Botão opcional para testes ou simulação direta pelo operador caso necessário
             if st.button(f"🔔 Simular Pedido de Conta (Mesa {m_sel})", use_container_width=True):
                 dados_m_sel["conta_pedida"] = True
                 salvar_mesas_disco(mesas_data)
