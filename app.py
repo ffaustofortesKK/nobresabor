@@ -677,7 +677,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -937,7 +937,7 @@ def area_caixa_mesas():
                     with col_qr2:
                         st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
 
-                # --- LISTA DOS PEDIDOS (SEM O BOTÃO DE ANULAR) ---
+                # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
