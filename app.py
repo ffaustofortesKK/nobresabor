@@ -65,7 +65,7 @@ def salvar_historico_vendas(hist_list):
     except:
         pass
 
-# Estilos CSS com animação de borda vermelha piscando para refeições prontas
+# Estilos CSS atualizados (sem fundo de retângulo colorido e com valor em preto e negrito)
 st.markdown("""
     <style>
     @keyframes borda-vermelha-piscar {
@@ -82,22 +82,22 @@ st.markdown("""
         color: #d32f2f;
     }
     .mesa-aberta {
-        background-color: #d4edda;
-        color: #155724;
         padding: 15px;
         border-radius: 10px;
         text-align: center;
         font-weight: bold;
         border: 1px solid #c3e6cb;
+        background-color: transparent;
+        color: #155724;
     }
     .mesa-fechada {
-        background-color: #f8d7da;
-        color: #721c24;
         padding: 15px;
         border-radius: 10px;
         text-align: center;
         font-weight: bold;
         border: 1px solid #f5c6cb;
+        background-color: transparent;
+        color: #721c24;
     }
     .bloco-seccao {
         padding: 25px;
@@ -702,8 +702,10 @@ def area_caixa_mesas():
                         
                         nome_cli_formatado = f"<br><span style='font-size: 0.8em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
 
-                        # Utilizando o emoji de mesa 🪑 no lugar da palavra "Mesa"
-                        conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br><span style='font-size: 0.8em;'>{dados_m['total']:,.2f} Kz</span></div>"
+                        # Valor formatado com texto preto e negrito (color: black; font-weight: bold;)
+                        valor_formatado = f"<span style='color: black; font-weight: bold;'>{dados_m['total']:,.2f} Kz</span>"
+
+                        conteudo_html = f"<div class='{classe_css}'>{alerta_pronto_html}🪑 Mesa {num_mesa}<br>{status_m}{nome_cli_formatado}<br>{valor_formatado}</div>"
                         
                         st.markdown(conteudo_html, unsafe_allow_html=True)
                         
