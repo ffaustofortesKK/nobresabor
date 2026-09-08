@@ -1031,7 +1031,6 @@ def area_caixa_mesas():
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
         # ==========================================
-            
             else:
                 cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
                 cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
