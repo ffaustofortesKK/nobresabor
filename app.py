@@ -811,7 +811,7 @@ def area_caixa_mesas():
             st.info("Ainda não existem registos no histórico de vendas.")
 
     with aba_operador_1:
-        col_esq, col_dir = st.columns([1, 1])
+        col_esq, col_dir = st.columns([0.85, 1.15])
 
         with col_dir:
             st.markdown("#### 🗺️ Grelha de Mesas (1 a 30)")
@@ -866,74 +866,76 @@ def area_caixa_mesas():
                     mesa_idx += 1
 
         with col_esq:
-            m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
-            st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
-            
-            dados_m_sel = mesas_data[str(m_sel)]
-            
-            # ALERTA AUTOMÁTICO CASO O CLIENTE TENHA SOLICITADO O FECHO
-            if dados_m_sel.get("solicitou_fecho", False):
-                st.warning(f"🚨 **O cliente da Mesa {m_sel} solicitou o fecho da conta!**")
+            with st.container():
+                m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
+                st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
                 
-                total_a_pagar = dados_m_sel.get("total", 0.0)
-                st.markdown(f"### 💵 Total a Liquidar: **{total_a_pagar:,.2f} Kz**")
+                dados_m_sel = mesas_data[str(m_sel)]
                 
-                tipo_pagamento = st.radio("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_{m_sel}")
-                
-                v_dinheiro = 0.0
-                v_tpa = 0.0
-                if tipo_pagamento == "Dinheiro":
-                    v_dinheiro = total_a_pagar
-                elif tipo_pagamento == "TPA":
-                    v_tpa = total_a_pagar
+                # ALERTA AUTOMÁTICO CASO O CLIENTE TENHA SOLICITADO O FECHO
+                if dados_m_sel.get("solicitou_fecho", False):
+                    st.warning(f"🚨 **O cliente da Mesa {m_sel} solicitou o fecho da conta!**")
+                    
+                    total_a_pagar = dados_m_sel.get("total", 0.0)
+                    st.markdown(f"### 💵 Total a Liquidar: **{total_a_pagar:,.2f} Kz**")
+                    
+                    # Correção do erro de linha aqui:
+                    tipo_pagamento = st.radio("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_{m_sel}")
+                    
+                    v_dinheiro = 0.0
+                    v_tpa = 0.0
+                    if tipo_pagamento == "Dinheiro":
+                        v_dinheiro = total_a_pagar
+                    elif tipo_pagamento == "TPA":
+                        v_tpa = total_a_pagar
+                    else:
+                        v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_{m_sel}")
+                        v_tpa = st.number_input("Valor em TPA:", value=total_a_pagar - v_dinheiro, key=f"tpa_{m_sel}")
+
+                    if st.button("✅ Fechar Conta & Voltar Mesa à Estaca Zero", type="primary", use_container_width=True):
+                        cli_atual = dados_m_sel.get("cliente", {})
+                        nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
+                        tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
+                        
+                        registo_venda = {
+                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Mesa": m_sel,
+                            "Cliente": nome_c,
+                            "Telefone": tel_c,
+                            "Operador": sessao_op['operador'],
+                            "Período": sessao_op['periodo'],
+                            "Valor Dinheiro": v_dinheiro,
+                            "Valor TPA": v_tpa,
+                            "Total": total_a_pagar,
+                            "pedidos": dados_m_sel.get("pedidos", [])
+                        }
+                        
+                        hist_vendas.append(registo_venda)
+                        salvar_historico_vendas(hist_vendas)
+                        
+                        # Reseta a mesa inteira para o estado inicial (Estaca Zero)
+                        mesas_data[str(m_sel)] = {
+                            "status": "Fechada",
+                            "cliente": None,
+                            "pedidos": [],
+                            "total": 0.0,
+                            "garcon": "",
+                            "solicitou_fecho": False
+                        }
+                        salvar_mesas_disco(mesas_data)
+                        
+                        st.success(f"Conta da Mesa {m_sel} encerrada com sucesso! Mesa limpa e resetada.")
+                        st.rerun()
                 else:
-                    v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_{m_sel}")
-                    v_tpa = st.number_input("Valor em TPA:", value=total_a_pagar - v_dinheiro, key=f"tpa_{m_sel}")
+                    st.info(f"Mesa {m_sel} ativa. Aguardando o cliente solicitar o fecho da conta.")
 
-                if st.button("✅ Fechar Conta & Voltar Mesa à Estaca Zero", type="primary", use_container_width=True):
-                    cli_atual = dados_m_sel.get("cliente", {})
-                    nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
-                    tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
-                    
-                    registo_venda = {
-                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "Mesa": m_sel,
-                        "Cliente": nome_c,
-                        "Telefone": tel_c,
-                        "Operador": sessao_op['operador'],
-                        "Período": sessao_op['periodo'],
-                        "Valor Dinheiro": v_dinheiro,
-                        "Valor TPA": v_tpa,
-                        "Total": total_a_pagar,
-                        "pedidos": dados_m_sel.get("pedidos", [])
-                    }
-                    
-                    hist_vendas.append(registo_venda)
-                    salvar_historico_vendas(hist_vendas)
-                    
-                    # Reseta a mesa inteira para o estado inicial (Estaca Zero)
-                    mesas_data[str(m_sel)] = {
-                        "status": "Fechada",
-                        "cliente": None,
-                        "pedidos": [],
-                        "total": 0.0,
-                        "garcon": "",
-                        "solicitou_fecho": False
-                    }
-                    salvar_mesas_disco(mesas_data)
-                    
-                    st.success(f"Conta da Mesa {m_sel} encerrada com sucesso! Mesa limpa e resetada.")
-                    st.rerun()
-            else:
-                st.info(f"Mesa {m_sel} ativa. Aguardando o cliente solicitar o fecho da conta.")
+                st.divider()
 
-            st.divider()
-
-            cli_info = dados_m_sel.get("cliente")
-            if cli_info:
-                st.write(f"**Cliente Atual:** {cli_info.get('nome')} | **Tel:** {cli_info.get('telefone')}")
-            else:
-                st.warning("Mesa sem cliente registado.")
+                cli_info = dados_m_sel.get("cliente")
+                if cli_info:
+                    st.write(f"**Cliente Atual:** {cli_info.get('nome')} | **Tel:** {cli_info.get('telefone')}")
+                else:
+                    st.warning("Mesa sem cliente registado.")
 
         # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
