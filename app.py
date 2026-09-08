@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS
+# Estilos CSS (Fundo Preto / Tema Escuro)
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -75,30 +75,6 @@ st.markdown("""
         border: 3px solid #30363d;
         background-color: #161b22;
         color: #ffffff !important;
-    }
-
-    .mesa-pronta-alerta {
-        border: 3px solid #ff4b4b;
-        background-color: #2b0d0d;
-        color: #ff6b6b !important;
-        animation: borda-vermelha-piscar 1s infinite;
-    }
-
-    @keyframes borda-vermelha-piscar {
-        0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
-        50% { border: 3px solid #ffa0a0; box-shadow: none; }
-        100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
-    }
-
-    .piscar-alerta {
-        animation: piscar-aviso 1s infinite;
-        color: #ff4b4b !important;
-    }
-
-    @keyframes piscar-aviso {
-        0% { opacity: 1; }
-        50% { opacity: 0.3; }
-        100% { opacity: 1; }
     }
 
     .fatura-box {
@@ -231,57 +207,6 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-def carregar_vendas_excluidas():
-    if os.path.exists(ARQUIVO_VENDAS_EXCLUIDAS):
-        try:
-            with open(ARQUIVO_VENDAS_EXCLUIDAS, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            pass
-    return []
-
-def salvar_vendas_excluidas(exc_list):
-    try:
-        with open(ARQUIVO_VENDAS_EXCLUIDAS, "w", encoding="utf-8") as f:
-            json.dump(exc_list, f, ensure_ascii=False, indent=4)
-    except:
-        pass
-
-def carregar_atendimentos_garcon():
-    if os.path.exists(ARQUIVO_ATENDIMENTOS_GARCON):
-        try:
-            with open(ARQUIVO_ATENDIMENTOS_GARCON, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            pass
-    return []
-
-def salvar_atendimentos_garcon(atend_list):
-    try:
-        with open(ARQUIVO_ATENDIMENTOS_GARCON, "w", encoding="utf-8") as f:
-            json.dump(atend_list, f, ensure_ascii=False, indent=4)
-    except:
-        pass
-
-def carregar_rh_disco():
-    if os.path.exists(ARQUIVO_RH_COLABORADORES):
-        try:
-            df_loaded = pd.read_json(ARQUIVO_RH_COLABORADORES)
-            if not df_loaded.empty:
-                return df_loaded
-        except:
-            pass
-    return pd.DataFrame([
-        ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
-        ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
-    ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
-
-def salvar_rh_disco(df):
-    try:
-        df.to_json(ARQUIVO_RH_COLABORADORES, orient="split", index=False)
-    except:
-        pass
-
 def carregar_stock_disco():
     if os.path.exists(ARQUIVO_STOCK):
         try:
@@ -306,15 +231,6 @@ def salvar_stock_disco(df):
         df.to_json(ARQUIVO_STOCK, orient="split", index=False)
     except:
         pass
-
-def gerar_qrcode_bytes(url_texto):
-    qr = qrcode.QRCode(version=1, box_size=6, border=2)
-    qr.add_data(url_texto)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    return buffer.getvalue()
 
 def gerar_pdf_fatura(fat_data, num_mesa):
     pdf = FPDF()
@@ -389,5 +305,207 @@ st.session_state.caixa_aberto = ler_estado_caixa_disco()
 if "stock" not in st.session_state:
     st.session_state.stock = carregar_stock_disco()
 
-if "rh" not in st.session_state:
-    st.session_state.rh = carregar_rh_disco()
+# Seletor de Perfil / Módulo Principal
+if perfil_url == "cliente" or mesa_detectada:
+    @st.fragment(run_every=4)
+    def area_cliente():
+        if mesa_detectada and 1 <= mesa_detectada <= 30:
+            num_mesa = mesa_detectada
+        else:
+            st.error("⚠️ Nenhum número de mesa detetado no link! Por favor, escaneie o QR Code correto da sua mesa.")
+            return
+
+        mesas_data = carregar_mesas_disco()
+        str_mesa = str(num_mesa)
+        dados_m = mesas_data[str_mesa]
+
+        if dados_m.get("fatura_emitida"):
+            fat = dados_m["fatura_emitida"]
+            st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
+            st.markdown("<h2 style='text-align: center;'>🧾 Restaurante Nobre Sabor - Fatura / Recibo</h2>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center;'><b>Mesa:</b> {num_mesa} | <b>Data:</b> {fat['data']}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center;'><b>Cliente:</b> {fat['cliente']} | <b>Telefone:</b> {fat['telefone']}</p>", unsafe_allow_html=True)
+            if fat.get('nif'):
+                st.markdown(f"<p style='text-align: center;'><b>NIF:</b> {fat['nif']}</p>", unsafe_allow_html=True)
+            st.divider()
+            
+            for item in fat['itens']:
+                st.write(f"- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.2f} Kz")
+            
+            st.markdown(f"### Total Pago: **{fat['total']:,.2f} Kz**")
+            st.markdown(f"<p><b>Forma de Pagamento:</b> {fat['pagamento_detalhe']}</p>", unsafe_allow_html=True)
+            st.divider()
+            
+            try:
+                pdf_path = gerar_pdf_fatura(fat, num_mesa)
+                if os.path.exists(pdf_path):
+                    with open(pdf_path, "rb") as pdf_file:
+                        st.download_button(
+                            label="📥 Descarregar Fatura em PDF",
+                            data=pdf_file,
+                            file_name=f"Fatura_Mesa_{num_mesa}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+            except Exception:
+                st.warning("Não foi possível gerar o PDF de download automático.")
+
+            st.markdown("<h3 style='text-align: center;'>🙏 Muito obrigado pela sua presença! Volte sempre!</h3>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            return
+
+        if not dados_m.get("cliente"):
+            st.markdown("<h2 style='text-align: center;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='text-align: center;'>Registo de Entrada - Mesa {num_mesa}</h4>", unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                with st.form(f"form_cli_{num_mesa}"):
+                    nome_cli = st.text_input("Nome:")
+                    tel_cli = st.text_input("Telefone:")
+                    nif_cli = st.text_input("NIF (Opcional):", placeholder="Ex: 5000000000")
+                    whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp?")
+                    
+                    btn_reg = st.form_submit_button("Entrar e Ver Menu", use_container_width=True)
+                    if btn_reg and nome_cli and tel_cli:
+                        dados_m["cliente"] = {
+                            "nome": nome_cli,
+                            "telefone": tel_cli,
+                            "nif": nif_cli if nif_cli else "",
+                            "whatsapp": whatsapp_opt
+                        }
+                        dados_m["status"] = "Aberta"
+                        salvar_mesas_disco(mesas_data)
+                        st.success("Registo efetuado com sucesso!")
+                        st.rerun()
+                    elif btn_reg:
+                        st.warning("Preencha o seu nome e telefone.")
+        else:
+            cli = dados_m["cliente"]
+            st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; background-color: #141428; padding: 10px 14px; border-radius: 8px; border: 1px solid #2a2a4a; margin-bottom: 10px;">
+                    <span style="font-size: 1.1rem; color: #ffb703;">🍽️ NobreSabor | Mesa {num_mesa}</span>
+                    <span style="font-size: 0.9rem;">👤 Bem-vindo(a), <b>{cli['nome']}</b></span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            categorias_disponiveis = st.session_state.stock['Categoria'].unique().tolist()
+            tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo & Fatura", "🎉 Programas"])
+            
+            with tab_menu:
+                cat_escolhida = st.selectbox("Categoria:", categorias_disponiveis, key="cat_cli_sel")
+                stock_df = st.session_state.stock
+                itens_cat = stock_df[stock_df['Categoria'] == cat_escolhida]
+                
+                if not itens_cat.empty:
+                    with st.form(key=f"form_pedido_{num_mesa}", clear_on_submit=True):
+                        col_f1, col_f2 = st.columns([2, 1])
+                        with col_f1:
+                            item_escolhido = st.selectbox("Item:", itens_cat['Produto'].tolist())
+                        with col_f2:
+                            qtd = st.number_input("Qtd:", min_value=1, value=1)
+                        
+                        obs = st.text_input("Observações (Ex: Sem gelo, bem passado):")
+                        btn_enviar_pedido = st.form_submit_button("🚀 Enviar Pedido", use_container_width=True)
+                        
+                        if btn_enviar_pedido:
+                            row_prod = itens_cat[itens_cat['Produto'] == item_escolhido].iloc[0]
+                            is_refeicao = (cat_escolhida.lower() in ["refeições", "refeicoes", "pratos", "comida"])
+                            novo_pedido = {
+                                "item": item_escolhido,
+                                "tipo": cat_escolhida,
+                                "quantidade": int(qtd),
+                                "preco": float(row_prod['Preço Unitário']),
+                                "origem": f"Cliente ({cli['nome']})",
+                                "obs": obs,
+                                "status": "Confirmado" if not is_refeicao else "Pendente",
+                                "cozinha_status": "N/A" if not is_refeicao else "Pendente",
+                                "hora": datetime.now().strftime("%H:%M:%S")
+                            }
+                            
+                            dados_m["pedidos"].append(novo_pedido)
+                            dados_m["status"] = "Aberta"
+                            
+                            total_calc = sum(
+                                p['quantidade'] * p['preco'] 
+                                for p in dados_m["pedidos"] 
+                                if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                            )
+                            dados_m["total"] = float(total_calc)
+                            
+                            salvar_mesas_disco(mesas_data)
+                            st.success(f"✅ Pedido de {qtd}x {item_escolhido} enviado!")
+                            st.rerun()
+                            
+            with tab_consumo:
+                st.subheader("O Meu Consumo & Estado dos Pedidos")
+                pedidos_mesa = dados_m["pedidos"]
+                if not pedidos_mesa:
+                    st.info("Ainda não tem pedidos.")
+                else:
+                    subtotal_geral = 0
+                    for p in pedidos_mesa:
+                        total_item = p['quantidade'] * p['preco']
+                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
+                            subtotal_geral += total_item
+                        
+                        status_txt = p['status']
+                        if p.get('cozinha_status') == "Feito":
+                            status_txt = "🍽️ Refeição Pronta!"
+                        elif p.get('cozinha_status') == "Aprovado":
+                            status_txt = "Preparando 🍳"
+                            
+                        st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — **{status_txt}**")
+                        
+                    st.markdown(f"### Total: {subtotal_geral:,.2f} Kz")
+                    
+            with tab_eventos:
+                st.subheader("Eventos da Semana")
+                st.markdown("- Sexta: Música ao Vivo\n- Sábado: Karaoke")
+
+    area_cliente()
+else:
+    # Painel de Gestão Interno (Caixa, Cozinha, Admin)
+    st.title("🍽️ NobreSabor - Painel de Gestão Interno")
+    
+    tab_cozinha, tab_caixa, tab_admin = st.tabs(["🍳 Cozinha", "💻 Caixa & Mesas", "⚙️ Administração"])
+    
+    with tab_cozinha:
+        st.subheader("Painel de Controlo da Cozinha")
+        mesas_data = carregar_mesas_disco()
+        tem_pedidos = False
+        for i in range(1, 31):
+            str_i = str(i)
+            dados_m = mesas_data[str_i]
+            for idx_p, ped in enumerate(dados_m["pedidos"]):
+                cat_p = str(ped.get("tipo", "")).lower()
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and ped.get("cozinha_status") != "Feito":
+                    tem_pedidos = True
+                    st.write(f"**Mesa {i}** — {ped['quantidade']}x {ped['item']} (Obs: {ped.get('obs', 'Nenhuma')}) — Estado: `{ped.get('cozinha_status', 'Pendente')}`")
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1:
+                        if st.button("Aprovar / Preparar", key=f"apr_{i}_{idx_p}"):
+                            mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
+                            salvar_mesas_disco(mesas_data)
+                            st.rerun()
+                    with col_b2:
+                        if st.button("Marcar como Feito", key=f"feito_{i}_{idx_p}"):
+                            mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
+                            salvar_mesas_disco(mesas_data)
+                            st.rerun()
+        if not tem_pedidos:
+            st.success("Nenhuma refeição pendente na cozinha.")
+
+    with tab_caixa:
+        st.subheader("Módulo de Caixa")
+        caixa_status_atual = ler_estado_caixa_disco()
+        st.write(f"Estado atual do Caixa no sistema: **{'ABERTO' if caixa_status_atual else 'FECHADO'}**")
+        if st.button("Alternar Estado do Caixa"):
+            gravar_estado_caixa_disco(not caixa_status_atual)
+            st.rerun()
+
+    with tab_admin:
+        st.subheader("Painel Administrativo")
+        st.write("Aqui pode gerir o stock, colaboradores e definições globais.")
+        stock_df = st.session_state.stock
+        st.dataframe(stock_df, use_container_width=True)
