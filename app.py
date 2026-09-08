@@ -82,7 +82,7 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Todos os textos em BRANCO e NEGRITO (com excepção de elementos com cores de alerta específicas)
+# Estilos CSS: Todos os textos em BRANCO e NEGRITO + Ocultação total da barra lateral
 st.markdown("""
     <style>
     /* Fundo geral e formatação global de texto em Branco e Negrito */
@@ -94,6 +94,11 @@ st.markdown("""
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: bold !important;
+    }
+
+    /* Oculta completamente a barra lateral (sidebar) */
+    [data-testid="stSidebar"] {
+        display: none;
     }
 
     @keyframes borda-vermelha-piscar {
@@ -213,15 +218,6 @@ def gerar_qrcode_bytes(url_texto):
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     return buffered.getvalue()
-
-# Sidebar dinâmica
-st.sidebar.image("https://img.icons8.com/color/96/restaurant-.png", width=70)
-st.sidebar.title("NobreSabor - Gestão")
-st.sidebar.divider()
-if st.session_state.caixa_aberto:
-    st.sidebar.success("🟢 Caixa Aberto")
-else:
-    st.sidebar.error("🔴 Caixa Fechado")
 
 # ==========================================
 # ÁREA: CLIENTE
