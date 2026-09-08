@@ -1016,39 +1016,7 @@ def area_caixa_mesas():
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 st.markdown(f"### 💵 Total Atual da Mesa: **{total_a_pagar:,.2f} Kz**")
-                
-                if total_a_pagar > 0 or cli_atual:
-                    st.markdown("---")
-                    st.markdown("### 💳 Processar Pagamento e Emitir Recibo")
-                    tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
-                    
-                    v_dinheiro = 0.0
-                    v_tpa = 0.0
-                    if tipo_pagamento == "Dinheiro":
-                        v_dinheiro = total_a_pagar
-                    elif tipo_pagamento == "TPA":
-                        v_tpa = total_a_pagar
-                    else:
-                        v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
-                        v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
-
-                    if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
-                        nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
-                        tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
-                        
-                        registo_venda = {
-                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Mesa": m_sel,
-                            "Cliente": nome_c,
-                            "Telefone": tel_c,
-                            "Operador": sessao_op['operador'],
-                            "Período": sessao_op['periodo'],
-                            "Valor Dinheiro": v_dinheiro,
-                            "Valor TPA": v_tpa,
-                            "Total": total_a_pagar,
-                            "pedidos": dados_m_sel.get("pedidos", [])
-                        }
-                        
+                                                     
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
