@@ -82,7 +82,7 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Layout compacto, Mesas em Círculo, Barra lateral oculta e Textos em Branco/Negrito
+# Estilos CSS: Ajuste seguro para evitar cortes e manter mesas em círculo
 st.markdown("""
     <style>
     /* Fundo geral da página */
@@ -90,10 +90,10 @@ st.markdown("""
         background-color: #0c0c16;
     }
     
-    /* Reduz o padding superior e inferior da tela para otimizar o espaço */
+    /* Garante espaçamento adequado no topo para nada ficar cortado */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
         max-width: 98% !important;
@@ -607,7 +607,7 @@ def area_administrador():
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
-    st.markdown("<h3 style='margin-top:-10px; margin-bottom:5px;'>💻 Controlo Geral de Mesas e Faturação (Caixa)</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo Geral de Mesas e Faturação (Caixa)</h3>", unsafe_allow_html=True)
     
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
     mesas_data = carregar_mesas_disco()
@@ -621,14 +621,13 @@ def area_caixa_mesas():
     total_tpa_caixa = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
     total_geral_caixa = total_dinheiro_caixa + total_tpa_caixa
 
-    # RESUMO HORIZONTAL ULTRA COMPACTO PARA CABER TUDO NA TELA
+    # RESUMO HORIZONTAL ADAPTADO PARA CABER SEM CORTAR EM QUALQUER TELA
     st.markdown(f"""
-        <div style="background-color: #141428; padding: 6px 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-            <span style="font-size: 0.95rem;">📊 <b>Caixa:</b></span>
-            <span style="font-size: 0.9rem;">Total Acumulado: <b style="color: #4ac26b;">{total_geral_caixa:,.2f} Kz</b></span>
+        <div style="background-color: #141428; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <span style="font-size: 0.9rem;">📊 Total: <b style="color: #4ac26b;">{total_geral_caixa:,.2f} Kz</b></span>
             <span style="font-size: 0.9rem;">💵 Dinheiro: <b>{total_dinheiro_caixa:,.2f} Kz</b></span>
             <span style="font-size: 0.9rem;">💳 TPA: <b>{total_tpa_caixa:,.2f} Kz</b></span>
-            <span style="font-size: 0.8rem; background-color: #0f2316; color: #4ac26b; padding: 2px 8px; border-radius: 12px; border: 1px solid #2ea44f;">🟢 Caixa Aberto</span>
+            <span style="font-size: 0.8rem; background-color: #0f2316; color: #4ac26b; padding: 2px 8px; border-radius: 12px; border: 1px solid #2ea44f;">🟢 Aberto</span>
         </div>
     """, unsafe_allow_html=True)
 
