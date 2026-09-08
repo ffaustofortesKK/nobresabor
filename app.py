@@ -82,7 +82,7 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Espaçamento superior bastante aumentado para nada colar no topo
+# Estilos CSS
 st.markdown("""
     <style>
     /* Fundo geral da página */
@@ -90,7 +90,7 @@ st.markdown("""
         background-color: #0c0c16;
     }
     
-    /* Espaçamento bem generoso no topo para descer a interface */
+    /* Espaçamento generoso no topo */
     .block-container {
         padding-top: 4.5rem !important;
         padding-bottom: 2rem !important;
@@ -112,8 +112,8 @@ st.markdown("""
 
     /* ESTILO DAS MESAS EM CÍRCULO */
     .mesa-circle {
-        width: 82px;
-        height: 82px;
+        width: 72px;
+        height: 72px;
         border-radius: 50%;
         margin: 0 auto 4px auto;
         display: flex;
@@ -168,7 +168,7 @@ st.markdown("""
         border-radius: 8px;
         font-weight: bold !important;
         padding: 2px 6px !important;
-        font-size: 0.78rem !important;
+        font-size: 0.75rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -603,7 +603,7 @@ def area_administrador():
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (CÍRCULOS COMPACTOS)
+# ÁREA: CAIXA / GESTÃO DE MESAS (LADO A LADO)
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
@@ -621,7 +621,7 @@ def area_caixa_mesas():
     total_tpa_caixa = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
     total_geral_caixa = total_dinheiro_caixa + total_tpa_caixa
 
-    # RESUMO HORIZONTAL ADAPTADO PARA CABER SEM CORTAR EM QUALQUER TELA
+    # RESUMO HORIZONTAL
     st.markdown(f"""
         <div style="background-color: #141428; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 10px;">
             <span style="font-size: 0.9rem;">📊 Total: <b style="color: #4ac26b;">{total_geral_caixa:,.2f} Kz</b></span>
@@ -631,121 +631,130 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    if "mesa_ativa" in st.session_state:
-        m_ativa = st.session_state.mesa_ativa
-        str_m_ativa = str(m_ativa)
-        if st.button("⬅️ Voltar à Visão Geral", key="btn_voltar_geral"):
-            del st.session_state.mesa_ativa
-            st.rerun()
+    # LAYOUT DIVIDIDO EM 2 COLUNAS: Lado Esquerdo (Menu/Detalhes da Mesa) | Lado Direito (Grelha de Mesas)
+    col_esq, col_dir = st.columns([1.1, 0.9], gap="medium")
+
+    # --- LADO ESQUERDO: MENU / GESTÃO DA MESA SELECIONADA ---
+    with col_esq:
+        if "mesa_ativa" in st.session_state:
+            m_ativa = st.session_state.mesa_ativa
+            str_m_ativa = str(m_ativa)
             
-        st.header(f"🎛️ Gestão da Mesa {m_ativa}")
-        dados_mesa = mesas_data[str_m_ativa]
-        
-        if dados_mesa.get("fatura_emitida"):
-            st.success("✅ Esta mesa já teve a conta fechada e a fatura foi emitida para o cliente.")
-            if st.button("🧹 Limpar e Liberar Mesa para Novo Cliente", type="primary", key=f"btn_limpar_{m_ativa}"):
-                mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None}
-                salvar_mesas_disco(mesas_data)
+            if st.button("⬅️ Fechar Menu da Mesa", key="btn_voltar_geral"):
                 del st.session_state.mesa_ativa
                 st.rerun()
-            return
-
-        total_calculado = sum(
-            float(p['quantidade']) * float(p['preco']) 
-            for p in dados_mesa['pedidos'] 
-            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-        )
-        dados_mesa['total'] = float(total_calculado)
-        salvar_mesas_disco(mesas_data)
-
-        with st.expander("📷 QR Code", expanded=False):
-            link_mesa = f"{URL_OFICIAL}/?mesa={m_ativa}"
-            st.code(link_mesa)
-            st.image(gerar_qrcode_bytes(link_mesa), width=120)
-
-        if dados_mesa.get("cliente"):
-            cli = dados_mesa["cliente"]
-            st.info(f"👤 **Cliente Registado:** {cli['nome']} | 📞 Tel: {cli['telefone']}")
-
-        st.subheader("📝 Pedidos Lançados na Mesa")
-        if not dados_mesa['pedidos']:
-            st.info("Nenhum pedido efetuado nesta mesa ainda.")
-        else:
-            for idx_p, p in enumerate(dados_mesa['pedidos']):
-                col_p1, col_p2, col_p3 = st.columns([3, 2, 2])
-                with col_p1:
-                    st.write(f"- {p['quantidade']}x {p['item']} ({p['tipo']})")
-                with col_p2:
-                    st.write(f"**{(float(p['quantidade']) * float(p['preco'])):,.2f} Kz**")
-                with col_p3:
-                    c_status = p.get('cozinha_status', 'N/A')
-                    if c_status == "Feito":
-                        st.markdown("🍽️ **Pronta**")
-                    else:
-                        st.write(f"Estado: `{p['status']}`")
-
-        st.markdown(f"### Total a Pagar: **{float(dados_mesa['total']):,.2f} Kz**")
-
-        if float(dados_mesa['total']) > 0:
-            st.markdown("---")
-            st.subheader("💳 Opções de Pagamento")
-            tipo_pagamento = st.selectbox("Modalidade de pagamento:", ["Dinheiro", "TPA", "Ambos (Dinheiro + TPA)"], key=f"pag_tipo_{m_ativa}")
+                
+            st.markdown(f"### 🎛️ Gestão da Mesa {m_ativa}")
+            dados_mesa = mesas_data[str_m_ativa]
             
-            val_dinheiro = 0.0
-            val_tpa = 0.0
-            
-            if tipo_pagamento == "Dinheiro":
-                val_dinheiro = float(dados_mesa['total'])
-            elif tipo_pagamento == "TPA":
-                val_tpa = float(dados_mesa['total'])
+            if dados_mesa.get("fatura_emitida"):
+                st.success("✅ Esta mesa já teve a conta fechada e a fatura foi emitida para o cliente.")
+                if st.button("🧹 Limpar e Liberar Mesa", type="primary", key=f"btn_limpar_{m_ativa}"):
+                    mesas_data[str_m_ativa] = {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None}
+                    salvar_mesas_disco(mesas_data)
+                    del st.session_state.mesa_ativa
+                    st.rerun()
+                return
+
+            total_calculado = sum(
+                float(p['quantidade']) * float(p['preco']) 
+                for p in dados_mesa['pedidos'] 
+                if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+            )
+            dados_mesa['total'] = float(total_calculado)
+            salvar_mesas_disco(mesas_data)
+
+            with st.expander("📷 QR Code da Mesa", expanded=False):
+                link_mesa = f"{URL_OFICIAL}/?mesa={m_ativa}"
+                st.code(link_mesa)
+                st.image(gerar_qrcode_bytes(link_mesa), width=100)
+
+            if dados_mesa.get("cliente"):
+                cli = dados_mesa["cliente"]
+                st.info(f"👤 **Cliente:** {cli['nome']} | 📞 {cli['telefone']}")
+
+            st.markdown("#### 📝 Pedidos Lançados")
+            if not dados_mesa['pedidos']:
+                st.info("Nenhum pedido efetuado nesta mesa ainda.")
             else:
-                col_m1, col_m2 = st.columns(2)
-                with col_m1:
-                    val_dinheiro = st.number_input("Valor em Dinheiro (Kz):", min_value=0.0, max_value=float(dados_mesa['total']), value=float(dados_mesa['total'])/2, key=f"din_{m_ativa}")
-                with col_m2:
-                    val_tpa = float(dados_mesa['total']) - float(val_dinheiro)
-                    st.info(f"Valor restante TPA: **{val_tpa:,.2f} Kz**")
+                for idx_p, p in enumerate(dados_mesa['pedidos']):
+                    col_p1, col_p2, col_p3 = st.columns([3, 2, 2])
+                    with col_p1:
+                        st.write(f"- {p['quantidade']}x {p['item']}")
+                    with col_p2:
+                        st.write(f"**{(float(p['quantidade']) * float(p['preco'])):,.2f} Kz**")
+                    with col_p3:
+                        c_status = p.get('cozinha_status', 'N/A')
+                        if c_status == "Feito":
+                            st.markdown("🍽️ **Pronta**")
+                        else:
+                            st.write(f"Est: `{p['status']}`")
 
-            if st.button("💳 Fechar Conta e Emitir Fatura", type="primary", key=f"btn_fechar_{m_ativa}"):
-                nome_c_fatura = dados_mesa['cliente']['nome'] if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else 'Cliente Mesa'
-                tel_c_fatura = dados_mesa['cliente']['telefone'] if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else 'N/A'
+            st.markdown(f"#### Total a Pagar: **{float(dados_mesa['total']):,.2f} Kz**")
+
+            if float(dados_mesa['total']) > 0:
+                st.markdown("---")
+                st.markdown("#### 💳 Pagamento")
+                tipo_pagamento = st.selectbox("Modalidade:", ["Dinheiro", "TPA", "Ambos (Dinheiro + TPA)"], key=f"pag_tipo_{m_ativa}")
                 
-                detalhe_pag = f"Dinheiro: {val_dinheiro:,.2f} Kz | TPA: {val_tpa:,.2f} Kz" if tipo_pagamento == "Ambos (Dinheiro + TPA)" else tipo_pagamento
-
-                novo_registo_venda = {
-                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Mesa": int(m_ativa),
-                    "Cliente": str(nome_c_fatura),
-                    "Telefone": str(tel_c_fatura),
-                    "Valor Total": float(dados_mesa["total"]),
-                    "Valor Dinheiro": float(val_dinheiro),
-                    "Valor TPA": float(val_tpa),
-                    "Modo Pagamento": str(detalhe_pag)
-                }
-                hist_vendas.append(novo_registo_venda)
-                salvar_historico_vendas(hist_vendas)
-
-                dados_mesa["fatura_emitida"] = {
-                    "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "cliente": str(nome_c_fatura),
-                    "telefone": str(tel_c_fatura),
-                    "itens": list(dados_mesa["pedidos"]),
-                    "total": float(dados_mesa["total"]),
-                    "pagamento_detalhe": str(detalhe_pag)
-                }
+                val_dinheiro = 0.0
+                val_tpa = 0.0
                 
-                dados_mesa["status"] = "Fechada"
-                salvar_mesas_disco(mesas_data)
-                st.success("Conta fechada e fatura emitida com sucesso!")
-                del st.session_state.mesa_ativa
-                st.rerun()
+                if tipo_pagamento == "Dinheiro":
+                    val_dinheiro = float(dados_mesa['total'])
+                elif tipo_pagamento == "TPA":
+                    val_tpa = float(dados_mesa['total'])
+                else:
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        val_dinheiro = st.number_input("Dinheiro (Kz):", min_value=0.0, max_value=float(dados_mesa['total']), value=float(dados_mesa['total'])/2, key=f"din_{m_ativa}")
+                    with col_m2:
+                        val_tpa = float(dados_mesa['total']) - float(val_dinheiro)
+                        st.info(f"TPA: **{val_tpa:,.2f} Kz**")
+
+                if st.button("💳 Fechar Conta e Emitir Fatura", type="primary", key=f"btn_fechar_{m_ativa}"):
+                    nome_c_fatura = dados_mesa['cliente']['nome'] if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else 'Cliente Mesa'
+                    tel_c_fatura = dados_mesa['cliente']['telefone'] if dados_mesa.get('cliente') and isinstance(dados_mesa['cliente'], dict) else 'N/A'
+                    
+                    detalhe_pag = f"Dinheiro: {val_dinheiro:,.2f} Kz | TPA: {val_tpa:,.2f} Kz" if tipo_pagamento == "Ambos (Dinheiro + TPA)" else tipo_pagamento
+
+                    novo_registo_venda = {
+                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Mesa": int(m_ativa),
+                        "Cliente": str(nome_c_fatura),
+                        "Telefone": str(tel_c_fatura),
+                        "Valor Total": float(dados_mesa["total"]),
+                        "Valor Dinheiro": float(val_dinheiro),
+                        "Valor TPA": float(val_tpa),
+                        "Modo Pagamento": str(detalhe_pag)
+                    }
+                    hist_vendas.append(novo_registo_venda)
+                    salvar_historico_vendas(hist_vendas)
+
+                    dados_mesa["fatura_emitida"] = {
+                        "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "cliente": str(nome_c_fatura),
+                        "telefone": str(tel_c_fatura),
+                        "itens": list(dados_mesa["pedidos"]),
+                        "total": float(dados_mesa["total"]),
+                        "pagamento_detalhe": str(detalhe_pag)
+                    }
+                    
+                    dados_mesa["status"] = "Fechada"
+                    salvar_mesas_disco(mesas_data)
+                    st.success("Conta fechada e fatura emitida com sucesso!")
+                    del st.session_state.mesa_ativa
+                    st.rerun()
+            else:
+                st.warning("A mesa não tem valor a faturar.")
         else:
-            st.warning("A mesa não tem valor a faturar.")
-            
-    else:
-        # VISÃO GERAL DAS MESAS EXIBIDAS EM CÍRCULOS
-        cols_por_linha = 6
-        for linha in range(5):
+            st.info("👈 **Selecione uma mesa no lado direito** clicando no botão correspondente para abrir o menu e gerir os pedidos ou efetuar pagamentos.")
+
+    # --- LADO DIREITO: TODAS AS MESAS EM CÍRCULO ---
+    with col_dir:
+        st.markdown("#### 🪑 Mesas do Restaurante")
+        cols_por_linha = 4
+        for linha in range(8):
             cols = st.columns(cols_por_linha)
             for c in range(cols_por_linha):
                 num_mesa = linha * cols_por_linha + c + 1
@@ -772,13 +781,13 @@ def area_caixa_mesas():
                         classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
                     
                     with cols[c]:
-                        alerta_pronto_html = "<span style='font-size:0.65rem; color:#ff6b6b;'>🚨</span> " if tem_refeicao_pronta else ""
-                        nome_cli_formatado = f"<div style='font-size: 0.62rem; max-width: 65px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{dados_m['cliente']['nome']}</div>" if dados_m.get('cliente') else f"<div style='font-size: 0.62rem;'>{status_m}</div>"
-                        valor_formatado = f"<div style='font-size: 0.68rem; font-weight: bold;'>{dados_m['total']:,.0f} Kz</div>"
+                        alerta_pronto_html = "<span style='font-size:0.6rem; color:#ff6b6b;'>🚨</span> " if tem_refeicao_pronta else ""
+                        nome_cli_formatado = f"<div style='font-size: 0.58rem; max-width: 55px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{dados_m['cliente']['nome']}</div>" if dados_m.get('cliente') else f"<div style='font-size: 0.58rem;'>{status_m}</div>"
+                        valor_formatado = f"<div style='font-size: 0.62rem; font-weight: bold;'>{dados_m['total']:,.0f}Kz</div>"
 
                         conteudo_html = f"""
                         <div class='mesa-circle {classe_css}'>
-                            <div style='font-size: 0.78rem; line-height: 1.0;'>{alerta_pronto_html}🪑 M{num_mesa}</div>
+                            <div style='font-size: 0.7rem; line-height: 1.0;'>{alerta_pronto_html}M{num_mesa}</div>
                             {nome_cli_formatado}
                             {valor_formatado}
                         </div>
