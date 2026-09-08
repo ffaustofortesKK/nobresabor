@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import qrcode
-from io import BytesIO
 import os
 import json
 
@@ -17,6 +15,7 @@ ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
 ARQUIVO_SAIDAS_CAIXA = "saidas_caixa.json"
+ARQUIVO_STOCK = "stock_dados.json"
 
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
@@ -66,31 +65,38 @@ def salvar_historico_vendas(hist_list):
     except:
         pass
 
-def carregar_saidas_caixa():
-    if os.path.exists(ARQUIVO_SAIDAS_CAIXA):
+def carregar_stock_disco():
+    if os.path.exists(ARQUIVO_STOCK):
         try:
-            with open(ARQUIVO_SAIDAS_CAIXA, "r", encoding="utf-8") as f:
-                return json.load(f)
+            df_loaded = pd.read_json(ARQUIVO_STOCK)
+            if not df_loaded.empty:
+                return df_loaded
         except:
             pass
-    return []
+    return pd.DataFrame([
+        ["Água 0.5L", "Bebidas", 50, 300.0],
+        ["Refrigerante Cola", "Bebidas", 40, 450.0],
+        ["Cerveja Cuca", "Bebidas", 60, 500.0],
+        ["Vinho Tinto", "Bebidas", 15, 4500.0],
+        ["Frango à Grega", "Refeições", 20, 3500.0],
+        ["Bife a Cavalo", "Refeições", 15, 4000.0],
+        ["Pudim de Leite", "Sobremesas", 25, 1500.0],
+        ["Salada de Frutas", "Sobremesas", 30, 1200.0]
+    ], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
 
-def salvar_saidas_caixa(saidas_list):
+def salvar_stock_disco(df):
     try:
-        with open(ARQUIVO_SAIDAS_CAIXA, "w", encoding="utf-8") as f:
-            json.dump(saidas_list, f, ensure_ascii=False, indent=4)
+        df.to_json(ARQUIVO_STOCK, orient="split", index=False)
     except:
         pass
 
-# Estilos CSS (Largura reduzida em ~40% e legenda preta para botões padrão/brancos)
+# Estilos CSS
 st.markdown("""
     <style>
-    /* Fundo geral da página e elementos raiz */
     .stApp, body, html {
         background-color: #0c0c16 !important;
     }
     
-    /* Reduz a largura lateral em cerca de 40% e centraliza */
     .block-container {
         padding-top: 3.5rem !important;
         padding-bottom: 1.5rem !important;
@@ -101,18 +107,15 @@ st.markdown("""
         background-color: #0c0c16 !important;
     }
 
-    /* Força todos os textos gerais a ficarem em Branco e Negrito */
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
         font-weight: bold !important;
     }
 
-    /* Oculta completamente a barra lateral (sidebar) */
     [data-testid="stSidebar"] {
         display: none;
     }
 
-    /* ESTILO DAS MESAS EM CÍRCULO */
     .mesa-circle {
         width: 72px;
         height: 72px;
@@ -151,13 +154,6 @@ st.markdown("""
         100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
     }
 
-    .bloco-seccao {
-        padding: 12px;
-        border-radius: 10px;
-        background-color: #141428;
-        border: 1px solid #2a2a4a;
-        margin-bottom: 10px;
-    }
     .fatura-box {
         background-color: #141428;
         border: 2px dashed #ffb703;
@@ -165,7 +161,6 @@ st.markdown("""
         border-radius: 10px;
     }
     
-    /* Botões compactos com texto preto para botões padrão/brancos */
     .stButton>button {
         border-radius: 8px;
         font-weight: bold !important;
@@ -174,7 +169,6 @@ st.markdown("""
         color: #000000 !important;
     }
     
-    /* Garante que o texto dentro dos botões normais fique preto */
     .stButton>button p, .stButton>button span {
         color: #000000 !important;
     }
@@ -204,24 +198,13 @@ except Exception:
 st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
 if "stock" not in st.session_state:
-    st.session_state.stock = pd.DataFrame([
-        ["Água 0.5L", "Bebidas", 50, 300.0],
-        ["Refrigerante Cola", "Bebidas", 40, 450.0],
-        ["Cerveja Cuca", "Bebidas", 60, 500.0],
-        ["Vinho Tinto", "Bebidas", 15, 4500.0],
-        ["Frango à Grega", "Refeições", 20, 3500.0],
-        ["Bife a Cavalo", "Refeições", 15, 4000.0],
-        ["Pudim de Leite", "Sobremesas", 25, 1500.0],
-        ["Salada de Frutas", "Sobremesas", 30, 1200.0]
-    ], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+    st.session_state.stock = carregar_stock_disco()
 
 if "rh" not in st.session_state:
     st.session_state.rh = pd.DataFrame([
         ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
         ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
     ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
-
-URL_OFICIAL = "https://nobresabor.streamlit.app"
 
 # ==========================================
 # ÁREA: CLIENTE
@@ -238,7 +221,6 @@ def area_cliente():
     str_mesa = str(num_mesa)
     dados_m = mesas_data[str_mesa]
 
-    # Se a fatura foi emitida pelo caixa, exibe automaticamente a fatura e a mensagem de agradecimento
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
@@ -424,11 +406,11 @@ def area_cozinha():
         st.success("🎉 Sem refeições pendentes de momento!")
 
 # ==========================================
-# ÁREA: ADMINISTRADOR
+# ÁREA: ADMINISTRADOR (Com Stock, Inserção e RH restaurados)
 # ==========================================
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
-    tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock", "👥 DCH"])
+    tab_fin, tab_stk, tab_dch = st.tabs(["💰 Finanças", "📦 Stock & Menu", "👥 DCH"])
     
     with tab_fin:
         if "financas_autenticado" not in st.session_state:
@@ -450,7 +432,48 @@ def area_administrador():
             st.success("Finanças desbloqueadas com sucesso.")
 
     with tab_stk:
+        st.subheader("📦 Gestão de Stock e Produtos/Pratos")
+        
+        # Formulário para Adicionar ou Atualizar Produto/Prato
+        with st.form("form_add_produto"):
+            st.markdown("#### Adicionar / Atualizar Item no Menu")
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+                novo_produto = st.text_input("Nome do Produto/Prato:")
+                nova_categoria = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Outros"])
+            with col_s2:
+                nova_qtd = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                novo_preco = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=500.0, step=100.0)
+                
+            btn_salvar_prod = st.form_submit_button("💾 Salvar / Atualizar Produto", use_container_width=True)
+            if btn_salvar_prod and novo_produto:
+                df_stk = st.session_state.stock
+                # Verifica se o produto já existe para atualizar ou adicionar novo
+                if not df_stk.empty and novo_produto in df_stk['Produto'].values:
+                    df_stk.loc[df_stk['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
+                    st.success(f"Produto '{novo_produto}' atualizado com sucesso!")
+                else:
+                    novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
+                    st.session_state.stock = pd.concat([df_stk, novo_df_linha], ignore_index=True)
+                    st.success(f"Produto '{novo_produto}' adicionado com sucesso!")
+                
+                salvar_stock_disco(st.session_state.stock)
+                st.rerun()
+
+        st.divider()
+        st.markdown("#### Lista Atual de Produtos")
         st.dataframe(st.session_state.stock, use_container_width=True)
+        
+        # Opção para eliminar item
+        if not st.session_state.stock.empty:
+            with st.form("form_del_produto"):
+                produto_a_remover = st.selectbox("Selecionar produto para remover:", st.session_state.stock['Produto'].tolist())
+                btn_remover = st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True)
+                if btn_remover:
+                    st.session_state.stock = st.session_state.stock[st.session_state.stock['Produto'] != produto_a_remover].reset_index(drop=True)
+                    salvar_stock_disco(st.session_state.stock)
+                    st.success(f"Produto '{produto_a_remover}' removido!")
+                    st.rerun()
         
     with tab_dch:
         st.dataframe(st.session_state.rh, use_container_width=True)
@@ -584,7 +607,6 @@ def area_caixa_mesas():
                     hist_vendas.append(novo_registo_venda)
                     salvar_historico_vendas(hist_vendas)
 
-                    # Geração da fatura na mesa (dispara automaticamente a mensagem de agradecimento no dispositivo do cliente)
                     dados_mesa["fatura_emitida"] = {
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "cliente": str(nome_c_fatura),
