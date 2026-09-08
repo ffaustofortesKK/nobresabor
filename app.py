@@ -812,8 +812,77 @@ def area_caixa_mesas():
     """, unsafe_allow_html=True)
 
     # ABAS DE NAVEGAÇÃO DO CAIXA
-    aba_operador_1, aba_operador_2 = st.tabs(["🗺️ Mesas & Operações", "📚 Histórico de Vendas por Cliente"])
+    aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
+        "🗺️ Mesas & Operações", 
+        "📚 Histórico de Vendas por Cliente", 
+        "🔒 Fecho de Caixa / Resumo"
+    ])
 
+    # --- ABA 3: FECHO DE CAIXA / RESUMO ---
+    with aba_operador_3:
+        st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
+        st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados. Quando estiver seguro, poderá efetuar o fecho do período.")
+        
+        col_res1, col_res2, col_res3 = st.columns(3)
+        with col_res1:
+            st.metric("Saldo Inicial (Fundo)", f"{saldo_inicial_turno:,.2f} Kz")
+        with col_res2:
+            st.metric("Vendas em Dinheiro", f"{total_dinheiro_vendas:,.2f} Kz")
+        with col_res3:
+            st.metric("Vendas em TPA", f"{total_tpa_vendas:,.2f} Kz")
+            
+        st.markdown("---")
+        st.markdown("#### 📦 Resumo de Todos os Itens Comercializados no Turno")
+        
+        if vendas_turno:
+            # Consolidar itens vendidos
+            itens_consolidados = {}
+            for v in vendas_turno:
+                for p in v.get("pedidos", []):
+                    if p.get('status') in ["Anulado", "Recusado pela Cozinha"]:
+                        continue
+                    nome_prod = p.get('item', 'Desconhecido')
+                    qtd_prod = int(p.get('quantidade', 1))
+                    preco_prod = float(p.get('preco', 0.0))
+                    
+                    if nome_prod not in itens_consolidados:
+                        itens_consolidados[nome_prod] = {"quantidade": 0, "total": 0.0, "preco": preco_prod}
+                    itens_consolidados[nome_prod]["quantidade"] += qtd_prod
+                    itens_consolidados[nome_prod]["total"] += (qtd_prod * preco_prod)
+            
+            # Tabela de resumo
+            col_t1, col_t2, col_t3, col_t4 = st.columns([2, 1, 1, 1.2])
+            with col_t1: st.markdown("**Produto / Item**")
+            with col_t2: st.markdown("**Qtd Total**")
+            with col_t3: st.markdown("**Preço Unit.**")
+            with col_t4: st.markdown("**Subtotal**")
+            st.divider()
+            
+            for prod, dados in itens_consolidados.items():
+                col_i1, col_i2, col_i3, col_i4 = st.columns([2, 1, 1, 1.2])
+                with col_i1: st.write(prod)
+                with col_i2: st.write(str(dados["quantidade"]))
+                with col_i3: st.write(f"{dados['preco']:,.2f} Kz")
+                with col_i4: st.write(f"{dados['total']:,.2f} Kz")
+            
+            st.markdown("---")
+            total_geral_turno = sum(d["total"] for d in itens_consolidados.values())
+            st.markdown(f"### 💰 Faturação Total do Turno: **{total_geral_turno:,.2f} Kz**")
+            st.markdown(f"### 💵 Dinheiro Esperado em Gaveta: **{saldo_em_caixa_fisico:,.2f} Kz**")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("🔒 Fechar Período de Caixa com Segurança", type="primary", use_container_width=True):
+                sessao_op["logado"] = False
+                sessao_op["operador"] = "Nenhum"
+                sessao_op["turno_aberto"] = False
+                sessao_op["saldo_inicial"] = 0.0
+                salvar_sessao_operador(sessao_op)
+                st.success("Período de caixa encerrado com sucesso! Sessão terminada.")
+                st.rerun()
+        else:
+            st.info("Ainda não existem vendas registadas neste turno.")
+
+    # --- ABA 2: HISTÓRICO DE VENDAS ---
     with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
         if hist_vendas:
@@ -843,6 +912,7 @@ def area_caixa_mesas():
         else:
             st.info("Ainda não existem registos no histórico de vendas.")
 
+    # --- ABA 1: MESAS & OPERAÇÕES ---
     with aba_operador_1:
         col_esq, col_dir = st.columns([0.85, 1.15])
 
@@ -932,7 +1002,7 @@ def area_caixa_mesas():
                 
                 st.markdown(f"### ⚙️ Mesa {m_sel} — <span style='color: #ffb703;'>({nome_cliente_titulo})</span>", unsafe_allow_html=True)
                 
-                # --- EXIBIÇÃO DO QR CODE DA MESA (CORRIGIDO PARA O NOBRE SABOR) ---
+                # --- EXIBIÇÃO DO QR CODE DA MESA (NOBRE SABOR) ---
                 with st.expander(f"📱 Ver QR Code da Mesa {m_sel}", expanded=False):
                     url_mesa = f"https://nobresabor.streamlit.app/?mesa={m_sel}"
                     st.markdown(f"**Link de acesso rápido para a Mesa {m_sel}:**")
