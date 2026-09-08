@@ -18,6 +18,7 @@ ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
 ARQUIVO_SAIDAS_CAIXA = "saidas_caixa.json"
 ARQUIVO_STOCK = "stock_dados.json"
 ARQUIVO_FECHOS_CAIXA = "fechos_caixa_historico.json"
+ARQUIVO_ATENDIMENTOS_GARCON = "atendimentos_garcon.json"
 
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
@@ -42,7 +43,7 @@ def carregar_mesas_disco():
                 return json.load(f)
         except:
             pass
-    return {str(i): {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "fatura_emitida": None} for i in range(1, 31)}
+    return {str(i): {"status": "Fechada", "pedidos": [], "total": 0.0, "cliente": None, "garcon": "Não atribuído", "fatura_emitida": None} for i in range(1, 31)}
 
 def salvar_mesas_disco(mesas_dict):
     try:
@@ -98,6 +99,22 @@ def salvar_saidas_caixa(saidas_list):
     try:
         with open(ARQUIVO_SAIDAS_CAIXA, "w", encoding="utf-8") as f:
             json.dump(saidas_list, f, ensure_ascii=False, indent=4)
+    except:
+        pass
+
+def carregar_atendimentos_garcon():
+    if os.path.exists(ARQUIVO_ATENDIMENTOS_GARCON):
+        try:
+            with open(ARQUIVO_ATENDIMENTOS_GARCON, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def salvar_atendimentos_garcon(atend_list):
+    try:
+        with open(ARQUIVO_ATENDIMENTOS_GARCON, "w", encoding="utf-8") as f:
+            json.dump(atend_list, f, ensure_ascii=False, indent=4)
     except:
         pass
 
@@ -263,7 +280,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Parâmetros da URL
+# Parâmetros URL
 mesa_detectada = None
 perfil_url = None
 
@@ -518,7 +535,6 @@ def area_cozinha():
 
     with tab_historico_cozinha:
         st.subheader("📋 Registo de Pratos Preparados e Finalizados")
-        st.write("Aqui pode consultar todos os pratos que já foram marcados como feitos ou entregues hoje, para seu controlo pessoal.")
         
         lista_pratos_feitos = []
         for i in range(1, 31):
@@ -545,7 +561,7 @@ def area_cozinha():
             st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (COM LOGIN, PERÍODO, ABERTURA E FECHO)
+# ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
@@ -554,10 +570,9 @@ def area_caixa_mesas():
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
     if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.** Peça ao administrador para abrir o dia no sistema.")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.** O administrador precisa abrir o dia.")
         return
 
-    # Gestão de Sessão do Operador de Caixa
     if "caixa_logado" not in st.session_state:
         st.session_state.caixa_logado = False
     if "caixa_turno_aberto" not in st.session_state:
@@ -567,7 +582,7 @@ def area_caixa_mesas():
     if "operador_periodo" not in st.session_state:
         st.session_state.operador_periodo = "Dia"
 
-    # 1. PASSO: LOGIN DO OPERADOR (Utilizador, Período, Senha)
+    # 1. LOGIN DO OPERADOR DE CAIXA
     if not st.session_state.caixa_logado:
         with st.form("form_login_caixa_operador"):
             st.markdown("### 🔐 Autenticação do Funcionário de Caixa")
@@ -578,7 +593,6 @@ def area_caixa_mesas():
             btn_login_cx = st.form_submit_button("Entrar no Caixa", use_container_width=True)
             if btn_login_cx:
                 if utilizador_input and senha_input:
-                    # Senha padrão ou flexível para o operador (ex: 123456 ou qualquer senha com mais de 3 carateres)
                     st.session_state.caixa_logado = True
                     st.session_state.operador_nome = utilizador_input
                     st.session_state.operador_periodo = periodo_input
@@ -588,20 +602,31 @@ def area_caixa_mesas():
                     st.warning("Preencha o utilizador e a senha.")
         return
 
-    # 2. PASSO: ABERTURA DO CAIXA DO PERÍODO
+    # 2. ABERTURA DO CAIXA DO PERÍODO (CAIXA INICIAL VAZIO / SEM VALOR)
     if not st.session_state.caixa_turno_aberto:
         st.markdown(f"""
             <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;">
                 <p>👤 <b>Utilizador:</b> {st.session_state.operador_nome}</p>
                 <p>⏰ <b>Período:</b> {st.session_state.operador_periodo}</p>
-                <p style="color: #ffb703;">O seu turno ainda não foi aberto. Clique no botão abaixo para iniciar as operações.</p>
+                <p style="color: #ffb703;">O seu caixa está inicialmente <b>vazio (0.00 Kz)</b>. Se o ADM realizou alguma transferência/saída para este caixa, ela aparecerá registada. Clique abaixo para abrir o turno.</p>
             </div>
         """, unsafe_allow_html=True)
         
+        # Verificar se o ADM fez alguma saída para este operador/período
+        saidas_todas = carregar_saidas_caixa()
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == st.session_state.operador_nome and s.get("Período") == st.session_state.operador_periodo]
+        saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
+        
+        if saidas_destinadas:
+            st.success(f"💵 Entrada detetada vinda do ADM: **{saldo_inicial_recebido:,.2f} Kz**")
+        else:
+            st.info("💵 Caixa sem saldo inicial atribuído pelo ADM (A iniciar a 0.00 Kz).")
+
         col_op1, col_op2 = st.columns(2)
         with col_op1:
             if st.button("🟢 Abertura do Caixa do Período", type="primary", use_container_width=True):
                 st.session_state.caixa_turno_aberto = True
+                st.session_state.saldo_inicial_caixa = saldo_inicial_recebido
                 st.success("Caixa aberto com sucesso para este período!")
                 st.rerun()
         with col_op2:
@@ -610,13 +635,14 @@ def area_caixa_mesas():
                 st.rerun()
         return
 
-    # 3. PASSO: CAIXA ABERTO E OPERACIONAL
+    # 3. CAIXA EM FUNCIONAMENTO
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
 
     total_dinheiro_caixa = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas)
     total_tpa_caixa = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
-    total_geral_caixa = total_dinheiro_caixa + total_tpa_caixa
+    saldo_inicial_turno = st.session_state.get("saldo_inicial_caixa", 0.0)
+    total_geral_caixa = saldo_inicial_turno + total_dinheiro_caixa + total_tpa_caixa
 
     st.markdown(f"""
         <div style="background-color: #141428; padding: 12px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; flex-direction: column; gap: 8px;">
@@ -625,21 +651,22 @@ def area_caixa_mesas():
                 <button style="background-color: #ff4b4b; border: none; padding: 4px 8px; border-radius: 4px;"><a href="?perfil=caixa" style="color: white; text-decoration: none;">Sair do Turno</a></button>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 1.15rem;">📊 Total Vendido: <b style="color: #4ac26b; font-size: 1.25rem;">{total_geral_caixa:,.2f} Kz</b></span>
-                <span style="font-size: 0.9rem; color: #a0a0c0;">💵 Dinheiro: <b>{total_dinheiro_caixa:,.2f} Kz</b> | 💳 TPA: <b>{total_tpa_caixa:,.2f} Kz</b></span>
+                <span style="font-size: 1.15rem;">📊 Total em Caixa: <b style="color: #4ac26b; font-size: 1.25rem;">{total_geral_caixa:,.2f} Kz</b></span>
+                <span style="font-size: 0.9rem; color: #a0a0c0;">📥 Saldo Inicial: <b>{saldo_inicial_turno:,.2f} Kz</b> | 💵 Dinheiro: <b>{total_dinheiro_caixa:,.2f} Kz</b> | 💳 TPA: <b>{total_tpa_caixa:,.2f} Kz</b></span>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # BOTÃO DE FECHO DE CAIXA / PERÍODO
-    with st.expander("🔒 Fazer o Fecho do Caixa / Período (Enviar para o ADM)", expanded=False):
-        st.write("Ao fazer o fecho do período, os dados serão enviados para o Administrador e a sessão de vendas deste turno será encerrada.")
+    # BOTÃO DE FECHO DE PERÍODO
+    with st.expander("🔒 Fazer o Fecho do Período (Enviar para o ADM)", expanded=False):
+        st.write("Ao fazer o fecho do período, os dados do utilizador, período e valor total apurado serão enviados diretamente para o ADM.")
         if st.button("✅ Confirmar Fecho de Período", type="primary"):
             fechos_list = carregar_fechos_caixa()
             novo_fecho = {
                 "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "Utilizador": st.session_state.operador_nome,
                 "Período": st.session_state.operador_periodo,
+                "Saldo Inicial": saldo_inicial_turno,
                 "Valor Dinheiro": total_dinheiro_caixa,
                 "Valor TPA": total_tpa_caixa,
                 "Total Fecho": total_geral_caixa
@@ -647,7 +674,7 @@ def area_caixa_mesas():
             fechos_list.append(novo_fecho)
             salvar_fechos_caixa(fechos_list)
             
-            st.success("Fecho de período registado e enviado ao Administrador com sucesso!")
+            st.success("Fecho de período registado com sucesso e enviado ao ADM!")
             st.session_state.caixa_logado = False
             st.session_state.caixa_turno_aberto = False
             st.rerun()
@@ -668,6 +695,7 @@ def area_caixa_mesas():
             status_m = dados_m.get("status", "Fechada")
             total_m = dados_m.get("total", 0.0)
             cli_m = dados_m.get("cliente")
+            garcon_m = dados_m.get("garcon", "Não atribuído")
             
             tem_pronto = any(
                 p.get("cozinha_status") == "Feito" 
@@ -705,6 +733,17 @@ def area_caixa_mesas():
         st.markdown(f"### ⚙️ Gestão Detalhada da Mesa {m_sel}")
         dados_m_sel = mesas_data[str(m_sel)]
         
+        # ATRIBUIR / SELECIONAR GARÇON PARA A MESA
+        lista_garcons_disponiveis = st.session_state.rh['Nome'].tolist() if not st.session_state.rh.empty else ["Carlos Manuel", "Ana Paula"]
+        garcon_atual = dados_m_sel.get("garcon", lista_garcons_disponiveis[0])
+        if garcon_atual not in lista_garcons_disponiveis:
+            lista_garcons_disponiveis.append(garcon_atual)
+            
+        novo_garcon = st.selectbox("👨‍🍳 Atribuir Garçon Responsável por esta Mesa:", lista_garcons_disponiveis, index=lista_garcons_disponiveis.index(garcon_atual) if garcon_atual in lista_garcons_disponiveis else 0)
+        if novo_garcon != dados_m_sel.get("garcon"):
+            dados_m_sel["garcon"] = novo_garcon
+            salvar_mesas_disco(mesas_data)
+
         cli_info = dados_m_sel.get("cliente")
         if cli_info:
             st.write(f"**Cliente:** {cli_info.get('nome')} | **Telefone:** {cli_info.get('telefone')} | **NIF:** {cli_info.get('nif', 'N/A')}")
@@ -777,10 +816,12 @@ def area_caixa_mesas():
                         "Valor TPA": val_tpa
                     }
                     
+                    # Registar Venda
                     hist = carregar_historico_vendas()
                     hist.append({
                         "Data": fatura_dados["data"],
                         "Mesa": m_sel,
+                        "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
                         "Cliente": fatura_dados["cliente"],
                         "Valor Total": subtotal_m_sel,
                         "Pagamento": tipo_pagamento,
@@ -789,19 +830,30 @@ def area_caixa_mesas():
                     })
                     salvar_historico_vendas(hist)
                     
+                    # Registar Atendimento do Garçon para Bónus na DCH
+                    atend_list = carregar_atendimentos_garcon()
+                    atend_list.append({
+                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
+                        "Mesa": m_sel,
+                        "Valor Venda": subtotal_m_sel
+                    })
+                    salvar_atendimentos_garcon(atend_list)
+                    
                     mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
                     mesas_data[str(m_sel)]["pedidos"] = []
                     mesas_data[str(m_sel)]["total"] = 0.0
                     mesas_data[str(m_sel)]["status"] = "Fechada"
                     mesas_data[str(m_sel)]["cliente"] = None
+                    mesas_data[str(m_sel)]["garcon"] = "Não atribuído"
                     salvar_mesas_disco(mesas_data)
                     
-                    st.success("Pagamento efetuado e fatura gerada com sucesso!")
+                    st.success("Pagamento efetuado, fatura gerada e bónus atribuído ao garçon com sucesso!")
                     del st.session_state.mesa_selecionada_caixa
                     st.rerun()
 
 # ==========================================
-# ÁREA: ADMINISTRADOR (COM FECHOS DE PERÍODO DOS CAIXAS)
+# ÁREA: ADMINISTRADOR
 # ==========================================
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
@@ -809,7 +861,6 @@ def area_administrador():
     if "financas_autenticado" not in st.session_state:
         st.session_state.financas_autenticado = False
 
-    # 1. AUTENTICAÇÃO DO ADM
     if not st.session_state.financas_autenticado:
         with st.form("form_senha_financas"):
             st.markdown("### 🔒 Autenticação de Administrador")
@@ -822,7 +873,6 @@ def area_administrador():
                     st.error("Senha incorreta!")
         return
 
-    # 2. PAINEL ADM LOGADO
     col_btn_sair, col_links_rapidos = st.columns([1, 3])
     with col_btn_sair:
         if st.button("🔒 Bloquear Painel / Sair"):
@@ -845,7 +895,7 @@ def area_administrador():
         "📋 Fechos de Período (Caixa)", 
         "💸 Saídas de Caixa", 
         "📦 Stock & Menu", 
-        "👥 DCH"
+        "👥 DCH (Bónus)"
     ])
     
     with tab_fin:
@@ -897,29 +947,36 @@ def area_administrador():
             st.markdown(f"### Total Registado em Fechos de Período: **{total_fechos_acumulado:,.2f} Kz**")
 
     with tab_saidas:
-        st.subheader("💸 Gestão e Registo de Saídas de Caixa")
+        st.subheader("💸 Gestão e Registo de Saídas de Caixa (Atribuição de Fundo / Troco)")
+        st.write("Quando o ADM faz uma saída para o caixa, deve selecionar o utilizador recetor e o período correspondente.")
         
         with st.form("form_registar_saida"):
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
-                motivo_saida = st.text_input("Motivo da Saída (Ex: Compra de Gelo, Trocos, Fornecedor):")
+                motivo_saida = st.text_input("Motivo da Saída (Ex: Fundo de Maneio, Trocos):")
+                # Selecionar o utilizador que vai receber
+                lista_utilizadores_padrao = ["OperadorCaixa1", "OperadorCaixa2", "Carlos", "Ana"]
+                destino_utilizador = st.selectbox("Destinatário (Utilizador do Caixa):", lista_utilizadores_padrao)
             with col_sc2:
-                valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=1000.0, step=500.0)
+                valor_saida = st.number_input("Valor da Saída / Fundo (Kz):", min_value=0.0, value=5000.0, step=1000.0)
+                periodo_destino = st.selectbox("Período Destino:", ["Dia", "Noite"])
             
-            responsavel_saida = st.text_input("Responsável / Autorizado por:")
+            responsavel_saida = st.text_input("Autorizado por (ADM):", value="Administração")
             
-            btn_salvar_saida = st.form_submit_button("🚀 Registar Saída de Caixa", use_container_width=True)
+            btn_salvar_saida = st.form_submit_button("🚀 Registar Saída e Enviar para o Caixa", use_container_width=True)
             if btn_salvar_saida and motivo_saida and valor_saida > 0:
                 saidas_list = carregar_saidas_caixa()
                 nova_saida = {
                     "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Motivo": motivo_saida,
+                    "Destino Utilizador": destino_utilizador,
+                    "Período": periodo_destino,
                     "Valor": float(valor_saida),
-                    "Responsável": responsavel_saida if responsavel_saida else "Administração"
+                    "Responsável": responsavel_saida
                 }
                 saidas_list.append(nova_saida)
                 salvar_saidas_caixa(saidas_list)
-                st.success("Saída de caixa registada com sucesso!")
+                st.success(f"Saída registada e enviada com sucesso para o utilizador {destino_utilizador} ({periodo_destino})!")
                 st.rerun()
 
         st.divider()
@@ -975,7 +1032,31 @@ def area_administrador():
                     st.rerun()
         
     with tab_dch:
-        st.dataframe(st.session_state.rh, use_container_width=True)
+        st.subheader("👥 DCH — Controlo de Funcionários & Bónus Acumulados")
+        st.write("Cada mesa atendida por um garçon gera pontos convertidos em bónus (Taxa: **500 Kz por mesa atendida**).")
+        
+        atendimentos = carregar_atendimentos_garcon()
+        if not atendimentos:
+            st.info("Ainda não existem mesas atendidas registadas por garçons.")
+        else:
+            df_atend = pd.DataFrame(atendimentos)
+            
+            # Agrupar por Garçon para calcular bónus acumulado
+            df_resumo_bonus = df_atend.groupby("Garçon").agg(
+                Mesas_Atendidas=("Mesa", "count"),
+                Total_Vendido=("Valor Venda", "sum")
+            ).reset_index()
+            
+            # Cada mesa = 1 ponto, cada ponto = 500 Kz
+            VALOR_POR_PONTO = 500.0
+            df_resumo_bonus["Bónus Acumulado (Kz)"] = df_resumo_bonus["Mesas_Atendidas"] * VALOR_POR_PONTO
+            
+            st.markdown("#### 🏆 Resumo de Bónus por Garçon")
+            st.dataframe(df_resumo_bonus, use_container_width=True)
+            
+            st.markdown("---")
+            st.markdown("#### 📋 Histórico Detalhado de Atendimentos")
+            st.dataframe(df_atend, use_container_width=True)
 
 # ==========================================
 # ROTEADOR PRINCIPAL DA APLICAÇÃO
