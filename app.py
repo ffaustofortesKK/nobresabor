@@ -907,7 +907,6 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # O círculo inteiro funciona como botão/ação ao ser clicado via Streamlit button transparente por cima ou integrado
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
                                 <div style="font-size: 0.65rem; line-height: 1.1; min-height: 14px;">{simbolo_topo}</div>
@@ -931,29 +930,21 @@ def area_caixa_mesas():
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                # Título atualizado: Mesa nº - ( nome do cliente )
                 st.markdown(f"### ⚙️ Mesa {m_sel} — <span style='color: #ffb703;'>({nome_cliente_titulo})</span>", unsafe_allow_html=True)
                 
-                # --- EXIBIÇÃO DO QR CODE DA MESA ---
+                # --- EXIBIÇÃO DO QR CODE DA MESA (CORRIGIDO PARA O NOBRE SABOR) ---
                 with st.expander(f"📱 Ver QR Code da Mesa {m_sel}", expanded=False):
-                    url_mesa = f"https://ffkaraokecloud.streamlit.app/?mesa={m_sel}"
+                    url_mesa = f"https://nobresabor.streamlit.app/?mesa={m_sel}"
                     st.markdown(f"**Link de acesso rápido para a Mesa {m_sel}:**")
                     st.code(url_mesa, language="text")
                     
-                    try:
-                        import qrcode
-                        from io import BytesIO
-                        
-                        img_qr = qrcode.make(url_mesa)
-                        buf = BytesIO()
-                        img_qr.save(buf, format="PNG")
-                        byte_im = buf.getvalue()
-                        
-                        col_qr1, col_qr2, col_qr3 = st.columns([1, 2, 1])
-                        with col_qr2:
-                            st.image(byte_im, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
-                    except Exception:
-                        pass
+                    import urllib.parse
+                    url_encoded = urllib.parse.quote(url_mesa, safe="")
+                    qr_image_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={url_encoded}"
+                    
+                    col_qr1, col_qr2, col_qr3 = st.columns([1, 2, 1])
+                    with col_qr2:
+                        st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
 
                 # --- LISTA DOS PEDIDOS EM 4 COLUNAS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
