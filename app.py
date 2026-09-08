@@ -965,48 +965,9 @@ def area_caixa_mesas():
                         with col_i2: st.write(str(q))
                         with col_i3: st.write(f"{preco_u:,.2f} Kz")
                         with col_i4: st.write(f"{subtotal_item:,.2f} Kz")
-                        
-                        if st.button(f"🗑️ Anular Item {p.get('item')} (Mesa {m_sel})", key=f"anular_item_mesa_{m_sel}_idx_{idx_p}"):
-                            p['status'] = "Anulado"
-                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-                            dados_m_sel["total"] = novo_total
-                            salvar_mesas_disco(mesas_data)
-                            st.success(f"Item {p.get('item')} anulado com sucesso!")
-                            st.rerun()
-                    st.divider()
+                        st.divider()
                 else:
                     st.info("Ainda não existem registos nesta mesa.")
-
-                # --- BOTÃO ADICIONAR BEBIDA / COMIDA / SOBREMSA (CAIXA) ---
-                with st.expander("➕ Adicionar Bebida / Comida / Sobremesa (Caixa)"):
-                    with st.form(key=f"form_adicionar_item_caixa_mesa_{m_sel}"):
-                        cat_add = st.selectbox("Categoria:", ["Bebidas", "Comidas", "Sobremesas"], key=f"cat_add_cx_m_{m_sel}")
-                        item_add = st.text_input("Produto / Item:", key=f"item_add_cx_m_{m_sel}")
-                        qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_add_cx_m_{m_sel}")
-                        preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"preco_add_cx_m_{m_sel}")
-                        
-                        btn_salvar_novo_item = st.form_submit_button("Adicionar à Mesa", use_container_width=True)
-                        if btn_salvar_novo_item:
-                            if item_add and preco_add > 0:
-                                novo_pedido = {
-                                    "categoria": cat_add,
-                                    "item": item_add,
-                                    "quantidade": int(qtd_add),
-                                    "preco": float(preco_add),
-                                    "status": "Confirmado",
-                                    "cozinha_status": "Pendente",
-                                    "origem": "Caixa"
-                                }
-                                dados_m_sel["pedidos"].append(novo_pedido)
-                                novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-                                dados_m_sel["total"] = novo_total
-                                if not dados_m_sel.get("status") or dados_m_sel["status"] == "Fechada":
-                                    dados_m_sel["status"] = "Aberta"
-                                salvar_mesas_disco(mesas_data)
-                                st.success("Item adicionado com sucesso!")
-                                st.rerun()
-                            else:
-                                st.warning("Preencha o nome do item e um preço válido.")
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 
