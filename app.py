@@ -114,14 +114,12 @@ def gerar_pdf_fatura(fat_data, num_mesa):
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     
-    # Cabeçalho
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "Restaurante Nobre Sabor", ln=True, align="C")
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Fatura / Recibo — Mesa {num_mesa}", ln=True, align="C")
     pdf.ln(5)
     
-    # Informações
     pdf.set_font("Arial", "", 11)
     pdf.cell(0, 7, f"Data: {fat_data['data']}", ln=True)
     pdf.cell(0, 7, f"Cliente: {fat_data['cliente']}", ln=True)
@@ -130,14 +128,12 @@ def gerar_pdf_fatura(fat_data, num_mesa):
         pdf.cell(0, 7, f"NIF: {fat_data['nif']}", ln=True)
     pdf.ln(5)
     
-    # Tabela de Itens (Cabeçalho)
     pdf.set_font("Arial", "B", 10)
     pdf.cell(90, 8, "Descrição do Item", 1)
     pdf.cell(20, 8, "Qtd", 1, align="C")
     pdf.cell(40, 8, "Preço Unit.", 1, align="R")
     pdf.cell(40, 8, "Total", 1, align="R", ln=True)
     
-    # Tabela de Itens (Linhas)
     pdf.set_font("Arial", "", 10)
     for item in fat_data['itens']:
         sub_item = item['quantidade'] * item['preco']
@@ -536,63 +532,66 @@ def area_cozinha():
 # ==========================================
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
-    tab_fin, tab_saidas, tab_stk, tab_dch = st.tabs(["💰 Finanças, Caixa & Histórico", "💸 Saídas de Caixa", "📦 Stock & Menu", "👥 DCH"])
+    
+    if "financas_autenticado" not in st.session_state:
+        st.session_state.financas_autenticado = False
+
+    if not st.session_state.financas_autenticado:
+        with st.form("form_senha_financas"):
+            senha_digitada = st.text_input("Senha de Administrador:", type="password")
+            if st.form_submit_button("Desbloquear Painel"):
+                if senha_digitada == "123123123":
+                    st.session_state.financas_autenticado = True
+                    st.rerun()
+                else:
+                    st.error("Senha incorreta!")
+        return
+
+    if st.button("🔒 Bloquear Painel / Sair"):
+        st.session_state.financas_autenticado = False
+        st.rerun()
+        
+    st.success("Painel de Administração desbloqueado com sucesso.")
+    st.markdown("---")
+
+    tab_fin, tab_saidas, tab_stk, tab_dch = st.tabs(["💰 Finanças & Caixa", "💸 Saídas de Caixa", "📦 Stock & Menu", "👥 DCH"])
     
     with tab_fin:
-        if "financas_autenticado" not in st.session_state:
-            st.session_state.financas_autenticado = False
-
-        if not st.session_state.financas_autenticado:
-            with st.form("form_senha_financas"):
-                senha_digitada = st.text_input("Senha:", type="password")
-                if st.form_submit_button("Desbloquear Painel do Administrador"):
-                    if senha_digitada == "123123123":
-                        st.session_state.financas_autenticado = True
-                        st.rerun()
-                    else:
-                        st.error("Senha incorreta!")
-        else:
-            if st.button("🔒 Bloquear Painel"):
-                st.session_state.financas_autenticado = False
-                st.rerun()
-            st.success("Painel desbloqueado com sucesso.")
-            
-            st.markdown("---")
-            st.subheader("⚙️ Controlo de Abertura e Fecho de Caixa")
-            st.session_state.caixa_aberto = ler_estado_caixa_disco()
-            
-            col_adm_c1, col_adm_c2 = st.columns([1, 3])
-            with col_adm_c1:
-                if st.session_state.caixa_aberto:
-                    if st.button("🔒 Fechar Caixa", type="primary"):
-                        gravar_estado_caixa_disco(False)
-                        st.session_state.caixa_aberto = False
-                        st.success("Caixa fechado com sucesso!")
-                        st.rerun()
-                else:
-                    if st.button("🟢 Abrir Caixa", type="primary"):
-                        gravar_estado_caixa_disco(True)
-                        st.session_state.caixa_aberto = True
-                        st.success("Caixa aberto com sucesso!")
-                        st.rerun()
-            with col_adm_c2:
-                if st.session_state.caixa_aberto:
-                    st.info("🟢 O Caixa encontra-se atualmente **ABERTO** para operações e vendas.")
-                else:
-                    st.warning("🔴 O Caixa encontra-se atualmente **FECHADO**. As mesas e a cozinha estão bloqueadas.")
-
-            st.markdown("---")
-            st.subheader("📊 Histórico de Faturação e Vendas Registadas")
-            hist_vendas = carregar_historico_vendas()
-            
-            if not hist_vendas:
-                st.info("Ainda não existem vendas faturadas registadas.")
+        st.subheader("⚙️ Controlo de Abertura e Fecho de Caixa")
+        st.session_state.caixa_aberto = ler_estado_caixa_disco()
+        
+        col_adm_c1, col_adm_c2 = st.columns([1, 3])
+        with col_adm_c1:
+            if st.session_state.caixa_aberto:
+                if st.button("🔒 Fechar Caixa", type="primary"):
+                    gravar_estado_caixa_disco(False)
+                    st.session_state.caixa_aberto = False
+                    st.success("Caixa fechado com sucesso!")
+                    st.rerun()
             else:
-                df_vendas = pd.DataFrame(hist_vendas)
-                st.dataframe(df_vendas, use_container_width=True)
-                
-                total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
-                st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
+                if st.button("🟢 Abrir Caixa", type="primary"):
+                    gravar_estado_caixa_disco(True)
+                    st.session_state.caixa_aberto = True
+                    st.success("Caixa aberto com sucesso!")
+                    st.rerun()
+        with col_adm_c2:
+            if st.session_state.caixa_aberto:
+                st.info("🟢 O Caixa encontra-se atualmente **ABERTO** para operações e vendas.")
+            else:
+                st.warning("🔴 O Caixa encontra-se atualmente **FECHADO**. As mesas e a cozinha estão bloqueadas.")
+
+        st.markdown("---")
+        st.subheader("📊 Histórico de Faturação e Vendas Registadas")
+        hist_vendas = carregar_historico_vendas()
+        
+        if not hist_vendas:
+            st.info("Ainda não existem vendas faturadas registadas.")
+        else:
+            df_vendas = pd.DataFrame(hist_vendas)
+            st.dataframe(df_vendas, use_container_width=True)
+            
+            total_geral_faturado = df_vendas['Valor Total'].sum() if 'Valor Total' in df_vendas.columns else 0
+            st.markdown(f"### Faturação Total Acumulada: **{total_geral_faturado:,.2f} Kz**")
 
     with tab_saidas:
         st.subheader("💸 Gestão e Registo de Saídas de Caixa")
@@ -600,7 +599,7 @@ def area_administrador():
         with st.form("form_registar_saida"):
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
-                motivo_saida = st.text_input("Motivo da Saída (Ex: Compra de Gelo, Trocos, Pagamento Fornecedor):")
+                motivo_saida = st.text_input("Motivo da Saída (Ex: Compra de Gelo, Trocos, Fornecedor):")
             with col_sc2:
                 valor_saida = st.number_input("Valor da Saída (Kz):", min_value=0.0, value=1000.0, step=500.0)
             
@@ -687,7 +686,7 @@ def area_caixa_mesas():
     hist_vendas = carregar_historico_vendas()
 
     if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.** Peça ao administrador para abrir o caixa no painel de controlo.")
+        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.** Peça ao administrador para abrir o caixa.")
         return
 
     total_dinheiro_caixa = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas)
@@ -852,25 +851,36 @@ def area_caixa_mesas():
                     st.rerun()
 
 # ==========================================
-# ROTEADOR PRINCIPAL DA APLICAÇÃO
+# ROTEADOR PRINCIPAL DA APLICAÇÃO (SEPARADO)
 # ==========================================
 def main():
     if mesa_detectada is not None:
         area_cliente()
+    elif perfil_url == "caixa":
+        area_caixa_mesas()
     elif perfil_url == "cozinha":
         area_cozinha()
     elif perfil_url == "admin":
         area_administrador()
     else:
-        st.markdown("<h1>🍽️ NobreSabor - Sistema de Gestão de Restaurante</h1>", unsafe_allow_html=True)
-        tab_main_caixa, tab_main_cozinha, tab_main_admin = st.tabs(["💻 Caixa & Mesas", "🍳 Cozinha", "👑 Administração"])
+        st.markdown("<h1>🍽️ NobreSabor - Portal de Acesso</h1>", unsafe_allow_html=True)
+        st.write("Selecione o painel que deseja aceder:")
         
-        with tab_main_caixa:
-            area_caixa_mesas()
-        with tab_main_cozinha:
-            area_cozinha()
-        with tab_main_admin:
-            area_administrador()
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("💻 Aceder ao Caixa & Mesas", use_container_width=True):
+                st.query_params["perfil"] = "caixa"
+                st.rerun()
+        with col2:
+            if st.button("🍳 Aceder à Cozinha", use_container_width=True):
+                st.query_params["perfil"] = "cozinha"
+                st.rerun()
+        with col3:
+            if st.button("👑 Aceder à Administração", use_container_width=True):
+                st.query_params["perfil"] = "admin"
+                st.rerun()
+                
+        st.info("💡 Dica: Para links diretos, utilize `?perfil=caixa`, `?perfil=cozinha` ou `perfil=admin` no final do link da aplicação.")
 
 if __name__ == "__main__":
     main()
