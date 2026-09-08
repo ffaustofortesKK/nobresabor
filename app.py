@@ -1028,13 +1028,13 @@ def area_caixa_mesas():
                 else:
                     st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                                                                                           
-       # ==========================================
+      # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
         # ==========================================
         if not cli_atual and not dados_m_sel.get("pedidos"):
             st.info(f"Mesa {m_sel} está livre. Adicione itens ou um cliente para abrir a mesa.")
         else:
-            # Carregar o stock/produtos para o caixa (ajuste o nome da função se necessário, ex: carregar_stock())
+            # Carregar o stock/produtos para o caixa
             stock_df_cx = carregar_stock() if 'carregar_stock' in globals() else carregar_stock_disco()
             
             if stock_df_cx is not None and not stock_df_cx.empty:
@@ -1123,53 +1123,86 @@ def area_caixa_mesas():
                             else:
                                 st.warning("Por favor, preencha o motivo/justificação da anulação.")
 
-            st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**")            
+            st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**") 
+            
+            with st.form(f"form_pagamento_mesa_{m_sel}"):
+                st.markdown("#### 💳 Processar Pagamento e Emitir Recibo")
+                tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto (Dinheiro + TPA)"], key=f"pag_tipo_{m_sel}")
+                
+                val_dinheiro = 0.0
+                val_tpa = 0.0
+                if tipo_pagamento == "Dinheiro":
+                    val_dinheiro = subtotal_m_sel
+                elif tipo_pagamento == "TPA":
+                    val_tpa = subtotal_m_sel
+                else:
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        val_dinheiro = st.number_input("Dinheiro (Kz):", min_value=0.0, value=0.0, key=f"val_din_{m_sel}")
+                    with col_m2:
+                        val_tpa = st.number_input("TPA (Kz):", min_value=0.0, value=0.0, key=f"val_tpa_{m_sel}")
+
+                btn_concluir_pagamento = st.form_submit_button("✅ Concluir Pagamento & Libertar Mesa", use_container_width=True)
+                
+                if btn_concluir_pagamento:
+                    if subtotal_m_sel > 0:
+                        itens_validos_fatura = [
+                            {
+                                "item": p['item'],
+                                "quantidade": p['quantidade'],
+                                "preco": p['preco']
+                            }
+                            for p in pedidos_sel if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                        ]
+                        
                         fatura_dados = {
-                        "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "cliente": cli_atual['nome'] if isinstance(cli_atual, dict) else "Consumidor Final",
-                        "telefone": cli_atual.get('telefone', 'N/A') if isinstance(cli_atual, dict) else "N/A",
-                        "nif": cli_atual.get('nif', '') if isinstance(cli_atual, dict) else "",
-                        "itens": itens_validos_fatura,
-                        "total": subtotal_m_sel,
-                        "pagamento_detalhe": tipo_pagamento,
-                        "Valor Dinheiro": val_dinheiro,
-                        "Valor TPA": val_tpa
-                    }
-                    
-                    hist = carregar_historico_vendas()
-                    hist.append({
-                        "Data": fatura_dados["data"],
-                        "Operador": sessao_op['operador'],
-                        "Mesa": m_sel,
-                        "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
-                        "Cliente": fatura_dados["cliente"],
-                        "Valor Total": subtotal_m_sel,
-                        "Pagamento": tipo_pagamento,
-                        "Valor Dinheiro": val_dinheiro,
-                        "Valor TPA": val_tpa,
-                        "itens": itens_validos_fatura
-                    })
-                    salvar_historico_vendas(hist)
-                    
-                    atend_list = carregar_atendimentos_garcon()
-                    atend_list.append({
-                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
-                        "Mesa": m_sel,
-                        "Valor Venda": subtotal_m_sel
-                    })
-                    salvar_atendimentos_garcon(atend_list)
-                    
-                    mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
-                    mesas_data[str(m_sel)]["pedidos"] = []
-                    mesas_data[str(m_sel)]["total"] = 0.0
-                    mesas_data[str(m_sel)]["status"] = "Fechada"
-                    mesas_data[str(m_sel)]["cliente"] = None
-                    mesas_data[str(m_sel)]["garcon"] = "Não atribuído"
-                    salvar_mesas_disco(mesas_data)
-                    
-                    st.success("Pagamento efetuado com sucesso e perfil de cliente encerrado com mensagem de agradecimento!")
-                    st.rerun()
+                            "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "cliente": cli_atual['nome'] if isinstance(cli_atual, dict) else "Consumidor Final",
+                            "telefone": cli_atual.get('telefone', 'N/A') if isinstance(cli_atual, dict) else "N/A",
+                            "nif": cli_atual.get('nif', '') if isinstance(cli_atual, dict) else "",
+                            "itens": itens_validos_fatura,
+                            "total": subtotal_m_sel,
+                            "pagamento_detalhe": tipo_pagamento,
+                            "Valor Dinheiro": val_dinheiro,
+                            "Valor TPA": val_tpa
+                        }
+                        
+                        hist = carregar_historico_vendas()
+                        hist.append({
+                            "Data": fatura_dados["data"],
+                            "Operador": sessao_op['operador'],
+                            "Mesa": m_sel,
+                            "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
+                            "Cliente": fatura_dados["cliente"],
+                            "Valor Total": subtotal_m_sel,
+                            "Pagamento": tipo_pagamento,
+                            "Valor Dinheiro": val_dinheiro,
+                            "Valor TPA": val_tpa,
+                            "itens": itens_validos_fatura
+                        })
+                        salvar_historico_vendas(hist)
+                        
+                        atend_list = carregar_atendimentos_garcon()
+                        atend_list.append({
+                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Garçon": dados_m_sel.get("garcon", "Não atribuído"),
+                            "Mesa": m_sel,
+                            "Valor Venda": subtotal_m_sel
+                        })
+                        salvar_atendimentos_garcon(atend_list)
+                        
+                        mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
+                        mesas_data[str(m_sel)]["pedidos"] = []
+                        mesas_data[str(m_sel)]["total"] = 0.0
+                        mesas_data[str(m_sel)]["status"] = "Fechada"
+                        mesas_data[str(m_sel)]["cliente"] = None
+                        mesas_data[str(m_sel)]["garcon"] = "Não atribuído"
+                        salvar_mesas_disco(mesas_data)
+                        
+                        st.success("Pagamento efetuado com sucesso e perfil de cliente encerrado com mensagem de agradecimento!")
+                        st.rerun()
+                    else:
+                        st.warning("O subtotal da mesa é 0. Não é possível concluir o pagamento.")
                     
 # ==========================================
 # ÁREA: ADMINISTRADOR
