@@ -82,7 +82,7 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS (Largura reduzida em ~40% e sem barras brancas)
+# Estilos CSS (Largura reduzida em ~40% e legenda preta para botões padrão/brancos)
 st.markdown("""
     <style>
     /* Fundo geral da página e elementos raiz */
@@ -165,12 +165,18 @@ st.markdown("""
         border-radius: 10px;
     }
     
-    /* Botões compactos */
+    /* Botões compactos com texto preto para botões padrão/brancos */
     .stButton>button {
         border-radius: 8px;
         font-weight: bold !important;
         padding: 4px 8px !important;
         font-size: 0.85rem !important;
+        color: #000000 !important;
+    }
+    
+    /* Garante que o texto dentro dos botões normais fique preto */
+    .stButton>button p, .stButton>button span {
+        color: #000000 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -533,7 +539,6 @@ def area_caixa_mesas():
                         c_status = p.get('cozinha_status', 'N/A')
                         if c_status == "Feito":
                             st.markdown("🍽️ **Pronta**")
-                            # Botão para dar baixa na refeição pronta e parar o alerta
                             cat_p = str(p.get("tipo", "")).lower()
                             if "refei" in cat_p or "prato" in cat_p or "comida" in cat_p:
                                 if st.button("✅ Adicionar Refeição", key=f"btn_baixa_ref_{m_ativa}_{idx_p}"):
@@ -622,7 +627,6 @@ def area_caixa_mesas():
                     )
                     dados_m['total'] = float(total_m)
                     
-                    # Apenas pisca se houver prato Feito E ainda não marcado como Entregue
                     tem_refeicao_pronta = any(
                         ("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower()) and p.get("cozinha_status") == "Feito" 
                         for p in dados_m['pedidos']
