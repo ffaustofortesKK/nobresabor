@@ -554,14 +554,13 @@ def area_administrador():
             st.rerun()
             
     with col_links_rapidos:
-        st.markdown("""
-            <div style="display: flex; gap: 10px; justify-content: flex-end; align-items: center;">
-                <span style="color: #ffb703; font-size: 0.95rem;">🔗 Links Rápidos:</span>
-                <a href="?perfil=caixa" target="_blank"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">💻 Link Caixa</button></a>
-                <a href="?perfil=cozinha" target="_blank"><button style="background-color: #ffb703; color: black; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;">🍳 Link Cozinha</button></a>
-            </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos (Abrem numa Nova Aba):</div>", unsafe_allow_html=True)
+        col_lnk1, col_lnk2 = st.columns(2)
+        with col_lnk1:
+            st.link_button("💻 Abrir Painel do Caixa", "?perfil=caixa", use_container_width=True)
+        with col_lnk2:
+            st.link_button("🍳 Abrir Painel da Cozinha", "?perfil=cozinha", use_container_width=True)
+            
     st.success("Painel de Administração desbloqueado com sucesso.")
     st.markdown("---")
 
@@ -852,7 +851,6 @@ def area_caixa_mesas():
                     
                     mesas_data[str(m_sel)]["fatura_emitida"] = fatura_dados
                     mesas_data[str(m_sel)]["pedidos"] = []
-                    mesas_data[str_sel] = 0.0 # Ajustado para chave correta no seu dicionário se necessário
                     mesas_data[str(m_sel)]["total"] = 0.0
                     mesas_data[str(m_sel)]["status"] = "Fechada"
                     mesas_data[str(m_sel)]["cliente"] = None
@@ -863,7 +861,7 @@ def area_caixa_mesas():
                     st.rerun()
 
 # ==========================================
-# ROTEADOR PRINCIPAL DA APLICAÇÃO (SEPARADO)
+# ROTEADOR PRINCIPAL DA APLICAÇÃO
 # ==========================================
 def main():
     if mesa_detectada is not None:
