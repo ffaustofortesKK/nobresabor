@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import json
-import weasyprint
+from fpdf import FPDF
 
 # Configuração da Página
 st.set_page_config(
@@ -110,76 +110,55 @@ def salvar_stock_disco(df):
         pass
 
 def gerar_pdf_fatura(fat_data, num_mesa):
-    nif_str = f"<div><b>NIF:</b> {fat_data.get('nif', 'Consumidor Final')}</div>" if fat_data.get('nif') else ""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
     
-    linhas_tabela = ""
+    # Cabeçalho
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Restaurante Nobre Sabor", ln=True, align="C")
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(0, 10, f"Fatura / Recibo — Mesa {num_mesa}", ln=True, align="C")
+    pdf.ln(5)
+    
+    # Informações
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 7, f"Data: {fat_data['data']}", ln=True)
+    pdf.cell(0, 7, f"Cliente: {fat_data['cliente']}", ln=True)
+    pdf.cell(0, 7, f"Telefone: {fat_data['telefone']}", ln=True)
+    if fat_data.get('nif'):
+        pdf.cell(0, 7, f"NIF: {fat_data['nif']}", ln=True)
+    pdf.ln(5)
+    
+    # Tabela de Itens (Cabeçalho)
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(90, 8, "Descrição do Item", 1)
+    pdf.cell(20, 8, "Qtd", 1, align="C")
+    pdf.cell(40, 8, "Preço Unit.", 1, align="R")
+    pdf.cell(40, 8, "Total", 1, align="R", ln=True)
+    
+    # Tabela de Itens (Linhas)
+    pdf.set_font("Arial", "", 10)
     for item in fat_data['itens']:
         sub_item = item['quantidade'] * item['preco']
-        linhas_tabela += f"""
-            <tr>
-                <td>{item['item']}</td>
-                <td style="text-align: center;">{item['quantidade']}</td>
-                <td style="text-align: right;">{item['preco']:,.2f} Kz</td>
-                <td style="text-align: right;">{sub_item:,.2f} Kz</td>
-            </tr>
-        """
+        pdf.cell(90, 8, str(item['item']), 1)
+        pdf.cell(20, 8, str(item['quantidade']), 1, align="C")
+        pdf.cell(40, 8, f"{item['preco']:,.2f} Kz", 1, align="R")
+        pdf.cell(40, 8, f"{sub_item:,.2f} Kz", 1, align="R", ln=True)
         
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <style>
-      body {{ font-family: Arial, sans-serif; color: #333; margin: 0; padding: 20px; background: #fff; }}
-      .invoice-box {{ max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); font-size: 14px; line-height: 22px; color: #555; }}
-      .title {{ font-size: 22px; font-weight: bold; color: #111; text-align: center; margin-bottom: 5px; }}
-      .subtitle {{ font-size: 14px; color: #666; text-align: center; margin-bottom: 20px; }}
-      table {{ width: 100%; line-height: inherit; text-align: left; border-collapse: collapse; margin-top: 15px; }}
-      table th {{ background: #f4f4f4; padding: 10px; border-bottom: 2px solid #ddd; color: #333; }}
-      table td {{ padding: 10px; border-bottom: 1px solid #eee; }}
-      .total-box {{ font-weight: bold; font-size: 16px; text-align: right; margin-top: 20px; color: #111; }}
-      .info-section {{ margin-bottom: 15px; background: #f9f9f9; padding: 12px; border-radius: 6px; }}
-    </style>
-    </head>
-    <body>
-      <div class="invoice-box">
-        <div class="title">Restaurante Nobre Sabor</div>
-        <div class="subtitle">Fatura / Recibo — Mesa {num_mesa}</div>
-        
-        <div class="info-section">
-            <div><b>Data:</b> {fat_data['data']}</div>
-            <div><b>Cliente:</b> {fat_data['cliente']}</div>
-            <div><b>Telefone:</b> {fat_data['telefone']}</div>
-            {nif_str}
-        </div>
-        
-        <table>
-          <tr>
-            <th>Descrição do Item</th>
-            <th style="text-align: center;">Qtd</th>
-            <th style="text-align: right;">Preço Unit.</th>
-            <th style="text-align: right;">Total</th>
-          </tr>
-          {linhas_tabela}
-        </table>
-        
-        <div style="margin-top: 15px; font-size: 13px;">
-            <b>Forma de Pagamento:</b> {fat_data['pagamento_detalhe']}
-        </div>
-        
-        <div class="total-box">
-          Total Pago: {fat_data['total']:,.2f} Kz
-        </div>
-        
-        <div style="text-align: center; margin-top: 35px; font-size: 12px; color: #888;">
-            Muito obrigado pela sua preferência! Volte sempre ao Restaurante Nobre Sabor.
-        </div>
-      </div>
-    </body>
-    </html>
-    """
+    pdf.ln(5)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 8, f"Forma de Pagamento: {fat_data['pagamento_detalhe']}", ln=True)
+    
+    pdf.set_font("Arial", "B", 13)
+    pdf.cell(0, 10, f"Total Pago: {fat_data['total']:,.2f} Kz", ln=True, align="R")
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(0, 8, "Muito obrigado pela sua preferência! Volte sempre ao Restaurante Nobre Sabor.", ln=True, align="C")
+    
     nome_arquivo = f"fatura_mesa_{num_mesa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    weasyprint.HTML(string=html_content).write_pdf(nome_arquivo)
+    pdf.output(nome_arquivo)
     return nome_arquivo
 
 # Estilos CSS
