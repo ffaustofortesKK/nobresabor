@@ -393,26 +393,29 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE (ESTILO TABLET)
+# ÁREA: CLIENTE (ESTILO TABLET COMPACTO)
 # ==========================================
 @st.fragment(run_every=4)
 def area_cliente():
-    # Injeção de CSS para simular a moldura de um tablet centralizado
     st.markdown("""
         <style>
         .tablet-container {
-            max-width: 720px;
+            max-width: 520px;
             margin: 0 auto;
-            background-color: #0e0e1a;
-            border: 8px solid #22223b;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background-color: #0d0d16;
+            border: 6px solid #1f1f33;
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
         }
-        @media (max-width: 768px) {
+        .stButton button {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 600px) {
             .tablet-container {
                 border: none;
-                padding: 5px;
+                padding: 2px;
                 box-shadow: none;
                 background-color: transparent;
             }
@@ -425,7 +428,7 @@ def area_cliente():
     if mesa_detectada and 1 <= mesa_detectada <= 30:
         num_mesa = mesa_detectada
     else:
-        st.error("⚠️ Nenhum número de mesa detetado no link! Por favor, escaneie o QR Code correto da sua mesa.")
+        st.error("⚠️ Mesa não detetada no link! Escaneie o QR Code correto.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -435,76 +438,56 @@ def area_cliente():
 
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        st.markdown("<div class='fatura-box'>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align: center; font-size: 1.4rem;'>🧾 Restaurante Nobre Sabor - Fatura / Recibo</h2>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align: center;'><b>Mesa:</b> {num_mesa} | <b>Data:</b> {fat['data']}</p>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align: center;'><b>Cliente:</b> {fat['cliente']} | <b>Telefone:</b> {fat['telefone']}</p>", unsafe_allow_html=True)
-        if fat.get('nif'):
-            st.markdown(f"<p style='text-align: center;'><b>NIF:</b> {fat['nif']}</p>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; font-size: 1.2rem;'>🧾 Fatura / Recibo</h3>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-size: 0.85rem;'>Mesa: {num_mesa} | Cliente: {fat['cliente']}</p>", unsafe_allow_html=True)
         st.divider()
         
         for item in fat['itens']:
             st.write(f"- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.2f} Kz")
         
-        st.markdown(f"### Total Pago: **{fat['total']:,.2f} Kz**")
-        st.markdown(f"<p><b>Forma de Pagamento:</b> {fat['pagamento_detalhe']}</p>", unsafe_allow_html=True)
-        st.divider()
+        st.markdown(f"#### Total Pago: **{fat['total']:,.2f} Kz**")
         
         try:
             pdf_path = gerar_pdf_fatura(fat, num_mesa)
             if os.path.exists(pdf_path):
                 with open(pdf_path, "rb") as pdf_file:
-                    st.download_button(
-                        label="📥 Descarregar Fatura em PDF",
-                        data=pdf_file,
-                        file_name=f"Fatura_Mesa_{num_mesa}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-        except Exception as e:
-            st.warning("Não foi possível gerar o PDF de download automático.")
+                    st.download_button("📥 Descarregar PDF", data=pdf_file, file_name=f"Fatura_Mesa_{num_mesa}.pdf", mime="application/pdf", use_container_width=True)
+        except Exception:
+            pass
 
-        st.markdown("<h3 style='text-align: center; font-size: 1.2rem;'>🙏 Muito obrigado pela sua presença! Volte sempre!</h3>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-size: 0.9rem;'>🙏 Obrigado pela preferência!</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
     if not dados_m.get("cliente"):
-        st.markdown("<h2 style='text-align: center; font-size: 1.5rem;'>🍽️ Bem-vindo ao Restaurante Nobre Sabor</h2>", unsafe_allow_html=True)
-        st.markdown(f"<h4 style='text-align: center; font-size: 1.1rem;'>Registo de Entrada - Mesa {num_mesa}</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center; font-size: 1.2rem;'>🍽️ Nobre Sabor — Mesa {num_mesa}</h3>", unsafe_allow_html=True)
         
         with st.form(f"form_cli_{num_mesa}"):
-            nome_cli = st.text_input("Nome:")
-            tel_cli = st.text_input("Telefone:")
-            nif_cli = st.text_input("NIF (Opcional):", placeholder="Ex: 5000000000")
-            whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp?")
+            nome_cli = st.text_input("Seu Nome:")
+            tel_cli = st.text_input("Telemóvel:")
+            nif_cli = st.text_input("NIF (Opcional):", placeholder="Opcional")
+            whatsapp_opt = st.checkbox("Entrar no Grupo WhatsApp?")
             btn_reg = st.form_submit_button("Entrar e Ver Menu", use_container_width=True)
             
             if btn_reg and nome_cli and tel_cli:
-                dados_m["cliente"] = {
-                    "nome": nome_cli,
-                    "telefone": tel_cli,
-                    "nif": nif_cli if nif_cli else "",
-                    "whatsapp": whatsapp_opt
-                }
+                dados_m["cliente"] = {"nome": nome_cli, "telefone": tel_cli, "nif": nif_cli or "", "whatsapp": whatsapp_opt}
                 dados_m["status"] = "Aberta"
                 salvar_mesas_disco(mesas_data)
-                st.success("Registo efetuado com sucesso!")
                 st.rerun()
             elif btn_reg:
-                st.warning("Preencha o seu nome e telefone.")
+                st.warning("Preencha nome e telemóvel.")
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         cli = dados_m["cliente"]
         st.markdown(f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; background-color: #141428; padding: 10px 14px; border-radius: 8px; border: 1px solid #2a2a4a; margin-bottom: 10px;">
-                <span style="font-size: 1rem; color: #ffb703;">🍽️ NobreSabor | Mesa {num_mesa}</span>
-                <span style="font-size: 0.85rem;">👤 <b>{cli['nome']}</b></span>
+            <div style="display: flex; justify-content: space-between; align-items: center; background-color: #141428; padding: 6px 10px; border-radius: 6px; border: 1px solid #2a2a4a; margin-bottom: 8px;">
+                <span style="font-size: 0.85rem; color: #ffb703;">Mesa {num_mesa}</span>
+                <span style="font-size: 0.8rem;">👤 <b>{cli['nome']}</b></span>
             </div>
         """, unsafe_allow_html=True)
         
         categorias_disponiveis = st.session_state.stock['Categoria'].unique().tolist()
-        tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Fazer Pedidos", "📊 O Meu Consumo", "🎉 Programas"])
+        tab_menu, tab_consumo, tab_eventos = st.tabs(["📋 Pedidos", "📊 Consumo", "🎉 Eventos"])
         
         with tab_menu:
             cat_escolhida = st.selectbox("Categoria:", categorias_disponiveis, key="cat_cli_sel")
@@ -514,10 +497,10 @@ def area_cliente():
             if not itens_cat.empty:
                 with st.form(key=f"form_pedido_{num_mesa}", clear_on_submit=True):
                     item_escolhido = st.selectbox("Item:", itens_cat['Produto'].tolist())
-                    qtd = st.number_input("Qtd:", min_value=1, value=1)
-                    obs = st.text_input("Observações (Ex: Sem gelo, bem passado):")
+                    qtd = st.number_input("Qtd:", min_value=1, value=1, step=1)
+                    obs = st.text_input("Obs (Ex: Sem gelo):")
                     
-                    btn_enviar_pedido = st.form_submit_button("🚀 Enviar Pedido", use_container_width=True)
+                    btn_enviar_pedido = st.form_submit_button("🚀 Enviar", use_container_width=True)
                     
                     if btn_enviar_pedido:
                         row_prod = itens_cat[itens_cat['Produto'] == item_escolhido].iloc[0]
@@ -536,16 +519,10 @@ def area_cliente():
                         dados_m["pedidos"].append(novo_pedido)
                         dados_m["status"] = "Aberta"
                         
-                        total_calc = sum(
-                            p['quantidade'] * p['preco'] 
-                            for p in dados_m["pedidos"] 
-                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                        )
-                        dados_m["total"] = float(total_calc)
-                        
+                        dados_m["total"] = float(sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"]))
                         salvar_mesas_disco(mesas_data)
                         
-                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado!"
+                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ {qtd}x {item_escolhido} enviado!"
                         st.rerun()
                     
         chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
@@ -554,10 +531,10 @@ def area_cliente():
             del st.session_state[chave_aviso]
             
         with tab_consumo:
-            st.subheader("O Meu Consumo & Estado")
+            st.markdown("<p style='font-size: 0.9rem; font-weight: bold;'>O Meu Consumo</p>", unsafe_allow_html=True)
             pedidos_mesa = dados_m["pedidos"]
             if not pedidos_mesa:
-                st.info("Ainda não tem pedidos.")
+                st.info("Sem pedidos ainda.")
             else:
                 subtotal_geral = 0
                 for p in pedidos_mesa:
@@ -565,29 +542,17 @@ def area_cliente():
                     if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                         subtotal_geral += total_item
                     
-                    status_txt = p['status']
-                    if p.get('cozinha_status') == "Feito":
-                        status_txt = "🍽️ Pronta!"
-                    elif p.get('cozinha_status') == "Aprovado":
-                        status_txt = "Preparando 🍳"
-
-                    tipo_item_str = str(p.get('tipo', '')).lower()
-                    if "bebida" in tipo_item_str:
-                        emoji_item = "🍹"
-                    elif "sobremesa" in tipo_item_str:
-                        emoji_item = "🧁"
-                    else:
-                        emoji_item = "🍲"
+                    status_txt = "Pronta 🍽️" if p.get('cozinha_status') == "Feito" else ("Preparando 🍳" if p.get('cozinha_status') == "Aprovado" else p['status'])
+                    emoji = "🍹" if "bebida" in str(p.get('tipo', '')).lower() else ("🧁" if "sobremesa" in str(p.get('tipo', '')).lower() else "🍲")
                         
-                    st.write(f"- {emoji_item} {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — **{status_txt}**")
+                    st.markdown(f"<span style='font-size: 0.82rem;'>{emoji} {p['quantidade']}x {p['item']} | {total_item:,.0f}Kz — <b>{status_txt}</b></span>", unsafe_allow_html=True)
                 
-                st.markdown(f"### Total Parcial: {subtotal_geral:,.2f} Kz")
+                st.markdown(f"**Total Parcial:** {subtotal_geral:,.2f} Kz")
                 st.divider()
                 
-                st.markdown("#### Deseja encerrar a sua estadia?")
                 if dados_m.get("solicitou_fecho"):
-                    st.info("⏳ Pedido de fecho enviado ao Caixa! Aguarde o operador.")
-                    if st.button("Cancelar Pedido de Fecho", key=f"cancel_fecho_{num_mesa}"):
+                    st.info("⏳ Pedido de fecho enviado!")
+                    if st.button("Cancelar Fecho", key=f"cancel_fecho_{num_mesa}"):
                         dados_m["solicitou_fecho"] = False
                         salvar_mesas_disco(mesas_data)
                         st.rerun()
@@ -595,15 +560,13 @@ def area_cliente():
                     if st.button("🔔 Pedir Fecho de Conta", type="primary", use_container_width=True):
                         dados_m["solicitou_fecho"] = True
                         salvar_mesas_disco(mesas_data)
-                        st.success("Notificação enviada ao Caixa!")
                         st.rerun()
                 
         with tab_eventos:
-            st.subheader("Eventos da Semana")
-            st.markdown("- Sexta: Música ao Vivo\n- Sábado: Karaoke (Grupo FF Karaoke)")
+            st.markdown("<p style='font-size: 0.85rem;'>- Sexta: Música ao Vivo<br>- Sábado: Karaoke (Grupo FF Karaoke)</p>", unsafe_allow_html=True)
             
         st.markdown('</div>', unsafe_allow_html=True)
-
+        
 # ==========================================
 # ÁREA: COZINHA
 # ==========================================
