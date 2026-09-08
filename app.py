@@ -1124,8 +1124,7 @@ def area_caixa_mesas():
                                 st.warning("Por favor, preencha o motivo/justificação da anulação.")
 
             st.markdown(f"#### Total Atual da Mesa: **{subtotal_m_sel:,.2f} Kz**")            
-                    
-                    fatura_dados = {
+                        fatura_dados = {
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "cliente": cli_atual['nome'] if isinstance(cli_atual, dict) else "Consumidor Final",
                         "telefone": cli_atual.get('telefone', 'N/A') if isinstance(cli_atual, dict) else "N/A",
