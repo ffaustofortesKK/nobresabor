@@ -673,17 +673,14 @@ def area_caixa_mesas():
                 st.rerun()
         return
 
-    # 3. CAIXA EM FUNCIONAMENTO
+    # 3. CAIXA EM FUNCIONAMENTO / OU TURNO FECHADO E APURADO
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
 
-    # Filtrar vendas apenas do turno atual (se houver registo de data/hora ou associadas ao operador)
     total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in hist_vendas)
     total_tpa_vendas = sum(float(v.get('Valor TPA', 0)) for v in hist_vendas)
     
     saldo_inicial_turno = st.session_state.get("saldo_inicial_caixa", 0.0)
-    
-    # Saldo em caixa físico = Saldo inicial do ADM + Vendas em Dinheiro efetuadas no turno
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
     saldo_total_geral = saldo_em_caixa_fisico + total_tpa_vendas
 
@@ -709,44 +706,57 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    # Secção de Fecho de Período e Extrato (O botão "Sair do Turno" só aparece após fechar o período)
-    with st.expander("🔒 Fazer o Fecho do Período & Extrato de Vendas", expanded=not st.session_state.turno_fechado):
-        st.write("Após efetuar o fecho do turno, o valor total apurado fica disponível e poderá consultar o extrato de vendas para conferência.")
-        
-        if not st.session_state.turno_fechado:
-            if st.button("✅ Confirmar Fecho de Período", type="primary"):
-                fechos_list = carregar_fechos_caixa()
-                novo_fecho = {
-                    "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Utilizador": st.session_state.operador_nome,
-                    "Período": st.session_state.operador_periodo,
-                    "Saldo Inicial (ADM)": saldo_inicial_turno,
-                    "Valor Dinheiro": total_dinheiro_vendas,
-                    "Valor TPA": total_tpa_vendas,
-                    "Total Fecho": saldo_total_geral
-                }
-                fechos_list.append(novo_fecho)
-                salvar_fechos_caixa(fechos_list)
-                
-                st.session_state.turno_fechado = True
-                st.success("Fecho de período registado com sucesso e enviado ao ADM!")
-                st.rerun()
-        else:
-            st.success(f"🎉 O Turno já foi fechado! Valor Total Apurado do Dia/Turno: **{saldo_total_geral:,.2f} Kz** (Inclui Saldo Inicial de {saldo_inicial_turno:,.2f} Kz).")
+    # Se o turno ainda não foi fechado, mostra a opção para fechar
+    if not st.session_state.turno_fechado:
+        with st.expander("🔒 Fazer o Fecho do Período & Extrato de Vendas", expanded=True):
+            st.write("Confira os dados abaixo e clique no botão para efetuar o fecho do período.")
             
-            if st.button("📊 Ver Extrato de Vendas do Turno para Conferência"):
-                st.markdown("#### 📋 Extrato Detalhado de Vendas")
-                if hist_vendas:
-                    df_ext = pd.DataFrame(hist_vendas)
-                    st.dataframe(df_ext, use_container_width=True)
-                else:
-                    st.info("Nenhuma venda registada neste turno.")
-
-            if st.button("🚪 Sair do Turno (Terminar Sessão)", type="primary"):
-                st.session_state.caixa_logado = False
-                st.session_state.caixa_turno_aberto = False
-                st.session_state.turno_fechado = False
+            if st.button("✅ Confirmar Fecho de Período", type="primary"):
+                st.session_state.turno_fechado = True
                 st.rerun()
+    else:
+        # SE O TURNO JÁ FOI FECHADO: Mostra somente o painel de confronto / extrato e botão de encerramento definitivo (como na 2ª imagem)
+        st.markdown("### 📊 Extrato de Vendas do Turno para Confrontar com o Saldo em Caixa")
+        if hist_vendas:
+            df_ext = pd.DataFrame(hist_vendas)
+            st.dataframe(df_ext, use_container_width=True)
+        else:
+            st.info("Nenhuma venda registada neste turno.")
+
+        st.markdown(f"""
+            <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-top: 15px; margin-bottom: 15px;">
+                <p>💡 <b>Resumo para o Fecho:</b></p>
+                <ul>
+                    <li>Dinheiro em Caixa (Fundo + Vendas): <b>{saldo_em_caixa_fisico:,.2f} Kz</b></li>
+                    <li>Vendas em TPA: <b>{total_tpa_vendas:,.2f} Kz</b></li>
+                    <li>Total Geral Apurado: <b>{saldo_total_geral:,.2f} Kz</b></li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🔒 Encerrar Turno e Sair (Enviar para Finanças)", type="primary", use_container_width=True):
+            # Grava efetivamente o fecho nas finanças do ADM
+            fechos_list = carregar_fechos_caixa()
+            novo_fecho = {
+                "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Utilizador": st.session_state.operador_nome,
+                "Período": st.session_state.operador_periodo,
+                "Saldo Inicial (ADM)": saldo_inicial_turno,
+                "Valor Dinheiro": total_dinheiro_vendas,
+                "Valor TPA": total_tpa_vendas,
+                "Total Fecho": saldo_total_geral
+            }
+            fechos_list.append(novo_fecho)
+            salvar_fechos_caixa(fechos_list)
+            
+            # Reseta a sessão para voltar à tela de login (3ª imagem)
+            st.session_state.caixa_logado = False
+            st.session_state.caixa_turno_aberto = False
+            st.session_state.turno_fechado = False
+            st.success("Turno encerrado e enviado para as finanças com sucesso!")
+            st.rerun()
+
+        return  # Sai da função para esconder a grelha de mesas e manter apenas o ecrã de fecho/extrato
 
     st.markdown("---")
 
@@ -804,7 +814,6 @@ def area_caixa_mesas():
         m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
         st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
         
-        # Secção do QR Code da Mesa Selecionada
         url_mesa_qr = f"?mesa={m_sel}"
         
         col_qr1, col_qr2 = st.columns([1, 1])
@@ -978,7 +987,6 @@ def area_administrador():
     ])
     
     with tab_fin:
-        # A aba Finança agora possui uma camada de proteção com senha dedicada no ADM
         st.subheader("⚙️ Controlo Geral de Abertura e Fecho do Dia (Caixa e Cozinha)")
         
         if "financa_aba_autenticada" not in st.session_state:
