@@ -567,7 +567,7 @@ def area_caixa_mesas():
         salvar_mesas_disco(mesas_data)
 
         for p in dados_m['pedidos']:
-            st.write(- {p['quantidade']}x {p['item']} | {(p['quantidade']*p['preco']):,.2f} Kz)
+            st.write(f"- {p['quantidade']}x {p['item']} | {(p['quantidade']*p['preco']):,.2f} Kz")
 
         st.markdown(f"### Total: {dados_m['total']:,.2f} Kz")
 
