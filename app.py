@@ -65,13 +65,26 @@ def salvar_historico_vendas(hist_list):
     except:
         pass
 
-# Estilos CSS atualizados com formato de mesa realista (arredondado/oval)
+# Estilos CSS atualizados com formato de mesa realista e suporte ao emoji flutuante por cima
 st.markdown("""
     <style>
     @keyframes borda-vermelha-piscar {
         0% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #fff5f5; }
         50% { border: 3px solid #ffa0a0; box-shadow: none; background-color: #ffffff; }
         100% { border: 3px solid #ff4b4b; box-shadow: 0 0 10px #ff4b4b; background-color: #fff5f5; }
+    }
+    @keyframes flutuar-emoji {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
+        100% { transform: translateY(0px); }
+    }
+    .emoji-refeicao-topo {
+        font-size: 1.6em;
+        text-align: center;
+        margin-bottom: -10px;
+        z-index: 10;
+        position: relative;
+        animation: flutuar-emoji 1.2s infinite ease-in-out;
     }
     .mesa-pronta-alerta {
         padding: 15px;
@@ -724,10 +737,15 @@ def area_caixa_mesas():
                     
                     if tem_refeicao_pronta:
                         classe_css = "mesa-pronta-alerta"
+                        # Emoji flutuante animado exatamente por cima do cartão da mesa
+                        emoji_topo_html = "<div class='emoji-refeicao-topo'>🍲</div>"
                     else:
                         classe_css = "mesa-aberta" if status_m == "Aberta" else "mesa-fechada"
+                        emoji_topo_html = ""
                     
                     with cols[c]:
+                        st.markdown(emoji_topo_html, unsafe_allow_html=True)
+                        
                         alerta_pronto_html = "<div style='color: #d32f2f; font-size: 0.85em; font-weight: bold; margin-bottom: 2px;'>🚨 Refeição Pronta!</div>" if tem_refeicao_pronta else ""
                         
                         nome_cli_formatado = f"<br><span style='font-size: 0.8em;'>{dados_m['cliente']['nome']}</span>" if dados_m.get('cliente') else ""
