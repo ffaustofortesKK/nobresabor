@@ -453,8 +453,8 @@ def area_cliente():
                 tel_cli = st.text_input("Telefone:")
                 nif_cli = st.text_input("NIF (Opcional):", placeholder="Ex: 5000000000")
                 whatsapp_opt = st.checkbox("Deseja entrar no Grupo de WhatsApp?")
-                
                 btn_reg = st.form_submit_button("Entrar e Ver Menu", use_container_width=True)
+                
                 if btn_reg and nome_cli and tel_cli:
                     dados_m["cliente"] = {
                         "nome": nome_cli,
@@ -494,7 +494,6 @@ def area_cliente():
                         qtd = st.number_input("Qtd:", min_value=1, value=1)
                     
                     obs = st.text_input("Observações (Ex: Sem gelo, bem passado):")
-                    
                     btn_enviar_pedido = st.form_submit_button("🚀 Enviar Pedido", use_container_width=True)
                     
                     if btn_enviar_pedido:
@@ -526,12 +525,12 @@ def area_cliente():
                         
                         st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido de {qtd}x {item_escolhido} enviado!"
                         st.rerun()
-
-            chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
-            if chave_aviso in st.session_state:
-                st.success(st.session_state[chave_aviso])
-                del st.session_state[chave_aviso]
-                
+                        
+        chave_aviso = f"aviso_pedido_enviado_{num_mesa}"
+        if chave_aviso in st.session_state:
+            st.success(st.session_state[chave_aviso])
+            del st.session_state[chave_aviso]
+            
         with tab_consumo:
             st.subheader("O Meu Consumo & Estado dos Pedidos")
             pedidos_mesa = dados_m["pedidos"]
@@ -552,7 +551,23 @@ def area_cliente():
                         
                     st.write(f"- {p['quantidade']}x {p['item']} | {total_item:,.2f} Kz — **{status_txt}**")
                     
-                st.markdown(f"### Total: {subtotal_geral:,.2f} Kz")
+                st.markdown(f"### Total Parcial: {subtotal_geral:,.2f} Kz")
+                st.divider()
+                
+                # --- BOTÃO DE PEDIR FECHO DE CONTA ---
+                st.markdown("#### Deseja encerrar a sua estadia?")
+                if dados_m.get("solicitou_fecho"):
+                    st.info("⏳ Pedido de fecho enviado ao Caixa! Por favor, aguarde o operador ou dirija-se ao balcão.")
+                    if st.button("Cancelar Pedido de Fecho", key=f"cancel_fecho_{num_mesa}"):
+                        dados_m["solicitou_fecho"] = False
+                        salvar_mesas_disco(mesas_data)
+                        st.rerun()
+                else:
+                    if st.button("🔔 Pedir Fecho de Conta ao Caixa", type="primary", use_container_width=True):
+                        dados_m["solicitou_fecho"] = True
+                        salvar_mesas_disco(mesas_data)
+                        st.success("Notificação enviada com sucesso para o Caixa!")
+                        st.rerun()
                 
         with tab_eventos:
             st.subheader("Eventos da Semana")
@@ -716,7 +731,7 @@ def area_caixa_mesas():
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
                 st.rerun()
-        return
+        return  
 
     # 3. CAIXA EM FUNCIONAMENTO / OU TURNO FECHADO E APURADO
     mesas_data = carregar_mesas_disco()
@@ -762,7 +777,7 @@ def area_caixa_mesas():
         
         if st.button("✅ Confirmar Fecho de Período", type="primary"):
             fechos_list = carregar_fechos_caixa()
-            novo_fecho = {
+            novo_fecho = { 
                 "Data/Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "Utilizador": sessao_op['operador'],
                 "Período": sessao_op['periodo'],
@@ -834,8 +849,7 @@ def area_caixa_mesas():
         m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
         st.markdown(f"### ⚙️ Gestão da Mesa {m_sel}")
         
-        url_mesa_qr = f"?mesa={m_sel}"
-        
+        url_mesa_qr = f"?mesa={m_sel}" 
         col_qr1, col_qr2 = st.columns([1, 1])
         with col_qr1:
             img_qr_bytes = gerar_qrcode_bytes(f"Mesa {m_sel} — NobreSabor")
