@@ -946,7 +946,8 @@ def area_caixa_mesas():
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_company_width=True if 'use_company_width' in globals() else False, use_container_width=True):
+                        # Correção aplicada aqui: removido o parâmetro inválido use_company_width
+                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.rerun()
                         
@@ -988,11 +989,10 @@ def area_caixa_mesas():
                     with st.form(key=f"form_add_item_cx_{m_sel}"):
                         st.markdown(f"**Adicionar Item Manualmente à Mesa {m_sel}**")
                         
-                        # Exemplo de campos de adição (pode ajustar conforme a sua lista de produtos)
                         cat_add = st.selectbox("Categoria:", ["Comida", "Bebida", "Sobremesa"], key=f"cat_add_{m_sel}")
                         item_nome_add = st.text_input("Nome do Item:", key=f"item_nome_{m_sel}")
                         item_qtd_add = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"item_qtd_{m_sel}")
-                        item_preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"item_ preco_{m_sel}")
+                        item_preco_add = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=0.0, step=100.0, key=f"item_preco_{m_sel}")
                         
                         col_fa1, col_fa2 = st.columns(2)
                         with col_fa1:
@@ -1008,13 +1008,12 @@ def area_caixa_mesas():
                                     "preco": item_preco_add,
                                     "categoria": cat_add,
                                     "status": "Confirmado",
-                                    "cozinha_status": "Feito" # Adicionado diretamente pelo caixa
+                                    "cozinha_status": "Feito"
                                 }
                                 if "pedidos" not in dados_m_sel:
                                     dados_m_sel["pedidos"] = []
                                 dados_m_sel["pedidos"].append(novo_pedido)
                                 
-                                # Recalcula o total
                                 dados_m_sel["total"] = sum(
                                     float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) 
                                     for item in dados_m_sel["pedidos"] 
