@@ -733,7 +733,7 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    # ABAS DE NAVEGAÇÃO DO CAIXA (Adicionada a aba de anulação)
+    # ABAS DE NAVEGAÇÃO DO CAIXA
     aba_operador_1, aba_operador_2, aba_operador_3, aba_operador_4 = st.tabs([
         "🗺️ Mesas & Operações", 
         "📚 Histórico de Vendas por Cliente", 
@@ -976,20 +976,46 @@ def area_caixa_mesas():
                     with col_qr2:
                         st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
 
-                # --- LISTA DOS PEDIDOS ---
+                # --- LISTA DOS PEDIDOS E BOTÃO DE ANULAR ITEM INDIVIDUAL ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
-                if pedidos_mesa:
-                    for p in pedidos_mesa:
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
+                
+                if pedidos_ativos:
+                    for idx_p, p in enumerate(pedidos_mesa):
                         if p.get('status') in ["Anulado", "Recusado pela Cozinha"]:
                             continue
                         q = p.get('quantidade', 1)
                         preco_u = p.get('preco', 0.0)
                         subtotal_item = q * preco_u
-                        st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — Subtotal: **{subtotal_item:,.2f} Kz** [{p.get('status', 'Pendente')}]")
+                        
+                        col_it1, col_it2 = st.columns([2.2, 1])
+                        with col_it1:
+                            st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — **{subtotal_item:,.2f} Kz**")
+                        with col_it2:
+                            if st.button(f"🗑️ Anular Item", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
+                                # Marcar como anulado
+                                p['status'] = "Anulado"
+                                
+                                # Recalcular o total da mesa descontando o item anulado
+                                novo_total = sum(
+                                    float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) 
+                                    for item in dados_m_sel["pedidos"] 
+                                    if item.get('status') not in ["Anulado", "Recusado pela Cozinha"]
+                                )
+                                dados_m_sel["total"] = novo_total
+                                
+                                # Se ficar sem nenhum item ativo, podemos limpar cliente/status opcionalmente ou manter
+                                if not any(item.get('status') not in ["Anulado", "Recusado pela Cozinha"] for item in dados_m_sel["pedidos"]):
+                                    dados_m_sel["total"] = 0.0
+                                
+                                mesas_data[str(m_sel)] = dados_m_sel
+                                salvar_mesas_disco(mesas_data)
+                                st.success(f"Item '{p.get('item')}' anulado com sucesso!")
+                                st.rerun()
                 else:
-                    st.info("Ainda não existem registos nesta mesa.")
+                    st.info("Ainda não existem registos ativos nesta mesa.")
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
                 st.markdown(f"### 💵 Total Atual da Mesa: **{total_a_pagar:,.2f} Kz**")
