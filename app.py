@@ -82,11 +82,13 @@ def salvar_saidas_caixa(saidas_list):
     except:
         pass
 
-# Estilos CSS: Fundo totalmente preto, largura 100% preenchida e textos em BRANCO e NEGRITO
+# Estilos CSS: Visual Compacto Estilo Tablet, Margens Reduzidas e Textos em BRANCO e NEGRITO
 st.markdown("""
     <style>
-    .stApp, body, html {
-        background-color: #0c0c16 !important;
+    .stApp {
+        background-color: #0c0c16;
+        max-width: 960px;
+        margin: 0 auto;
     }
     
     html, body, [class*="css"], .stMarkdown, p, span, label, div, h1, h2, h3, h4, h5, h6 {
@@ -100,11 +102,11 @@ st.markdown("""
 
     /* Redução drástica de margens e preenchimentos verticais */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
-        max-width: 100% !important;
+        background-color: #0c0c16 !important;
     }
 
     h1 {
@@ -401,15 +403,15 @@ def area_administrador():
         st.markdown("<h1>👑 Painel Administrativo</h1>", unsafe_allow_html=True)
     with col_adm_info:
         st.markdown(
-            f"""<div style="text-align: right; padding-top: 5px;">
-                <span style="background-color: #1a1a38; border: 1px solid #2a2a5a; padding: 4px 10px; border-radius: 12px; font-size: 0.75em;">
+            f"""<div style="text-align: right; padding-top: 10px;">
+                <span style="background-color: #1a1a38; border: 1px solid #2a2a5a; padding: 6px 12px; border-radius: 12px; font-size: 0.8em; display: inline-block;">
                     🟢 Online &nbsp;|&nbsp; 📅 {datetime.now().strftime("%d/%m/%Y")} &nbsp;|&nbsp; 🕒 {datetime.now().strftime("%H:%M")}
                 </span>
             </div>""",
             unsafe_allow_html=True
         )
 
-    st.markdown("<hr style='margin-top: 5px; margin-bottom: 10px; border-color: #2a2a4a;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin-top: 10px; margin-bottom: 15px; border-color: #2a2a4a;'>", unsafe_allow_html=True)
     
     with st.expander("🔗 Links do Sistema", expanded=False):
         st.text_input("Caixa:", f"{URL_OFICIAL}/?perfil=caixa")
