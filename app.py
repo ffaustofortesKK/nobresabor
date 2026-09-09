@@ -591,7 +591,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para círculos compactos, alertas e redução de espaçamento na lista de pedidos
+    # Injeção de CSS para círculos compactos, alertas e compactação da lista de pedidos
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -633,12 +633,11 @@ def area_caixa_mesas():
         .mesa-aberta { background-color: #1f3b2c; border: 1.5px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
         
-        /* Aproxima e encolhe os itens da lista de pedidos */
-        .item-pedido-compacto {
+        /* Compactação vertical dos itens de pedidos da mesa */
+        .pedido-item-compacto {
             margin-bottom: 2px !important;
-            padding-bottom: 0px !important;
+            padding-bottom: 2px !important;
             line-height: 1.2 !important;
-            font-size: 0.9rem;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -688,7 +687,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -731,13 +730,17 @@ def area_caixa_mesas():
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    # Layout superior ajustado: Operador e saldos no canto superior direito
+    # Layout superior reformulado: Operador à direita, Saldos discriminados abaixo/ao lado
     st.markdown(f"""
-        <div style="background-color: #141428; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2a2a4a; display: flex; justify-content: flex-end; align-items: center;">
-            <div style="text-align: right; font-size: 0.9rem; line-height: 1.4;">
-                Operador : <b>{sessao_op['operador']}</b><br>
-                Saldo em Caixa:<br>
-                Dinheiro : <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | TPA: <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
+        <div style="background-color: #141428; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <span style="font-size: 0.9rem; color: #ffb703; font-weight: bold;">Saldo em Caixa:</span><br>
+                <span style="font-size: 0.85rem; color: #a0a0c0; margin-left: 10px;">Dinheiro:</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b><br>
+                <span style="font-size: 0.85rem; color: #a0a0c0; margin-left: 10px;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 0.95rem; color: #fff;">Operador : <b>{sessao_op['operador']}</b></span><br>
+                <span style="font-size: 0.75rem; color: #888;">Período: {sessao_op['periodo']}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -860,7 +863,7 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Se solicitou fecho, exibe badge superior com tamanho de fonte aumentado (+50%)
+                        # Se solicitou fecho, exibe badge superior com tamanho de fonte aumentado
                         if solicitou_fecho:
                             st.markdown("""
                                 <div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">
@@ -893,13 +896,13 @@ def area_caixa_mesas():
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                # Título atualizado no formato exato: Pedido da Mesa 3 - Nome do Cliente
-                st.markdown(f"### Pedido da Mesa {m_sel} - {nome_cliente_titulo}", unsafe_allow_html=True)
+                # Título atualizado no formato exx: Pedido da Mesa 3 - Carlos Sousa
+                st.markdown(f"### ⚙️ Pedido da Mesa {m_sel} - {nome_cliente_titulo}", unsafe_allow_html=True)
                 
-                # --- LISTA DOS PEDIDOS ---
+                # --- LISTA DOS PEDIDOS (Compactada) ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status'] not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
                     for idx_p, p in enumerate(pedidos_mesa):
@@ -911,7 +914,7 @@ def area_caixa_mesas():
                         
                         col_it1, col_it2 = st.columns([2.2, 1])
                         with col_it1:
-                            st.markdown(f"<div class='item-pedido-compacto'>- <b>{q}x {p.get('item')}</b> ({preco_u:,.2f} Kz) — <b>{subtotal_item:,.2f} Kz</b></div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='pedido-item-compacto'>- <b>{q}x {p.get('item')}</b> ({preco_u:,.2f} Kz) — <b>{subtotal_item:,.2f} Kz</b></div>", unsafe_allow_html=True)
                         with col_it2:
                             # Botão para abrir o seletor de anulação com justificativa
                             if st.button(f"🗑️ Anular", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
