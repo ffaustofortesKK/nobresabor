@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais e Compactos
+# Estilos CSS Profissionais, Compactos e Sem Efeito Fusco
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -22,7 +22,7 @@ st.markdown("""
     }
     
     .block-container {
-        padding-top: 2.5rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 1rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
@@ -87,12 +87,6 @@ st.markdown("""
         color: #8b949e !important;
     }
 
-    @keyframes borda-vermelha-piscar {
-        0% { border: 2px solid #ff4b4b; box-shadow: 0 0 6px #ff4b4b; }
-        50% { border: 2px solid #ffa0a0; box-shadow: none; }
-        100% { border: 2px solid #ff4b4b; box-shadow: 0 0 6px #ff4b4b; }
-    }
-
     @keyframes oscilarVermelho {
         0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
         50% { transform: scale(1.02); box-shadow: 0 0 8px 3px rgba(239, 68, 68, 0.9); background-color: #ef4444 !important; color: #fff !important; }
@@ -145,14 +139,13 @@ st.markdown("""
         font-weight: 500 !important;
     }
     
-    /* Reduzir espaçamento vertical de elementos */
     .element-container {
         margin-bottom: 0.3rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Caminhos dos Ficheiros de Base de Dados Local (Persistência em Disco)
+# Caminhos dos Ficheiros de Base de Dados Local
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
@@ -165,7 +158,7 @@ ARQUIVO_VENDAS_EXCLUIDAS = "vendas_excluidas.json"
 ARQUIVO_SESSAO_CAIXA_OPERADOR = "sessao_caixa_operador.json"
 ARQUIVO_BLOQUEIOS_OPERADORES = "bloqueios_operadores.json"
 
-# Funções de Persistência Blindada
+# Funções de Persistência
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
         try:
@@ -360,24 +353,6 @@ def salvar_stock_disco(df):
     except:
         pass
 
-def gerar_qrcode_bytes(url_texto):
-    qr = qrcode.QRCode(version=1, box_size=6, border=2)
-    qr.add_data(url_texto)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    return buffer.getvalue()
-
-def gerar_imagem_qrcode_pil(url_texto):
-    qr = qrcode.QRCode(version=1, box_size=10, border=2)
-    qr.add_data(url_texto)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = BytesIO()
-    img.save(buffer, format="PNG")
-    return buffer.getvalue()
-
 def gerar_pdf_fatura(fat_data, num_mesa):
     pdf = FPDF()
     pdf.add_page()
@@ -426,6 +401,15 @@ def gerar_pdf_fatura(fat_data, num_mesa):
     pdf.output(nome_arquivo)
     return nome_arquivo
 
+def gerar_imagem_qrcode_pil(url_texto):
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(url_texto)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
 # Parâmetros URL
 mesa_detectada = None
 perfil_url = None
@@ -455,9 +439,8 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE (MICRO-TABLET ESTREITO E COMPACTO)
+# ÁREA: CLIENTE
 # ==========================================
-@st.fragment(run_every=4)
 def area_cliente():
     st.markdown("""
         <style>
@@ -624,7 +607,6 @@ def area_cliente():
 # ==========================================
 # ÁREA: COZINHA
 # ==========================================
-@st.fragment(run_every=6)
 def area_cozinha():
     st.title("🍳 Área da Cozinha")
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
@@ -729,9 +711,8 @@ def area_cozinha():
             st.dataframe(df_feitos, use_container_width=True)
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (ALINHADO À DIREITA & COMPACTO)
+# ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
-@st.fragment(run_every=5)
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
@@ -854,7 +835,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -990,12 +971,11 @@ def area_caixa_mesas():
             st.info("Sem histórico.")
 
     with aba_operador_1:
-        # Layout Ajustado: Esquerda (Gestão da Mesa Selecionada) | Direita (Mesas mais juntas e alinhadas ao canto direito)
         col_esq, col_dir = st.columns([1.1, 0.9])
 
         with col_dir:
             st.markdown("<h4 style='text-align: right; margin-bottom: 4px; font-size: 0.9rem;'>MESAS (1-30)</h4>", unsafe_allow_html=True)
-            cols_grelha = 4  # 4 colunas para ficarem bem unidas e agrupadas à direita
+            cols_grelha = 4
             rows = 8
             mesa_idx = 1
             
@@ -1231,7 +1211,6 @@ def area_caixa_mesas():
 # ==========================================
 # ÁREA: ADMINISTRADOR
 # ==========================================
-@st.fragment(run_every=4)
 def area_administrador():
     st.markdown("<h1>👑 Painel do Administrador - NobreSabor</h1>", unsafe_allow_html=True)
     
@@ -1509,7 +1488,7 @@ def area_administrador():
                 st.rerun()
 
     with tab_qr:
-        st.subheader("🖨️ QR Codes das Mesas (1 a 30)")
+        st.subheader("🖨️ QR Codes e Links Diretos das Mesas (1 a 30)")
         url_site = st.text_input("URL base:", value="https://nobresabor.streamlit.app")
         
         st.markdown("---")
@@ -1522,9 +1501,11 @@ def area_administrador():
                 link_mesa = f"{url_site}/?mesa={num_mesa_qr}"
                 with cols[c]:
                     st.markdown(f"**Mesa {num_mesa_qr}**")
+                    st.text_input(f"Link M{num_mesa_qr}:", value=link_mesa, key=f"link_txt_mesa_{num_mesa_qr}")
                     qr_bytes = gerar_imagem_qrcode_pil(link_mesa)
                     st.image(qr_bytes, width=130)
                     st.download_button(f"📥 Baixar M{num_mesa_qr}", data=qr_bytes, file_name=f"qrcode_mesa_{num_mesa_qr}.png", mime="image/png", key=f"dl_qr_{num_mesa_qr}")
+                    st.markdown("---")
 
     with tab_bloq:
         if tem_bloqueios_ativos:
