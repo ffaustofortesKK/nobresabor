@@ -691,7 +691,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para círculos interativos, compactos, alertas e animação do sino
+    # Injeção de CSS para círculos interativos, compactos e alertas
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -703,19 +703,6 @@ def area_caixa_mesas():
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0.7); }
             50% { transform: scale(1.04); box-shadow: 0 0 10px 5px rgba(74, 194, 107, 0.9); background-color: #4ac26b !important; color: #000 !important; }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0); }
-        }
-        @keyframes balocarSino {
-            0% { transform: rotate(0deg); }
-            20% { transform: rotate(14deg); }
-            40% { transform: rotate(-14deg); }
-            60% { transform: rotate(10deg); }
-            80% { transform: rotate(-10deg); }
-            100% { transform: rotate(0deg); }
-        }
-        .sino-alerta {
-            display: inline-block;
-            animation: balocarSino 0.9s infinite ease-in-out;
-            font-size: 0.85rem;
         }
         .mesa-conta-solicitada {
             animation: oscilarVermelho 1.2s infinite ease-in-out;
@@ -752,6 +739,46 @@ def area_caixa_mesas():
         }
         </style>
     """, unsafe_allow_html=True)
+
+    mesas_data = carregar_mesas_disco()
+
+    # --- VERIFICAÇÃO DE PEDIDOS PRONTOS PARA SOM DE ALERTA ---
+    tem_alguma_mesa_pronta = any(
+        any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+        for dados_m in mesas_data.values()
+    )
+
+    # Injeção de áudio em JavaScript com Web Audio API para tocar um bipe contínuo se houver pratos prontos
+    if tem_alguma_mesa_pronta:
+        st.markdown("""
+            <script>
+            if (!window.audioAlertaInterval) {
+                window.audioAlertaInterval = setInterval(() => {
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = 587.33; // Nota D5
+                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.2);
+                    } catch(e) {}
+                }, 1500);
+            }
+            </script>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+            <script>
+            if (window.audioAlertaInterval) {
+                clearInterval(window.audioAlertaInterval);
+                window.audioAlertaInterval = null;
+            }
+            </script>
+        """, unsafe_allow_html=True)
 
     st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
     
@@ -826,7 +853,6 @@ def area_caixa_mesas():
         return  
 
     # 3. CAIXA EM FUNCIONAMENTO
-    mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
     cardapio_data = carregar_cardapio_disco() if 'carregar_cardapio_disco' in globals() else {}
 
@@ -928,9 +954,6 @@ def area_caixa_mesas():
     with aba_operador_1:
         col_esq, col_dir = st.columns([1.2, 0.8])
 
-        # Verificar se alguma mesa tem prato pronto e ainda não foi gerida/clicada pelo operador
-        tocar_alarme_geral = False
-
         with col_dir:
             st.markdown("#### MESAS")
             
@@ -951,36 +974,19 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    # Verificação de prato pronto na cozinha
                     tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                    
-                    # Controlo para o alarme tocar apenas se houver prato pronto E o operador ainda não tiver entrado em "Gerir Mesa"
-                    alerta_ativo_mesa = f"alerta_som_mesa_{mesa_idx}"
-                    if tem_pronto:
-                        if alerta_ativo_mesa not in st.session_state:
-                            st.session_state[alerta_ativo_mesa] = True  # Ativa o alerta sonoro e visual
-                        if st.session_state.get(alerta_ativo_mesa, False):
-                            tocar_alarme_geral = True
-                    else:
-                        st.session_state[alerta_ativo_mesa] = False
-
                     tem_bebida = any("bebida" in str(p.get("categoria", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     tem_sobremesa = any("sobremesa" in str(p.get("categoria", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
-                    # Se houver prato pronto, adiciona o sino animado em destaque
-                    if tem_pronto and st.session_state.get(alerta_ativo_mesa, False):
-                        simbolos_topo_lista.append('<span class="sino-alerta">🔔</span>')
-                    elif tem_pronto:
-                        simbolos_topo_lista.append("🍲")
-                        
+                    if tem_pronto: simbolos_topo_lista.append("🍲")
                     if tem_bebida: simbolos_topo_lista.append("🍹")
                     if tem_sobremesa: simbolos_topo_lista.append("🍰")
                     simbolo_topo = " ".join(simbolos_topo_lista)
 
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
-                    elif tem_pronto and st.session_state.get(alerta_ativo_mesa, False):
+                    elif tem_pronto:
                         classe_css = "mesa-pronta-alerta"
                     elif status_m == "Aberta" or cli_m:
                         classe_css = "mesa-aberta"
@@ -990,14 +996,15 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        if solicitou_fecho:
-                            st.markdown("""
-                                <div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">
-                                    <span style="background-color: #ef4444; color: white; font-size: 0.70rem; font-weight: bold; padding: 2px 5px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
-                                        Pediu Conta 💵
-                                    </span>
-                                </div>
-                            """, unsafe_allow_html=True)
+                        # Bloco superior indicador de eventos (Pedido Conta / Sino de Cozinha Pronta)
+                        if solicitou_fecho or tem_pronto:
+                            badge_html = '<div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">'
+                            if solicitou_fecho:
+                                badge_html += '<span style="background-color: #ef4444; color: white; font-size: 0.65rem; font-weight: bold; padding: 2px 4px; border-radius: 4px; margin-right: 2px;">Pediu Conta 💵</span>'
+                            if tem_pronto:
+                                badge_html += '<span style="background-color: #4ac26b; color: black; font-size: 0.65rem; font-weight: bold; padding: 2px 4px; border-radius: 4px;">🔔 Prato</span>'
+                            badge_html += '</div>'
+                            st.markdown(badge_html, unsafe_allow_html=True)
 
                         # Círculo interativo da mesa
                         conteudo_circulo = f"""
@@ -1010,22 +1017,13 @@ def area_caixa_mesas():
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
                         
-                        # Ao clicar no botão para gerir a mesa, desativamos o alarme daquela mesa específica (o sino para)
+                        # Botão para gerir a mesa (ao clicar aqui, seleciona a mesa e pára o alarme se era a única pronta)
                         if st.button(f"Gerir Mesa {mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.session_state[f"adicionando_pedido_cx_{mesa_idx}"] = False
-                            st.session_state[f"alerta_som_mesa_{mesa_idx}"] = False  # Desliga o som/sino da mesa
                             st.rerun()
                         
                     mesa_idx += 1
-
-        # Dispara o som de alerta global se houver alguma mesa com prato pronto não atendida
-        if tocar_alarme_geral:
-            st.markdown("""
-                <audio autoplay>
-                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-                </audio>
-            """, unsafe_allow_html=True)
 
         with col_esq:
             with st.container():
