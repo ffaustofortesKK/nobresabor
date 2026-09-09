@@ -1218,7 +1218,7 @@ def area_caixa_mesas():
                         }
                         salvar_mesas_disco(mesas_data)
                         st.success(f"Conta da Mesa {m_sel} encerrada!")
-                        st.rerun()
+                        st.rerun() 
                                                                                    
 # ==========================================
 # ÁREA: ADMINISTRADOR
