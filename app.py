@@ -271,13 +271,13 @@ def carregar_rh_disco():
             df_loaded = pd.read_json(ARQUIVO_RH_COLABORADORES, orient="split")
             if not df_loaded.empty:
                 if "Salário" not in df_loaded.columns:
-                    df_loaded["Salário"] = 70000.0
+                    df_loaded["Salário"] = 0.0
                 return df_loaded
         except:
             pass
     return pd.DataFrame([
-        ["NS0001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042", 80000.0],
-        ["NS0002", "Ana Paula", "Operador de Caixa", "912333444", "009876543LA031", 95000.0]
+        ["NS0001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042", 75000.0],
+        ["NS0002", "Ana Paula", "Operador de Caixa", "912333444", "009876543LA031", 85000.0]
     ], columns=["Código", "Nome", "Categoria", "Telefone", "BI", "Salário"])
 
 def salvar_rh_disco(df):
@@ -1059,7 +1059,7 @@ def area_caixa_mesas():
                                         dados_m_sel["status"] = "Aberta"
                                     
                                     dados_m_sel["pedidos"].append(novo_item_reg)
-                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status'] not in ["Anulado", "Recusado pela Cozinha"])
+                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                                     dados_m_sel["total"] = novo_total
                                     
                                     mesas_data[str(m_sel)] = dados_m_sel
@@ -1076,7 +1076,7 @@ def area_caixa_mesas():
 
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status'] not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
                     for idx_p, p in enumerate(pedidos_mesa):
@@ -1105,7 +1105,7 @@ def area_caixa_mesas():
                                             p['status'] = "Anulado"
                                             p['motivo_anulacao'] = motivo_anulacao
                                             
-                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status'] not in ["Anulado", "Recusado pela Cozinha"])
+                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                                             dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
                                             mesas_data[str(m_sel)] = dados_m_sel
                                             salvar_mesas_disco(mesas_data)
@@ -1406,68 +1406,83 @@ def area_administrador():
                     st.rerun()
 
     with tab_dch:
-        st.subheader("👥 DCH — Cadastramento, Edição de Colaboradores & Bónus")
+        st.subheader("👥 DCH — Cadastramento de Colaboradores & Bónus Acumulados")
         
         df_rh_atual = carregar_rh_disco()
         
-        # Geração automática do próximo código (Ex: NS0001, NS0002...)
-        proximo_num = 1
-        if not df_rh_atual.empty and "Código" in df_rh_atual.columns:
-            codigos_existentes = df_rh_atual["Código"].dropna().tolist()
+        # Gerar automaticamente o próximo código NS00XX
+        if df_rh_atual.empty or "Código" not in df_rh_atual.columns:
+            proximo_codigo = "NS0001"
+        else:
             numeros = []
-            for c in codigos_existentes:
-                if str(c).startswith("NS"):
+            for cod in df_rh_atual["Código"].astype(str):
+                if cod.startswith("NS"):
                     try:
-                        numeros.append(int(str(c).replace("NS", "")))
+                        numeros.append(int(cod.replace("NS", "")))
                     except:
                         pass
-            if numeros:
-                proximo_num = max(numeros) + 1
-        
-        codigo_sugerido = f"NS{proximo_num:04d}"
+            proximo_num = (max(numeros) + 1) if numeros else (len(df_rh_atual) + 1)
+            proximo_codigo = f"NS{proximo_num:04d}"
 
         with st.expander("➕ Cadastrar Novo Colaborador", expanded=True):
-            with st.form("form_cadastrar_colaborador_novo"):
+            with st.form("form_cadastrar_colaborador"):
+                st.markdown(f"**Código Gerado Automaticamente:** `{proximo_codigo}`")
                 col_r1, col_r2 = st.columns(2)
                 with col_r1:
-                    st.markdown(f"**Código Gerado:** `{codigo_sugerido}`")
                     nome_func = st.text_input("Nome Completo:")
                     cat_func = st.selectbox("Categoria / Cargo:", ["Garçon", "Operador de Caixa", "Operador de Limpeza", "Chefe de Cozinha", "Ajudante de Cozinha"])
+                    salario_func = st.number_input("Salário (Kz):", min_value=0.0, value=75000.0, step=5000.0)
                 with col_r2:
                     tel_func = st.text_input("Telefone:")
                     bi_func = st.text_input("Nº de BI:")
-                    salario_func = st.number_input("Salário (Kz):", min_value=0.0, value=75000.0, step=5000.0)
                 
                 if st.form_submit_button("💾 Salvar Novo Colaborador", use_container_width=True) and nome_func:
-                    nova_linha_rh = pd.DataFrame([[codigo_sugerido, nome_func, cat_func, tel_func, bi_func, salario_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI", "Salário"])
+                    nova_linha_rh = pd.DataFrame([[proximo_codigo, nome_func, cat_func, tel_func, bi_func, salario_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI", "Salário"])
                     df_rh_atual = pd.concat([df_rh_atual, nova_linha_rh], ignore_index=True)
                     salvar_rh_disco(df_rh_atual)
-                    st.success(f"Colaborador '{nome_func}' ({codigo_sugerido}) guardado com sucesso!")
+                    st.success(f"Colaborador '{nome_func}' ({proximo_codigo}) guardado com sucesso!")
                     st.rerun()
 
         st.markdown("---")
-        st.subheader("📋 Lista e Edição de Colaboradores Existentes")
-        st.info("Pode editar diretamente os campos abaixo na tabela interativa e clicar em 'Guardar Alterações'.")
-
+        st.subheader("✏️ Editar Registo de Colaborador Existente")
         if not df_rh_atual.empty:
-            df_editado = st.data_editor(df_rh_atual, num_rows="dynamic", use_container_width=True, key="editor_rh_colaboradores")
+            colaborador_selecionado = st.selectbox("Selecionar Colaborador para Editar:", df_rh_atual['Nome'].tolist(), key="select_edit_colab")
+            dados_colab = df_rh_atual[df_rh_atual['Nome'] == colaborador_selecionado].iloc[0]
             
-            col_ed1, col_ed2 = st.columns(2)
-            with col_ed1:
-                if st.button("💾 Guardar Alterações / Edições", type="primary", use_container_width=True):
-                    salvar_rh_disco(df_editado)
-                    st.success("Alterações salvas com sucesso!")
+            with st.form("form_editar_colaborador"):
+                st.markdown(f"**Código:** `{dados_colab['Código']}`")
+                col_e1, col_e2 = st.columns(2)
+                with col_e1:
+                    novo_nome = st.text_input("Nome Completo:", value=str(dados_colab['Nome']))
+                    
+                    cats_possiveis = ["Garçon", "Operador de Caixa", "Operador de Limpeza", "Chefe de Cozinha", "Ajudante de Cozinha"]
+                    cat_atual_idx = cats_possiveis.index(dados_colab['Categoria']) if dados_colab['Categoria'] in cats_possiveis else 0
+                    nova_cat = st.selectbox("Categoria / Cargo:", cats_possiveis, index=cat_atual_idx)
+                    
+                    novo_salario = st.number_input("Salário (Kz):", min_value=0.0, value=float(dados_colab['Salário']) if 'Salário' in dados_colab and pd.notnull(dados_colab['Salário']) else 0.0, step=5000.0)
+                with col_e2:
+                    novo_tel = st.text_input("Telefone:", value=str(dados_colab['Telefone']))
+                    novo_bi = st.text_input("Nº de BI:", value=str(dados_colab['BI']))
+                
+                if st.form_submit_button("💾 Atualizar Colaborador", use_container_width=True):
+                    df_rh_atual.loc[df_rh_atual['Código'] == dados_colab['Código'], ['Nome', 'Categoria', 'Telefone', 'BI', 'Salário']] = [novo_nome, nova_cat, novo_tel, novo_bi, novo_salario]
+                    salvar_rh_disco(df_rh_atual)
+                    st.success(f"Dados do colaborador '{novo_nome}' atualizados com sucesso!")
                     st.rerun()
-            with col_ed2:
-                with st.form("form_remover_colaborador"):
-                    func_remover = st.selectbox("Selecionar colaborador para remover:", df_editado['Nome'].tolist() if not df_editado.empty else [])
-                    if st.form_submit_button("🗑️ Remover Selecionado", use_container_width=True):
-                        df_editado = df_editado[df_editado['Nome'] != func_remover].reset_index(drop=True)
-                        salvar_rh_disco(df_editado)
-                        st.success(f"Colaborador removido!")
-                        st.rerun()
-        else:
-            st.warning("Nenhum colaborador registado.")
+
+        st.markdown("---")
+        st.markdown("#### 📋 Lista Completa de Colaboradores Cadastrados")
+        df_rh_atual_final = carregar_rh_disco()
+        st.dataframe(df_rh_atual_final, use_container_width=True)
+
+        if not df_rh_atual_final.empty:
+            with st.form("form_remover_colaborador"):
+                func_remover = st.selectbox("Selecionar colaborador para remover:", df_rh_atual_final['Nome'].tolist())
+                if st.form_submit_button("🗑️ Remover Colaborador Selecionado", use_container_width=True):
+                    df_rh_atual_final = df_rh_atual_final[df_rh_atual_final['Nome'] != func_remover].reset_index(drop=True)
+                    salvar_rh_disco(df_rh_atual_final)
+                    st.success(f"Colaborador '{func_remover}' removido!")
+                    st.rerun()
 
         st.markdown("---")
         st.subheader("🏆 Resumo de Bónus Acumulados por Atendimento de Mesas")
