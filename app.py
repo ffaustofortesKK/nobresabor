@@ -789,7 +789,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -974,7 +974,7 @@ def area_caixa_mesas():
                             if tem_pronto:
                                 if st.button("🔔 Prato", key=f"btn_sino_{mesa_idx}", use_container_width=True):
                                     st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
-                                    # Marcar todos os pratos "Feito" desta mesa como "Entregue" automaticamente
+                                    # Atualiza automaticamente o estado da cozinha para "Entregue" para sumir da tela da cozinha
                                     for p_item in mesas_data[str_m].get("pedidos", []):
                                         if p_item.get("cozinha_status") == "Feito":
                                             p_item["cozinha_status"] = "Entregue"
@@ -1476,8 +1476,8 @@ def area_administrador():
                 st.rerun()
 
     with tab_qr:
-        st.subheader("🖨️ Gerador e Visualizador de QR Codes para as Mesas (1 a 30)")
-        st.write("Cada QR Code direciona o cliente diretamente para a interface correspondente da respetiva mesa.")
+        st.subheader("🖨️ Gestão de Links e QR Codes das Mesas (1 a 30)")
+        st.write("Insira o link web oficial da sua aplicação (Deploy) para gerar automaticamente os QR codes e links diretos de cada mesa.")
         
         url_base_padrao = "https://nobresabor.streamlit.app"
         url_site = st.text_input("URL base da Aplicação (Deploy):", value=url_base_padrao)
@@ -1495,6 +1495,8 @@ def area_administrador():
                 
                 with cols[c]:
                     st.markdown(f"#### 🏷️ Mesa {num_mesa_qr}")
+                    st.text_input(f"Link Direto Mesa {num_mesa_qr}", value=link_mesa, key=f"txt_link_mesa_{num_mesa_qr}")
+                    
                     qr_bytes = gerar_imagem_qrcode_pil(link_mesa)
                     st.image(qr_bytes, width=150, caption=f"Mesa {num_mesa_qr}")
                     st.download_button(
