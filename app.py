@@ -122,6 +122,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Caminhos dos Ficheiros de Base de Dados Local (Persistência em Disco)
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
@@ -133,6 +134,7 @@ ARQUIVO_RH_COLABORADORES = "rh_colaboradores.json"
 ARQUIVO_VENDAS_EXCLUIDAS = "vendas_excluidas.json"
 ARQUIVO_SESSAO_CAIXA_OPERADOR = "sessao_caixa_operador.json"
 
+# Funções de Persistência Blindada
 def ler_estado_caixa_disco():
     if os.path.exists(ARQUIVO_ESTADO_CAIXA):
         try:
@@ -421,7 +423,6 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
-    # 1. SE A FATURA JÁ FOI EMITIDA PELO CAIXA (Exibe Fatura Digital e Agradecimento)
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<h4 style='text-align:center; font-size:0.9rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
@@ -450,7 +451,6 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # 2. SE O CLIENTE AINDA NÃO ESTÁ REGISTADO (Boas-vindas e Registo)
     if not dados_m.get("cliente"):
         st.markdown(f"""
             <div style='text-align: center; background: #111118; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 10px;'>
@@ -471,8 +471,6 @@ def area_cliente():
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-        
-    # 3. CLIENTE REGISTADO: ABAS DE PEDIDOS, CONSUMO E EVENTOS
     else:
         cli = dados_m["cliente"]
         st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
@@ -480,23 +478,18 @@ def area_cliente():
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Fazer Pedido", "📊 Consultar Conta", "🎉 Eventos"])
         
-        # --- ABA 1: FAZER PEDIDO (Com Refeições, Bebidas, Sobremesas e Outros) ---
         with t_menu:
             categorias_fixas = ["Bebidas", "Refeições", "Sobremesas", "Outros"]
             
-            # Garantir compatibilidade com itens de utilidades na categoria Outros
             if 'stock' in st.session_state and not st.session_state.stock.empty:
                 stock_df = st.session_state.stock.copy()
-                # Adiciona itens utilitários predefinidos caso não estejam na base de stock
                 utilitarios_extras = [
                     {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
                 ]
-                import pandas as pd
                 stock_df = pd.concat([stock_df, pd.DataFrame(utilitarios_extras)], ignore_index=True)
             else:
-                import pandas as pd
                 stock_df = pd.DataFrame([
                     {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
@@ -539,7 +532,6 @@ def area_cliente():
                         st.success("Pedido enviado com sucesso!")
                         st.rerun()
 
-        # --- ABA 2: CONSULTAR CONTA & PEDIR FECHO ---
         with t_cons:
             total_parcial = 0
             for p in dados_m["pedidos"]:
@@ -564,19 +556,16 @@ def area_cliente():
                     st.success("Conta solicitada ao caixa com sucesso!")
                     st.rerun()
 
-        # --- ABA 3: EVENTOS ---
         with t_ev:
             st.markdown("<span style='font-size:0.7rem; color:#cccccc;'><b>Agenda Cultural - Nobre Sabor:</b><br>• Sexta-feira: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# ÁREA: COZINHA (Com Alarme Sonoro e Histórico Persistente)
+# ÁREA: COZINHA
 # ==========================================
 @st.fragment(run_every=6)
 def area_cozinha():
-    import pandas as pd
-    
     st.title("🍳 Área da Cozinha - Gestão de Refeições")
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
     mesas_data = carregar_mesas_disco()
@@ -584,9 +573,6 @@ def area_cozinha():
     if not st.session_state.caixa_aberto:
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
         return
-
-    if "cozinha_tem_pendentes_som" not in st.session_state:
-        st.session_state.cozinha_tem_pendentes_som = False
 
     tab_pendentes, tab_historico_cozinha = st.tabs(["🔥 Pedidos Pendentes e Ativos", "📋 Histórico de Pratos Preparados no Dia"])
 
@@ -631,7 +617,6 @@ def area_cozinha():
                         elif c_status == "Aprovado":
                             if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
-                                # Ativa o sinal para o caixa disparar o alarme sonoro desta mesa
                                 mesas_data[str_i]["alarme_prato_feito"] = True
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
@@ -639,7 +624,6 @@ def area_cozinha():
                             st.info("A aguardar recolha/entrega")
                             if st.button("🚚 Marcar Entregue", key=f"entregue_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Entregue"
-                                # Opcional: limpa o alarme ao marcar entregue
                                 mesas_data[str_i]["alarme_prato_feito"] = False
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
@@ -683,13 +667,12 @@ def area_cozinha():
         else:
             df_feitos = pd.DataFrame(lista_pratos_feitos)
             st.dataframe(df_feitos, use_container_width=True)
-                    
+
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (CIRCULAR INTERATIVO & ALARME DE SINO)
+# ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para círculos interativos, compactos e animação de alerta
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -729,7 +712,6 @@ def area_caixa_mesas():
         }
         .mesa-aberta { background-color: #1f3b2c; border: 1.5px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
-        
         .pedido-item-compacto {
             margin-bottom: 2px !important;
             padding-bottom: 2px !important;
@@ -740,17 +722,14 @@ def area_caixa_mesas():
 
     mesas_data = carregar_mesas_disco()
 
-    # --- VERIFICAÇÃO DE PEDIDOS PRONTOS QUE NECESSITAM DE ALARME ---
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
         silenciado_pelo_operador = st.session_state.get(f"silenciar_alarme_mesa_{str_m}", False)
-        
         if tem_pronto and not silenciado_pelo_operador:
             tem_mesas_prontas_com_alerta = True
             break
 
-    # Injeção de script JavaScript para disparar o bipe contínuo enquanto houver mesas com pratos prontos não silenciados
     if tem_mesas_prontas_com_alerta:
         st.markdown("""
             <script>
@@ -761,7 +740,7 @@ def area_caixa_mesas():
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
                         osc.type = 'sine';
-                        osc.frequency.value = 659.25; // Nota E5 (Alerta nítido)
+                        osc.frequency.value = 659.25;
                         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                         osc.connect(gain);
                         gain.connect(audioCtx.destination);
@@ -783,7 +762,6 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
 
     st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
-    
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
     if not st.session_state.caixa_aberto:
@@ -792,7 +770,6 @@ def area_caixa_mesas():
 
     sessao_op = carregar_sessao_operador()
 
-    # 1. LOGIN DO OPERADOR DE CAIXA
     if not sessao_op["logado"]:
         with st.form("form_login_caixa_operador"):
             st.markdown("### 🔐 Autenticação do Funcionário de Caixa")
@@ -816,7 +793,6 @@ def area_caixa_mesas():
                     st.warning("Preencha o utilizador e a senha.")
         return
 
-    # 2. ABERTURA DO CAIXA DO PERÍODO
     if not sessao_op["turno_aberto"]:
         st.markdown(f"""
             <div style="background-color: #141428; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;">
@@ -854,9 +830,8 @@ def area_caixa_mesas():
                 st.rerun()
         return  
 
-    # 3. CAIXA EM FUNCIONAMENTO
     hist_vendas = carregar_historico_vendas()
-    cardapio_data = carregar_cardapio_disco() if 'carregar_cardapio_disco' in globals() else {}
+    stock_df_cx_card = carregar_stock_disco()
 
     hora_abertura_turno = sessao_op.get("hora_abertura", "2000-01-01 00:00:00")
     vendas_turno = [
@@ -870,7 +845,6 @@ def area_caixa_mesas():
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    # Layout superior
     st.markdown(f"""
         <div style="background-color: #141428; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
@@ -885,14 +859,12 @@ def area_caixa_mesas():
         </div>
     """, unsafe_allow_html=True)
 
-    # ABAS DE NAVEGAÇÃO DO CAIXA
     aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
         "🗺️ Mesas & Operações", 
         "📚 Histórico de Vendas por Cliente", 
         "🔒 Fecho de Caixa / Resumo"
     ])
 
-    # --- ABA 3: FECHO DE CAIXA ---
     with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
         st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados.")
@@ -927,6 +899,17 @@ def area_caixa_mesas():
             st.markdown(f"### 💰 Faturação Total do Turno: **{total_geral_turno:,.2f} Kz**")
             
             if st.button("🔒 Fechar Período de Caixa com Segurança", type="primary", use_container_width=True):
+                fechos = carregar_fechos_caixa()
+                fechos.append({
+                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "Operador": sessao_op['operador'],
+                    "Período": sessao_op['periodo'],
+                    "Total Fecho": total_geral_turno,
+                    "Dinheiro": total_dinheiro_vendas,
+                    "TPA": total_tpa_vendas
+                })
+                salvar_fechos_caixa(fechos)
+                
                 sessao_op["logado"] = False
                 sessao_op["operador"] = "Nenhum"
                 sessao_op["turno_aberto"] = False
@@ -937,7 +920,6 @@ def area_caixa_mesas():
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
 
-    # --- ABA 2: HISTÓRICO DE VENDAS ---
     with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
         if hist_vendas:
@@ -952,13 +934,11 @@ def area_caixa_mesas():
         else:
             st.info("Sem registos no histórico de vendas.")
 
-    # --- ABA 1: MESAS & OPERAÇÕES ---
     with aba_operador_1:
         col_esq, col_dir = st.columns([1.2, 0.8])
 
         with col_dir:
             st.markdown("#### MESAS")
-            
             cols_grelha = 3
             rows = 10
             mesa_idx = 1
@@ -977,8 +957,8 @@ def area_caixa_mesas():
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
                     tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                    tem_bebida = any("bebida" in str(p.get("categoria", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                    tem_sobremesa = any("sobremesa" in str(p.get("categoria", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_bebida = any("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_sobremesa = any("sobremesa" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
                     if tem_pronto: simbolos_topo_lista.append("🍲")
@@ -998,7 +978,6 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Badges / Avisos de Conta ou Prato Pronto
                         if solicitou_fecho or tem_pronto:
                             badge_html = '<div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">'
                             if solicitou_fecho:
@@ -1006,14 +985,12 @@ def area_caixa_mesas():
                             badge_html += '</div>'
                             st.markdown(badge_html, unsafe_allow_html=True)
                             
-                            # Botão dedicado ao Sino / Prato pronto para parar o som desta mesa ao clicar
                             if tem_pronto:
                                 if st.button("🔔 Prato", key=f"btn_sino_{mesa_idx}", use_container_width=True):
                                     st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
                                     st.session_state.mesa_selecionada_caixa = mesa_idx
                                     st.rerun()
 
-                        # Círculo interativo da mesa
                         conteudo_circulo = f"""
                             <div class="mesa-circle {classe_css}">
                                 <div style="font-size: 0.45rem; line-height: 1; text-align: center; white-space: nowrap;">{simbolo_topo}</div>
@@ -1024,7 +1001,6 @@ def area_caixa_mesas():
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
                         
-                        # Botão para gerir a mesa (também silencia o alerta sonoro e abre os detalhes)
                         if st.button(f"Gerir Mesa {mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
@@ -1041,50 +1017,49 @@ def area_caixa_mesas():
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                # Cabeçalho da Mesa selecionada
                 st.markdown(f"### ⚙️ Pedido da Mesa {m_sel} - {nome_cliente_titulo}", unsafe_allow_html=True)
                 
-                # --- BOTÃO PARA ADICIONAR PEDIDO PELO CAIXA ---
                 if st.button("➕ Adicionar Pedido a esta Mesa", key=f"btn_toggle_add_pedido_{m_sel}", type="secondary", use_container_width=True):
                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
                     st.rerun()
 
-                # --- SEÇÃO DE ADIÇÃO DE PEDIDO COM AS CATEGORIAS DO CLIENTE ---
                 if st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False):
                     with st.container():
                         st.markdown(f"<div style='background: #161625; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;'>", unsafe_allow_html=True)
                         st.markdown("#### 🛒 Registar Novo Item para o Cliente")
                         
-                        if cardapio_data:
-                            categorias_disponiveis = ["Refeições", "Bebidas", "Sobremesas"]
-                            categorias_validas = [cat for cat in categorias_disponiveis if cat in cardapio_data]
+                        if not stock_df_cx_card.empty:
+                            categorias_disponiveis = ["Refeições", "Bebidas", "Sobremesas", "Outros"]
+                            categorias_validas = [cat for cat in categorias_disponiveis if cat in stock_df_cx_card['Categoria'].values]
                             if not categorias_validas:
-                                categorias_validas = list(cardapio_data.keys())
+                                categorias_validas = stock_df_cx_card['Categoria'].unique().tolist()
 
                             cat_escolhida = st.selectbox("Escolha a Categoria:", categorias_validas, key=f"cx_cat_{m_sel}")
+                            itens_da_cat = stock_df_cx_card[stock_df_cx_card['Categoria'] == cat_escolhida]
                             
-                            itens_da_cat = cardapio_data.get(cat_escolhida, {})
-                            if itens_da_cat:
-                                lista_itens_formatada = {f"{item_nome} — {item_info.get('preco', 0.0):,.2f} Kz": item_nome for item_nome, item_info in itens_da_cat.items()}
+                            if not itens_da_cat.empty:
+                                lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens_da_cat.iterrows()}
                                 item_selecionado_label = st.selectbox("Escolha o Item:", list(lista_itens_formatada.keys()), key=f"cx_item_label_{m_sel}")
                                 
                                 nome_item_escolhido = lista_itens_formatada[item_selecionado_label]
-                                dados_item = itens_da_cat[nome_item_escolhido]
-                                preco_unitario = float(dados_item.get("preco", 0.0))
+                                p_row = itens_da_cat[itens_da_cat['Produto'] == nome_item_escolhido].iloc[0]
+                                preco_unitario = float(p_row['Preço Unitário'])
                                 
                                 qtd_adicionar = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"cx_qtd_{m_sel}")
                                 obs_item = st.text_input("Observações (ex: sem gelo, bem passado):", key=f"cx_obs_{m_sel}")
                                 
                                 if st.button("📥 Confirmar e Enviar Pedido", type="primary", key=f"cx_salvar_novo_ped_{m_sel}", use_container_width=True):
+                                    is_ref_cx = cat_escolhida.lower() in ["refeições", "refeicoes", "pratos", "comida"]
                                     novo_item_reg = {
                                         "item": nome_item_escolhido,
                                         "quantidade": int(qtd_adicionar),
                                         "preco": preco_unitario,
-                                        "categoria": cat_escolhida,
+                                        "tipo": cat_escolhida,
                                         "observacao": obs_item,
-                                        "status": "Pendente",
-                                        "cozinha_status": "Pendente",
-                                        "origem": f"Caixa ({sessao_op['operador']})"
+                                        "status": "Confirmado" if not is_ref_cx else "Pendente",
+                                        "cozinha_status": "N/A" if not is_ref_cx else "Pendente",
+                                        "origem": f"Caixa ({sessao_op['operador']})",
+                                        "hora": datetime.now().strftime("%H:%M")
                                     }
                                     
                                     if not dados_m_sel.get("cliente"):
@@ -1092,7 +1067,6 @@ def area_caixa_mesas():
                                         dados_m_sel["status"] = "Aberta"
                                     
                                     dados_m_sel["pedidos"].append(novo_item_reg)
-                                    
                                     novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                                     dados_m_sel["total"] = novo_total
                                     
@@ -1103,13 +1077,11 @@ def area_caixa_mesas():
                                     st.success(f"Item '{nome_item_escolhido}' adicionado com sucesso à Mesa {m_sel}!")
                                     st.rerun()
                             else:
-                                st.warning("Esta categoria não possui itens disponíveis no momento.")
+                                st.warning("Esta categoria não possui itens.")
                         else:
-                            st.warning("O cardápio está vazio ou indisponível.")
-                        
+                            st.warning("O stock está vazio.")
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
@@ -1146,8 +1118,8 @@ def area_caixa_mesas():
                                             mesas_data[str(m_sel)] = dados_m_sel
                                             salvar_mesas_disco(mesas_data)
                                             
-                                            vendas_excluidas = carregar_vendas_excluidas() if 'carregar_vendas_excluidas' in globals() else []
-                                            reg_excluido = {
+                                            vendas_excluidas = carregar_vendas_excluidas()
+                                            vendas_excluidas.append({
                                                 "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                                 "Caixa": sessao_op['operador'],
                                                 "Mesa": m_sel,
@@ -1156,15 +1128,14 @@ def area_caixa_mesas():
                                                 "Valor": subtotal_item,
                                                 "Motivo": motivo_anulacao,
                                                 "Período": sessao_op['periodo']
-                                            }
-                                            vendas_excluidas.append(reg_excluido)
-                                            salvar_vendas_excluidas(vendas_excluidas) if 'salvar_vendas_excluidas' in globals() else None
+                                            })
+                                            salvar_vendas_excluidas(vendas_excluidas)
                                             
                                             st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
-                                            st.success("Item anulado e registado na auditoria do Administrador!")
+                                            st.success("Item anulado e registado na auditoria!")
                                             st.rerun()
                                         else:
-                                            st.warning("Insira uma justificativa obrigatória.")
+                                            st.warning("Insira uma justificativa.")
                                 with col_j2:
                                     if st.button("Cancelar", key=f"fechar_anular_{m_sel}_{idx_p}", use_container_width=True):
                                         st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
@@ -1203,14 +1174,13 @@ def area_caixa_mesas():
                             "Período": sessao_op['periodo'],
                             "Valor Dinheiro": v_dinheiro,
                             "Valor TPA": v_tpa,
-                            "Total": total_a_pagar,
+                            "Valor Total": total_a_pagar,
                             "pedidos": dados_m_sel.get("pedidos", [])
                         }
                         
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        # Limpa o silenciamento e reseta os dados da mesa
                         st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
                         
                         mesas_data[str(m_sel)] = {
@@ -1218,8 +1188,8 @@ def area_caixa_mesas():
                         }
                         salvar_mesas_disco(mesas_data)
                         st.success(f"Conta da Mesa {m_sel} encerrada!")
-                        st.rerun() 
-                                                                                   
+                        st.rerun()
+
 # ==========================================
 # ÁREA: ADMINISTRADOR
 # ==========================================
@@ -1248,7 +1218,7 @@ def area_administrador():
             st.rerun()
             
     with col_links_rapidos:
-        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos (Abrir noutra janela sem fechar o ADM):</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.95rem; margin-bottom: 4px;'>🔗 Acessos Rápidos:</div>", unsafe_allow_html=True)
         col_lnk1, col_lnk2 = st.columns(2)
         with col_lnk1:
             st.link_button("💻 Abrir Painel do Caixa", "?perfil=caixa", use_container_width=True)
@@ -1260,10 +1230,7 @@ def area_administrador():
 
     vendas_exc_check = carregar_vendas_excluidas()
     tem_novas_exclusoes = len(vendas_exc_check) > 0
-    
-    nome_aba_excluidas = "🚨 Vendas Excluídas"
-    if tem_novas_exclusoes:
-        nome_aba_excluidas = "🚨 Vendas Excluídas (NOVO!)"
+    nome_aba_excluidas = "🚨 Vendas Excluídas (NOVO!)" if tem_novas_exclusoes else "🚨 Vendas Excluídas"
 
     tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch, tab_exc = st.tabs([
         "💰 Finanças & Abertura do Dia", 
@@ -1367,8 +1334,6 @@ def area_administrador():
 
     with tab_saidas:
         st.subheader("💸 Gestão e Registo de Saídas de Caixa (Atribuição de Fundo / Troco)")
-        st.write("Quando o ADM faz uma saída para o caixa, deve selecionar o utilizador recetor e o período correspondente.")
-        
         with st.form("form_registar_saida"):
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
@@ -1384,17 +1349,16 @@ def area_administrador():
             btn_salvar_saida = st.form_submit_button("🚀 Registar Saída e Enviar para o Caixa", use_container_width=True)
             if btn_salvar_saida and motivo_saida and valor_saida > 0:
                 saidas_list = carregar_saidas_caixa()
-                nova_saida = {
+                saidas_list.append({
                     "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Motivo": motivo_saida,
                     "Destino Utilizador": destino_utilizador,
                     "Período": periodo_destino,
                     "Valor": float(valor_saida),
                     "Responsável": responsavel_saida
-                }
-                saidas_list.append(nova_saida)
+                })
                 salvar_saidas_caixa(saidas_list)
-                st.success(f"Saída registada e enviada com sucesso para o utilizador {destino_utilizador} ({periodo_destino})!")
+                st.success(f"Saída registada e enviada para {destino_utilizador} ({periodo_destino})!")
                 st.rerun()
 
         st.divider()
@@ -1410,9 +1374,9 @@ def area_administrador():
 
     with tab_stk:
         st.subheader("📦 Gestão de Stock e Produtos/Pratos")
+        stock_df = st.session_state.stock
         
         with st.form("form_add_produto"):
-            st.markdown("#### Adicionar / Atualizar Item no Menu")
             col_s1, col_s2 = st.columns(2)
             with col_s1:
                 novo_produto = st.text_input("Nome do Produto/Prato:")
@@ -1423,36 +1387,33 @@ def area_administrador():
                 
             btn_salvar_prod = st.form_submit_button("💾 Salvar / Atualizar Produto", use_container_width=True)
             if btn_salvar_prod and novo_produto:
-                df_stk = st.session_state.stock
-                if not df_stk.empty and novo_produto in df_stk['Produto'].values:
-                    df_stk.loc[df_stk['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
-                    st.success(f"Produto '{novo_produto}' atualizado com sucesso!")
+                if not stock_df.empty and novo_produto in stock_df['Produto'].values:
+                    stock_df.loc[stock_df['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
+                    st.success(f"Produto '{novo_produto}' atualizado!")
                 else:
                     novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
-                    st.session_state.stock = pd.concat([df_stk, novo_df_linha], ignore_index=True)
-                    st.success(f"Produto '{novo_produto}' adicionado com sucesso!")
-                
-                salvar_stock_disco(st.session_state.stock)
+                    stock_df = pd.concat([stock_df, novo_df_linha], ignore_index=True)
+                    st.success(f"Produto '{novo_produto}' adicionado!")
+                st.session_state.stock = stock_df
+                salvar_stock_disco(stock_df)
                 st.rerun()
 
         st.divider()
         st.markdown("#### Lista Atual de Produtos")
-        st.dataframe(st.session_state.stock, use_container_width=True)
+        st.dataframe(stock_df, use_container_width=True)
         
-        if not st.session_state.stock.empty:
+        if not stock_df.empty:
             with st.form("form_del_produto"):
-                produto_a_remover = st.selectbox("Selecionar produto para remover:", st.session_state.stock['Produto'].tolist())
-                btn_remover = st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True)
-                if btn_remover:
-                    st.session_state.stock = st.session_state.stock[st.session_state.stock['Produto'] != produto_a_remover].reset_index(drop=True)
-                    salvar_stock_disco(st.session_state.stock)
+                produto_a_remover = st.selectbox("Selecionar produto para remover:", stock_df['Produto'].tolist())
+                if st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True):
+                    stock_df = stock_df[stock_df['Produto'] != produto_a_remover].reset_index(drop=True)
+                    st.session_state.stock = stock_df
+                    salvar_stock_disco(stock_df)
                     st.success(f"Produto '{produto_a_remover}' removido!")
                     st.rerun()
-        
+
     with tab_dch:
         st.subheader("👥 DCH — Cadastramento de Colaboradores & Bónus Acumulados")
-        st.write("Faça o registo da equipa (Garçons) e consulte o acumulado de bónus por mesas atendidas (**500 Kz por mesa**).")
-        
         with st.expander("➕ Cadastrar Novo Colaborador / Garçon", expanded=False):
             with st.form("form_cadastrar_colaborador"):
                 col_r1, col_r2 = st.columns(2)
@@ -1464,18 +1425,15 @@ def area_administrador():
                     tel_func = st.text_input("Telefone:")
                     bi_func = st.text_input("Nº de BI:")
                 
-                btn_salvar_func = st.form_submit_button("💾 Salvar Colaborador", use_container_width=True)
-                if btn_salvar_func and cod_func and nome_func:
+                if st.form_submit_button("💾 Salvar Colaborador", use_container_width=True) and cod_func and nome_func:
                     df_rh = carregar_rh_disco()
                     if not df_rh.empty and (cod_func in df_rh['Código'].values):
                         df_rh.loc[df_rh['Código'] == cod_func, ['Nome', 'Categoria', 'Telefone', 'BI']] = [nome_func, cat_func, tel_func, bi_func]
-                        st.success(f"Colaborador '{nome_func}' atualizado com sucesso!")
                     else:
                         nova_linha_rh = pd.DataFrame([[cod_func, nome_func, cat_func, tel_func, bi_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
                         df_rh = pd.concat([df_rh, nova_linha_rh], ignore_index=True)
-                        st.success(f"Colaborador '{nome_func}' registado com sucesso!")
-                    
                     salvar_rh_disco(df_rh)
+                    st.success(f"Colaborador '{nome_func}' guardado com sucesso!")
                     st.rerun()
 
         st.markdown("#### 📋 Lista de Colaboradores Cadastrados")
@@ -1485,11 +1443,10 @@ def area_administrador():
         if not df_rh_atual.empty:
             with st.form("form_remover_colaborador"):
                 func_remover = st.selectbox("Selecionar colaborador para remover:", df_rh_atual['Nome'].tolist())
-                btn_rem_func = st.form_submit_button("🗑️ Remover Colaborador Selecionado", use_container_width=True)
-                if btn_rem_func:
+                if st.form_submit_button("🗑️ Remover Colaborador Selecionado", use_container_width=True):
                     df_rh_atual = df_rh_atual[df_rh_atual['Nome'] != func_remover].reset_index(drop=True)
                     salvar_rh_disco(df_rh_atual)
-                    st.success(f"Colaborador '{func_remover}' removido com sucesso!")
+                    st.success(f"Colaborador '{func_remover}' removido!")
                     st.rerun()
 
         st.markdown("---")
@@ -1499,18 +1456,13 @@ def area_administrador():
             st.info("Ainda não existem mesas atendidas registadas para calcular bónus.")
         else:
             df_atend = pd.DataFrame(atendimentos)
-            
             df_resumo_bonus = df_atend.groupby("Garçon").agg(
                 Mesas_Atendidas=("Mesa", "count"),
-                Total_Vendido=("Valor Venda", "sum")
+                Total_Vendido=("Valor", "sum")
             ).reset_index()
             
-            VALOR_POR_PONTO = 500.0
-            df_resumo_bonus["Bónus Acumulado (Kz)"] = df_resumo_bonus["Mesas_Atendidas"] * VALOR_POR_PONTO
-            
+            df_resumo_bonus["Bónus Acumulado (Kz)"] = df_resumo_bonus["Mesas_Atendidas"] * 500.0
             st.dataframe(df_resumo_bonus, use_container_width=True)
-            
-            st.markdown("#### 📋 Histórico Detalhado de Atendimentos")
             st.dataframe(df_atend, use_container_width=True)
 
     with tab_exc:
