@@ -404,7 +404,7 @@ def area_cliente():
         .stButton button:hover { background-color: #222222; border-color: #555555; }
         .element-container, .stTextInput, .stSelectbox { margin-bottom: -0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { background-color: #000000; }
-        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #aaaaaa; font-size: 0.75rem; }
+        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #aaaaaa; font-size: 0.70rem; }
         .stTabs [aria-selected="true"] { background-color: #111111 !important; color: #ffb703 !important; }
         @media (max-width: 400px) { .tablet-container { border: none; padding: 0; background: #000000; } }
         </style>
@@ -421,62 +421,125 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
+    # 1. SE A FATURA JÁ FOI EMITIDA PELO CAIXA (Exibe Fatura Digital e Agradecimento)
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        st.markdown("<h4 style='text-align:center; font-size:0.9rem; color:#ffffff;'>🧾 Fatura Emitida</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align:center; font-size:0.9rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
+        
         for item in fat['itens']:
             st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
-        st.markdown(f"<b style='font-size:0.8rem; color:#ffffff;'>Total: {fat['total']:,.2f}Kz</b>", unsafe_allow_html=True)
+            
+        st.markdown(f"<b style='font-size:0.8rem; color:#ffffff;'>Total Pago: {fat['total']:,.2f}Kz</b>", unsafe_allow_html=True)
+        
+        st.markdown("""
+            <div style='background-color: #111118; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
+                <p style='color: #4ac26b; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;'>🙏 Muito Obrigado!</p>
+                <p style='color: #cccccc; font-size: 0.7rem; line-height: 1.2;'>Agradecemos a sua preferência por ter estado connosco no <b>Restaurante Nobre Sabor</b>. Volte sempre!</p>
+            </div>
+        """, unsafe_allow_html=True)
+
         try:
             pdf_path = gerar_pdf_fatura(fat, num_mesa)
             if os.path.exists(pdf_path):
                 with open(pdf_path, "rb") as f:
-                    st.download_button("📥 PDF", data=f, file_name=f"Fatura_{num_mesa}.pdf", use_container_width=True)
+                    st.download_button("📥 Descarregar PDF", data=f, file_name=f"Fatura_NobreSabor_Mesa_{num_mesa}.pdf", use_container_width=True)
         except Exception:
             pass
+            
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
+    # 2. SE O CLIENTE AINDA NÃO ESTÁ REGISTADO (Boas-vindas e Registo)
     if not dados_m.get("cliente"):
-        st.markdown(f"<h4 style='text-align:center; font-size:0.9rem; color:#ffffff;'>🍽️ Mesa {num_mesa} - Registo</h4>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <div style='text-align: center; background: #111118; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 10px;'>
+                <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
+                <p style='font-size:0.75rem; color:#cccccc; margin: 0;'>Por favor, faça o seu registo para iniciar o atendimento na <b>Mesa {num_mesa}</b>.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
         with st.form(f"fc_{num_mesa}"):
-            nome = st.text_input("Nome:", placeholder="Seu nome")
-            tel = st.text_input("Telemóvel:", placeholder="Contacto")
-            nif = st.text_input("NIF (Opcional):", placeholder="NIF")
-            whatsapp = st.checkbox("Entrar no Grupo WhatsApp?")
-            if st.form_submit_button("Entrar", use_container_width=True) and nome and tel:
+            nome = st.text_input("Seu Nome:", placeholder="Ex: João Silva")
+            tel = st.text_input("Telemóvel:", placeholder="Ex: 923456789")
+            nif = st.text_input("NIF (Opcional):", placeholder="NIF para fatura")
+            whatsapp = st.checkbox("Deseja entrar no Grupo WhatsApp do Restaurante?")
+            
+            if st.form_submit_button("Entrar e Começar", use_container_width=True) and nome and tel:
                 dados_m["cliente"] = {"nome": nome, "telefone": tel, "nif": nif, "whatsapp": whatsapp}
                 dados_m["status"] = "Aberta"
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+        
+    # 3. CLIENTE REGISTADO: ABAS DE PEDIDOS, CONSUMO E EVENTOS
     else:
         cli = dados_m["cliente"]
-        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#111111; padding:5px; border-radius:6px;'>Mesa {num_mesa} | Cliente: <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#111111; padding:5px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
-        t_menu, t_cons, t_ev = st.tabs(["📋 Pedir", "📊 Consumo", "🎉 Eventos"])
+        t_menu, t_cons, t_ev = st.tabs(["📋 Fazer Pedido", "📊 Consultar Conta", "🎉 Eventos"])
         
+        # --- ABA 1: FAZER PEDIDO (Com Refeições, Bebidas, Sobremesas e Outros) ---
         with t_menu:
-            cat = st.selectbox("Cat:", st.session_state.stock['Categoria'].unique().tolist(), key="c_cat")
-            itens = st.session_state.stock[st.session_state.stock['Categoria'] == cat]
+            categorias_fixas = ["Bebidas", "Refeições", "Sobremesas", "Outros"]
+            
+            # Garantir compatibilidade com itens de utilidades na categoria Outros
+            if 'stock' in st.session_state and not st.session_state.stock.empty:
+                stock_df = st.session_state.stock.copy()
+                # Adiciona itens utilitários predefinidos caso não estejam na base de stock
+                utilitarios_extras = [
+                    {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
+                    {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
+                    {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
+                ]
+                import pandas as pd
+                stock_df = pd.concat([stock_df, pd.DataFrame(utilitarios_extras)], ignore_index=True)
+            else:
+                import pandas as pd
+                stock_df = pd.DataFrame([
+                    {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
+                    {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
+                    {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
+                ])
+
+            cats_disponiveis = [c for c in categorias_fixas if c in stock_df['Categoria'].unique().tolist()]
+            if not cats_disponiveis:
+                cats_disponiveis = stock_df['Categoria'].unique().tolist()
+
+            cat = st.selectbox("Categoria:", cats_disponiveis, key="c_cat")
+            itens = stock_df[stock_df['Categoria'] == cat]
+            
             if not itens.empty:
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
                     prod = st.selectbox("Item:", itens['Produto'].tolist())
-                    qtd = st.number_input("Qtd:", 1, 99, 1)
-                    if st.form_submit_button("🚀 Enviar", use_container_width=True):
+                    qtd = st.number_input("Quantidade:", 1, 99, 1)
+                    obs_cliente = st.text_input("Observação (opcional):", placeholder="Ex: Sem gelo, bem passado...")
+                    
+                    if st.form_submit_button("🚀 Enviar Pedido", use_container_width=True):
                         p_row = itens[itens['Produto'] == prod].iloc[0]
+                        preco_unit = float(p_row['Preço Unitário']) if 'Preço Unitário' in p_row else 0.0
+                        
                         is_ref = cat.lower() in ["refeições", "refeicoes", "pratos", "comida"]
+                        
                         dados_m["pedidos"].append({
-                            "item": prod, "tipo": cat, "quantidade": int(qtd),
-                            "preco": float(p_row['Preço Unitário']), "origem": f"Cliente ({cli['nome']})",
-                            "obs": "", "status": "Confirmado" if not is_ref else "Pendente",
-                            "cozinha_status": "N/A" if not is_ref else "Pendente", "hora": datetime.now().strftime("%H:%M")
+                            "item": prod, 
+                            "tipo": cat, 
+                            "quantidade": int(qtd),
+                            "preco": preco_unit, 
+                            "origem": f"Cliente ({cli['nome']})",
+                            "observacao": obs_cliente, 
+                            "status": "Confirmado" if not is_ref else "Pendente",
+                            "cozinha_status": "N/A" if not is_ref else "Pendente", 
+                            "hora": datetime.now().strftime("%H:%M")
                         })
+                        
                         dados_m["total"] = float(sum(p['quantidade']*p['preco'] for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"]))
                         salvar_mesas_disco(mesas_data)
+                        st.success("Pedido enviado com sucesso!")
                         st.rerun()
 
+        # --- ABA 2: CONSULTAR CONTA & PEDIR FECHO ---
         with t_cons:
             total_parcial = 0
             for p in dados_m["pedidos"]:
@@ -485,21 +548,25 @@ def area_cliente():
                     total_parcial += t_item
                 st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — <b>{p['status']}</b></span>", unsafe_allow_html=True)
             
-            st.markdown(f"<b style='font-size:0.75rem; color:#ffffff;'>Parcial: {total_parcial:,.2f}Kz</b>", unsafe_allow_html=True)
+            st.markdown(f"<b style='font-size:0.75rem; color:#ffffff;'>Total Parcial: {total_parcial:,.2f}Kz</b>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 6px 0; border-color: #222;'>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
-                if st.button("Cancelar Fecho", key=f"cf_{num_mesa}"):
+                st.info("⏳ Pedido de fecho enviado ao caixa. Aguarde o atendimento.")
+                if st.button("Cancelar Pedido de Fecho", key=f"cf_{num_mesa}", use_container_width=True):
                     dados_m["solicitou_fecho"] = False
                     salvar_mesas_disco(mesas_data)
                     st.rerun()
             else:
-                if st.button("🔔 Pedir Fecho", type="primary", use_container_width=True):
+                if st.button("🔔 Pedir Conta / Fechar", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
                     salvar_mesas_disco(mesas_data)
+                    st.success("Conta solicitada ao caixa com sucesso!")
                     st.rerun()
 
+        # --- ABA 3: EVENTOS ---
         with t_ev:
-            st.markdown("<span style='font-size:0.7rem; color:#cccccc;'>Sexta: Música ao Vivo<br>Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-size:0.7rem; color:#cccccc;'><b>Agenda Cultural - Nobre Sabor:</b><br>• Sexta-feira: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
         st.markdown('</div>', unsafe_allow_html=True)
         
