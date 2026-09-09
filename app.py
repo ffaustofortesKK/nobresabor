@@ -571,11 +571,11 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
         
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (CIRCULAR INTERATIVO & ADIÇÃO DE PEDIDOS)
+# ÁREA: CAIXA / GESTÃO DE MESAS (CIRCULAR INTERATIVO & ALARME DE SINO)
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para círculos interativos, compactos e alertas
+    # Injeção de CSS para círculos interativos, compactos e animação de alerta
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -626,7 +626,7 @@ def area_caixa_mesas():
 
     mesas_data = carregar_mesas_disco()
 
-    # --- VERIFICAÇÃO DE PEDIDOS PRONTOS QUE AINDA NÃO FORAM SILENCIADOS ---
+    # --- VERIFICAÇÃO DE PEDIDOS PRONTOS QUE NECESSITAM DE ALARME ---
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
@@ -636,15 +636,8 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # Se houver mesas prontas, garantimos um botão de ativação de áudio caso o navegador bloqueie o autoplay
+    # Injeção de script JavaScript para disparar o bipe contínuo enquanto houver mesas com pratos prontos não silenciados
     if tem_mesas_prontas_com_alerta:
-        if not st.session_state.get("audio_liberado_usuario", False):
-            if st.button("🔊 CLIQUE AQUI PARA ATIVAR O SOM DOS PRONTOS", type="primary", use_container_width=True):
-                st.session_state["audio_liberado_usuario"] = True
-                st.rerun()
-
-    # Injeção de áudio via Web Audio API (só toca se o utilizador já tiver interagido/liberado)
-    if tem_mesas_prontas_com_alerta and st.session_state.get("audio_liberado_usuario", False):
         st.markdown("""
             <script>
             if (!window.audioAlertaInterval) {
@@ -654,14 +647,14 @@ def area_caixa_mesas():
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
                         osc.type = 'sine';
-                        osc.frequency.value = 587.33; // Nota D5
+                        osc.frequency.value = 659.25; // Nota E5 (Alerta nítido)
                         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                         osc.connect(gain);
                         gain.connect(audioCtx.destination);
                         osc.start();
                         osc.stop(audioCtx.currentTime + 0.25);
                     } catch(e) {}
-                }, 1200);
+                }, 1400);
             }
             </script>
         """, unsafe_allow_html=True)
@@ -720,7 +713,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -779,15 +772,14 @@ def area_caixa_mesas():
     """, unsafe_allow_html=True)
 
     # ABAS DE NAVEGAÇÃO DO CAIXA
-    aba_operador_1, aba_operador_2, aba_operador_3, aba_operador_4 = st.tabs([
+    aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
         "🗺️ Mesas & Operações", 
-        "📱 QR Codes das Mesas", 
-        "📚 Histórico de Vendas", 
-        "🔒 Fecho de Caixa"
+        "📚 Histórico de Vendas por Cliente", 
+        "🔒 Fecho de Caixa / Resumo"
     ])
 
-    # --- ABA 4: FECHO DE CAIXA ---
-    with aba_operador_4:
+    # --- ABA 3: FECHO DE CAIXA ---
+    with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
         st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados.")
         
@@ -831,8 +823,8 @@ def area_caixa_mesas():
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
 
-    # --- ABA 3: HISTÓRICO DE VENDAS ---
-    with aba_operador_3:
+    # --- ABA 2: HISTÓRICO DE VENDAS ---
+    with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
         if hist_vendas:
             pesquisa_cli = st.text_input("Filtrar por Nome do Cliente ou Telefone:", placeholder="Digite o nome...", key="filtro_hist_cli_caixa")
@@ -845,31 +837,6 @@ def area_caixa_mesas():
                         st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
         else:
             st.info("Sem registos no histórico de vendas.")
-
-    # --- ABA 2: QR CODES DAS MESAS ---
-    with aba_operador_2:
-        st.markdown("### 📱 Gestão de QR Codes para Auto-Atendimento nas Mesas")
-        st.info("Aqui pode visualizar e descarregar os códigos QR correspondentes a cada mesa para os clientes efetuarem pedidos.")
-        
-        col_qr1, col_qr2 = st.columns(2)
-        with col_qr1:
-            mesa_qr_sel = st.selectbox("Selecione a Mesa para o QR Code:", list(range(1, 31)), key="select_mesa_qr_caixa")
-        
-        try:
-            import qrcode
-            from io import BytesIO
-            
-            # Gerador visual do QR Code para a mesa selecionada
-            url_mesa = f"https://seuapp.streamlit.app/?mesa={mesa_qr_sel}"
-            img_qr = qrcode.make(url_mesa)
-            buf = BytesIO()
-            img_qr.save(buf, format="PNG")
-            
-            st.markdown(f"#### QR Code - Mesa {mesa_qr_sel}")
-            st.image(buf.getvalue(), width=250)
-            st.caption(Link de Acesso: `{url_mesa}` text)
-        except ImportError:
-            st.warning("A biblioteca 'qrcode' não está instalada no ambiente Python. Instale com `pip install qrcode[pil]` para gerar as imagens.")
 
     # --- ABA 1: MESAS & OPERAÇÕES ---
     with aba_operador_1:
@@ -917,7 +884,7 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Bloco superior com o Sino interativo para silenciar o alarme ao clicar diretamente nele
+                        # Badges / Avisos de Conta ou Prato Pronto
                         if solicitou_fecho or tem_pronto:
                             badge_html = '<div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">'
                             if solicitou_fecho:
@@ -925,7 +892,7 @@ def area_caixa_mesas():
                             badge_html += '</div>'
                             st.markdown(badge_html, unsafe_allow_html=True)
                             
-                            # Botão específico para clicar diretamente em cima do Sino do Prato e calar o alarme desta mesa
+                            # Botão dedicado ao Sino / Prato pronto para parar o som desta mesa ao clicar
                             if tem_pronto:
                                 if st.button("🔔 Prato", key=f"btn_sino_{mesa_idx}", use_container_width=True):
                                     st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
@@ -943,7 +910,7 @@ def area_caixa_mesas():
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
                         
-                        # Botão para gerir a mesa (ao clicar aqui, seleciona a mesa, cessa o alarme e abre os detalhes)
+                        # Botão para gerir a mesa (também silencia o alerta sonoro e abre os detalhes)
                         if st.button(f"Gerir Mesa {mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
@@ -1129,7 +1096,7 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        # Limpa também a flag de silenciamento ao fechar a mesa
+                        # Limpa o silenciamento e reseta os dados da mesa
                         st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
                         
                         mesas_data[str(m_sel)] = {
