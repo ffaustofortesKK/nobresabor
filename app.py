@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais e Simulação Estável de Ecrã de Telemóvel
+# Estilos CSS Profissionais, Ecrã de Telemóvel Realista e Alerta Anos 90
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -58,15 +58,31 @@ st.markdown("""
         display: none;
     }
 
-    /* Moldura de Telemóvel Centralizada */
-    .phone-container {
-        max-width: 380px;
-        margin: 20px auto;
-        background-color: #111118;
-        border: 8px solid #21262d;
-        border-radius: 24px;
-        padding: 20px 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    /* Moldura de Telemóvel Realista com Entalhe (Ilha Superior) */
+    .phone-mockup {
+        max-width: 340px;
+        margin: 10px auto;
+        background-color: #000000;
+        border: 12px solid #1c1c24;
+        border-radius: 40px;
+        padding: 30px 14px 20px 14px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+        position: relative;
+    }
+
+    /* Entalhe Estilo Smartphone */
+    .phone-mockup::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 110px;
+        height: 18px;
+        background-color: #1c1c24;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+        z-index: 10;
     }
 
     .mesa-circle {
@@ -440,7 +456,7 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE (DENTRO DA TELA DO TELEFONE)
+# ÁREA: CLIENTE (DENTRO DA TELA DO TELEFONE COM ILHA)
 # ==========================================
 @st.fragment(run_every=6)
 def area_cliente():
@@ -452,8 +468,8 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
-    # Abre o contentor que simula a tela do telemóvel
-    st.markdown('<div class="phone-container">', unsafe_allow_html=True)
+    # Abre a moldura realista estilo smartphone
+    st.markdown('<div class="phone-mockup">', unsafe_allow_html=True)
 
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
@@ -711,9 +727,10 @@ def area_caixa_mesas():
             break
 
     if tem_mesas_prontas_com_alerta:
+        # Efeito sonoro clássico de telefone tocando (Anos 90)
         st.markdown("""
             <audio autoplay loop>
-              <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+              <source src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" type="audio/mpeg">
               Seu navegador não suporta elemento de áudio.
             </audio>
         """, unsafe_allow_html=True)
@@ -972,15 +989,19 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                    tem_bebida = any("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
-                    tem_sobremesa = any("sobremesa" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                    # Verificação dos tipos de itens ativos nos pedidos da mesa para colocar os emojis em cima
+                    pedidos_mesa_atual = dados_m.get("pedidos", [])
+                    tem_bebida = any("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua", "copo"]) for p in pedidos_mesa_atual if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_refeicao = any("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower() for p in pedidos_mesa_atual if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_sobremesa = any("sobremesa" in str(p.get("tipo", "")).lower() for p in pedidos_mesa_atual if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
-                    if tem_pronto: simbolos_topo_lista.append("🍲")
+                    if tem_refeicao: simbolos_topo_lista.append("🍲")
                     if tem_bebida: simbolos_topo_lista.append("🍹")
                     if tem_sobremesa: simbolos_topo_lista.append("🍰")
                     simbolo_topo = " ".join(simbolos_topo_lista)
+
+                    tem_pronto = any(p.get("cozinha_status") == "Feito" for p in pedidos_mesa_atual if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
 
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
@@ -996,10 +1017,10 @@ def area_caixa_mesas():
                         
                         conteudo_circulo = f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.4rem; line-height: 1;">{simbolo_topo}</div>
-                                <span style="font-size: 0.6rem; font-weight: 500; line-height: 1;">M{mesa_idx}</span>
-                                <span style="font-size: 0.38rem; color: #aaa; line-height: 1;">{nome_cliente_curto}</span>
-                                <span style="font-size: 0.38rem; color: #ffb703; line-height: 1;">{total_m:,.0f}K</span>
+                                <div style="font-size: 0.45rem; line-height: 1; margin-bottom: 1px;">{simbolo_topo}</div>
+                                <span style="font-size: 0.55rem; font-weight: 500; line-height: 1;">M{mesa_idx}</span>
+                                <span style="font-size: 0.35rem; color: #aaa; line-height: 1;">{nome_cliente_curto}</span>
+                                <span style="font-size: 0.35rem; color: #ffb703; line-height: 1;">{total_m:,.0f}K</span>
                             </div>
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
