@@ -1080,7 +1080,10 @@ def area_caixa_mesas():
                         st.rerun()
             else:
                 st.warning("A tabela de stock/produtos está vazia ou não foi encontrada.")
-       
+
+        pedidos_sel = dados_m_sel["pedidos"]
+        if not pedidos_sel:
+            st.info("Esta mesa não tem pedidos efetuados.")
         else:
             subtotal_m_sel = 0
             for idx_p, p in enumerate(pedidos_sel):
@@ -1093,8 +1096,8 @@ def area_caixa_mesas():
                 # Opção de Anular com Justificação Obrigatória
                 if p['status'] != "Anulado":
                     with st.expander(f"🗑️ Anular Item: {p['item']} (Mesa {m_sel})"):
-                        justificacao_anulacao = st.text_input(f"Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
-                        if st.button(f"Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
+                        justificacao_anulacao = st.text_input("Motivo da devolução/anulação:", key=f"just_anul_{m_sel}_{idx_p}")
+                        if st.button("Confirmar Anulação do Item", key=f"btn_conf_anul_{m_sel}_{idx_p}"):
                             if justificacao_anulacao.strip():
                                 mesas_data[str(m_sel)]['pedidos'][idx_p]['status'] = "Anulado"
                                 total_novo = sum(x['quantidade']*x['preco'] for x in mesas_data[str(m_sel)]['pedidos'] if x['status'] not in ["Anulado", "Recusado pela Cozinha"])
