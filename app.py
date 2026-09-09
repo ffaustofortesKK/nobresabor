@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais e Simulação de Ecrã de Telemóvel
+# Estilos CSS Profissionais e Moldura Realista de Telemóvel
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -58,16 +58,29 @@ st.markdown("""
         display: none;
     }
 
-    /* Moldura de Telemóvel Realista e Perfeitamente Alinhada */
-    .phone-container {
-        max-width: 360px;
-        margin: 10px auto;
+    /* Moldura de Telemóvel com Entalhe (Notch) e Altifalante Estilo Real */
+    .smartphone-frame {
+        max-width: 380px;
+        margin: 15px auto;
         background-color: #0c0c16;
-        border: 10px solid #1a1a24;
-        border-radius: 36px;
-        padding: 20px 14px;
-        box-shadow: 0 12px 35px rgba(0,0,0,0.9);
-        min-height: 620px;
+        border: 12px solid #1a1a24;
+        border-radius: 40px;
+        padding: 30px 16px 20px 16px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.95);
+        position: relative;
+    }
+
+    /* Entalhe Superior do Telemóvel (Notch e Altifalante) */
+    .smartphone-frame::before {
+        content: "";
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 110px;
+        height: 16px;
+        background-color: #1a1a24;
+        border-radius: 10px;
     }
 
     .mesa-circle {
@@ -453,8 +466,8 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
-    # Abre o contentor que simula perfeitamente a tela do telemóvel
-    st.markdown('<div class="phone-container">', unsafe_allow_html=True)
+    # Abre a moldura do smartphone com entalhe superior integrado
+    st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
@@ -486,7 +499,7 @@ def area_cliente():
 
     if not dados_m.get("cliente"):
         st.markdown(f"""
-            <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px;'>
+            <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px; margin-top: 10px;'>
                 <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
                 <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados para iniciar na <b>Mesa {num_mesa}</b>.</p>
             </div>
@@ -505,7 +518,7 @@ def area_cliente():
                 st.rerun()
     else:
         cli = dados_m["cliente"]
-        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
@@ -536,7 +549,6 @@ def area_cliente():
             
             if not itens.empty:
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
-                    # Exibe o produto acompanhado do respetivo preço unitário no selectbox
                     lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens.iterrows()}
                     item_label_selecionado = st.selectbox("Item:", list(lista_itens_formatada.keys()))
                     prod = lista_itens_formatada[item_label_selecionado]
@@ -716,6 +728,7 @@ def area_caixa_mesas():
             break
 
     if tem_mesas_prontas_com_alerta:
+        # Alerta com efeito sonoro clássico de telefone antigo (anos 90)
         st.markdown("""
             <audio autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3" type="audio/mpeg">
@@ -977,7 +990,7 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    # Verificação dos tipos de itens ativos nos pedidos da mesa para exibir no topo do círculo
+                    # Emojis garantidos exatamente por cima do círculo da mesa no painel do caixa
                     tem_refeicao = any("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                     tem_bebida = any("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                     tem_sobremesa = any("sobremesa" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
