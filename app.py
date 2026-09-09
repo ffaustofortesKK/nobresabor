@@ -1082,9 +1082,7 @@ def area_caixa_mesas():
                 st.warning("A tabela de stock/produtos está vazia ou não foi encontrada.")
 
         pedidos_sel = dados_m_sel["pedidos"]
-        if not pedidos_sel:
-            st.info("Esta mesa não tem pedidos efetuados.")
-        else:
+        if pedidos_sel:
             subtotal_m_sel = 0
             for idx_p, p in enumerate(pedidos_sel):
                 t_item = p['quantidade'] * p['preco']
