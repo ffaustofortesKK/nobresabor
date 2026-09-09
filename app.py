@@ -1028,58 +1028,55 @@ def area_caixa_mesas():
                 else:
                     st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                                                                                           
-      # ==========================================
+     # ==========================================
         # BOTÃO ADICIONAR ITEM DIRETAMENTE PELO CAIXA
         # ==========================================
-        if not cli_atual and not dados_m_sel.get("pedidos"):
-            st.info(f"Mesa {m_sel} está livre. Adicione itens ou um cliente para abrir a mesa.")
-        else:
-            # Carregar o stock/produtos para o caixa
-            stock_df_cx = carregar_stock() if 'carregar_stock' in globals() else carregar_stock_disco()
+        # Carregar o stock/produtos para o caixa
+        stock_df_cx = carregar_stock() if 'carregar_stock' in globals() else carregar_stock_disco()
+        
+        if stock_df_cx is not None and not stock_df_cx.empty:
+            cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
+            cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
             
-            if stock_df_cx is not None and not stock_df_cx.empty:
-                cat_dispo_cx = stock_df_cx['Categoria'].unique().tolist()
-                cat_sel_cx = st.selectbox("Categoria:", cat_dispo_cx, key=f"cat_cx_add_{m_sel}")
+            itens_filtrados_cx = stock_df_cx[stock_df_cx['Categoria'] == cat_sel_cx]['Produto'].tolist()
+            
+            with st.form(key=f"form_adicionar_item_caixa_{m_sel}"):
+                prod_sel_cx = st.selectbox("Produto / Item:", itens_filtrados_cx)
+                qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
+                obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_sel}")
                 
-                itens_filtrados_cx = stock_df_cx[stock_df_cx['Categoria'] == cat_sel_cx]['Produto'].tolist()
-                
-                with st.form(key=f"form_adicionar_item_caixa_{m_sel}"):
-                    prod_sel_cx = st.selectbox("Produto / Item:", itens_filtrados_cx)
-                    qtd_cx = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_cx_{m_sel}")
-                    obs_cx = st.text_input("Observações:", key=f"obs_cx_{m_sel}")
+                btn_add_cx = st.form_submit_button("🚀 Adicionar à Mesa", use_container_width=True)
+                if btn_add_cx:
+                    row_p_cx = stock_df_cx[stock_df_cx['Produto'] == prod_sel_cx].iloc[0]
+                    is_refeicao_cx = (cat_sel_cx.lower() in ["refeições", "refeicoes", "pratos", "comida"])
                     
-                    btn_add_cx = st.form_submit_button("🚀 Adicionar à Mesa", use_container_width=True)
-                    if btn_add_cx:
-                        row_p_cx = stock_df_cx[stock_df_cx['Produto'] == prod_sel_cx].iloc[0]
-                        is_refeicao_cx = (cat_sel_cx.lower() in ["refeições", "refeicoes", "pratos", "comida"])
-                        
-                        novo_pedido_cx = {
-                            "item": prod_sel_cx,
-                            "tipo": cat_sel_cx,
-                            "quantidade": int(qtd_cx),
-                            "preco": float(row_p_cx['Preço Unitário']),
-                            "origem": f"Caixa ({sessao_op['operador']})",
-                            "obs": obs_cx,
-                            "status": "Confirmado" if not is_refeicao_cx else "Pendente",
-                            "cozinha_status": "N/A" if not is_refeicao_cx else "Pendente",
-                            "hora": datetime.now().strftime("%H:%M:%S")
-                        }
-                        
-                        dados_m_sel["pedidos"].append(novo_pedido_cx)
-                        dados_m_sel["status"] = "Aberta"
-                        
-                        total_atualizado_cx = sum(
-                            p['quantidade'] * p['preco'] 
-                            for p in dados_m_sel["pedidos"] 
-                            if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                        )
-                        dados_m_sel["total"] = float(total_atualizado_cx)
-                        
-                        salvar_mesas_disco(mesas_data)
-                        st.success(f"Adicionado com sucesso: {qtd_cx}x {prod_sel_cx}!")
-                        st.rerun()
-            else:
-                st.warning("A tabela de stock/produtos está vazia ou não foi encontrada.")
+                    novo_pedido_cx = {
+                        "item": prod_sel_cx,
+                        "tipo": cat_sel_cx,
+                        "quantidade": int(qtd_cx),
+                        "preco": float(row_p_cx['Preço Unitário']),
+                        "origem": f"Caixa ({sessao_op['operador']})",
+                        "obs": obs_cx,
+                        "status": "Confirmado" if not is_refeicao_cx else "Pendente",
+                        "cozinha_status": "N/A" if not is_refeicao_cx else "Pendente",
+                        "hora": datetime.now().strftime("%H:%M:%S")
+                    }
+                    
+                    dados_m_sel["pedidos"].append(novo_pedido_cx)
+                    dados_m_sel["status"] = "Aberta"
+                    
+                    total_atualizado_cx = sum(
+                        p['quantidade'] * p['preco'] 
+                        for p in dados_m_sel["pedidos"] 
+                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
+                    )
+                    dados_m_sel["total"] = float(total_atualizado_cx)
+                    
+                    salvar_mesas_disco(mesas_data)
+                    st.success(f"Adicionado com sucesso: {qtd_cx}x {prod_sel_cx}!")
+                    st.rerun()
+        else:
+            st.warning("A tabela de stock/produtos está vazia ou não foi encontrada.")
 
         pedidos_sel = dados_m_sel["pedidos"]
         if pedidos_sel:
