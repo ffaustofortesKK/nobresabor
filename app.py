@@ -587,7 +587,7 @@ def area_cozinha():
             st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (COMPACTO & ANULAÇÕES COM JUSTIFICATIVA)
+# ÁREA: CAIXA / GESTÃO DE MESAS (COMPACTO & ADIÇÃO DE PEDIDOS)
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
@@ -612,7 +612,6 @@ def area_caixa_mesas():
             animation: oscilarVerde 1.2s infinite ease-in-out;
             border: 2px solid #fff !important;
         }
-        /* Círculos compactos para acomodar as 30 mesas sem precisar scrollar */
         .mesa-circle {
             background-color: #1a1a2e;
             border: 1.5px solid #333355;
@@ -633,7 +632,6 @@ def area_caixa_mesas():
         .mesa-aberta { background-color: #1f3b2c; border: 1.5px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
         
-        /* Compactação vertical dos itens de pedidos da mesa */
         .pedido-item-compacto {
             margin-bottom: 2px !important;
             padding-bottom: 2px !important;
@@ -717,6 +715,7 @@ def area_caixa_mesas():
     # 3. CAIXA EM FUNCIONAMENTO
     mesas_data = carregar_mesas_disco()
     hist_vendas = carregar_historico_vendas()
+    cardapio_data = carregar_cardapio_disco() if 'carregar_cardapio_disco' in globals() else {}
 
     hora_abertura_turno = sessao_op.get("hora_abertura", "2000-01-01 00:00:00")
     vendas_turno = [
@@ -730,7 +729,7 @@ def area_caixa_mesas():
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    # Layout superior reformulado: Operador à direita, Saldos discriminados abaixo/ao lado
+    # Layout superior reformulado
     st.markdown(f"""
         <div style="background-color: #141428; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
@@ -841,16 +840,11 @@ def area_caixa_mesas():
                     tem_sobremesa = any("sobremesa" in str(p.get("categoria", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
-                    if tem_pronto:
-                        simbolos_topo_lista.append("🍲")
-                    if tem_bebida:
-                        simbolos_topo_lista.append("🍹")
-                    if tem_sobremesa:
-                        simbolos_topo_lista.append("🍰")
-                    
+                    if tem_pronto: simbolos_topo_lista.append("🍲")
+                    if tem_bebida: simbolos_topo_lista.append("🍹")
+                    if tem_sobremesa: simbolos_topo_lista.append("🍰")
                     simbolo_topo = " ".join(simbolos_topo_lista)
 
-                    # Estilo base da mesa
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
                     elif tem_pronto:
@@ -863,7 +857,6 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Se solicitou fecho, exibe badge superior com tamanho de fonte aumentado
                         if solicitou_fecho:
                             st.markdown("""
                                 <div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">
@@ -884,6 +877,7 @@ def area_caixa_mesas():
                         
                         if st.button(f"#{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
+                            st.session_state[f"modo_adicionar_item_{mesa_idx}"] = False  # Fecha o painel de adição ao trocar de mesa
                             st.rerun()
                         
                     mesa_idx += 1
@@ -896,9 +890,74 @@ def area_caixa_mesas():
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                # Título atualizado no formato exx: Pedido da Mesa 3 - Carlos Sousa
                 st.markdown(f"### ⚙️ Pedido da Mesa {m_sel} - {nome_cliente_titulo}", unsafe_allow_html=True)
                 
+                # --- BOTÃO PARA ADICIONAR PEDIDOS PELA CAIXA ---
+                if st.button("➕ Adicionar Pedidos à Mesa", key=f"btn_toggle_add_{m_sel}", use_container_width=True):
+                    st.session_state[f"modo_adicionar_item_{m_sel}"] = not st.session_state.get(f"modo_adicionar_item_{m_sel}", False)
+                    st.rerun()
+
+                # Painel expansível/retrátil para adicionar novo item
+                if st.session_state.get(f"modo_adicionar_item_{m_sel}", False):
+                    with st.container():
+                        st.markdown(f"<div style='background: #181829; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px;'>", unsafe_allow_html=True)
+                        st.markdown("#### 🛒 Adicionar Novo Item à Conta")
+                        
+                        # Recolher lista de itens disponíveis no cardápio
+                        lista_opcoes_cardapio = []
+                        if cardapio_data:
+                            for cat, prods in cardapio_data.items():
+                                for p_nome, p_info in prods.items():
+                                    lista_opcoes_cardapio.append(f"{p_nome} ({p_info.get('preco', 0):,.2f} Kz) - [{cat}]")
+                        
+                        if lista_opcoes_cardapio:
+                            item_escolhido_str = st.selectbox("Selecione o Item:", lista_opcoes_cardapio, key=f"sel_item_add_{m_sel}")
+                            qtd_nova = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"qtd_item_add_{m_sel}")
+                            
+                            if st.button("Confirmar Adição do Pedido", type="primary", key=f"btn_conf_add_{m_sel}", use_container_width=True):
+                                # Extrair nome e preço do item selecionado
+                                nome_p_extra = item_escolhido_str.split(" (")[0]
+                                # Procurar preço real no cardápio
+                                preco_p_extra = 0.0
+                                cat_encontrada = "Geral"
+                                for cat, prods in cardapio_data.items():
+                                    if nome_p_extra in prods:
+                                        preco_p_extra = float(prods[nome_p_extra].get("preco", 0.0))
+                                        cat_encontrada = cat
+                                        break
+                                
+                                novo_pedido_obj = {
+                                    "item": nome_p_extra,
+                                    "quantidade": int(qtd_nova),
+                                    "preco": preco_p_extra,
+                                    "categoria": cat_encontrada,
+                                    "status": "Pendente",
+                                    "cozinha_status": "Pendente",
+                                    "origem": "Adicionado pelo Operador/Caixa"
+                                }
+                                
+                                dados_m_sel["pedidos"].append(novo_pedido_obj)
+                                
+                                # Atualizar status da mesa se estiver fechada
+                                if dados_m_sel.get("status") == "Fechada":
+                                    dados_m_sel["status"] = "Aberta"
+                                    if not dados_m_sel.get("cliente"):
+                                        dados_m_sel["cliente"] = {"nome": f"Cliente Mesa {m_sel}", "telefone": "N/A"}
+
+                                # Recalcular total
+                                novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                                dados_m_sel["total"] = novo_total
+                                
+                                mesas_data[str(m_sel)] = dados_m_sel
+                                salvar_mesas_disco(mesas_data)
+                                
+                                st.session_state[f"modo_adicionar_item_{m_sel}"] = False
+                                st.success(f"Item '{nome_p_extra}' adicionado com sucesso à Mesa {m_sel}!")
+                                st.rerun()
+                        else:
+                            st.warning("O cardápio está vazio ou não foi carregado corretamente.")
+                        st.markdown("</div>", unsafe_allow_html=True)
+
                 # --- LISTA DOS PEDIDOS (Compactada) ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
@@ -916,11 +975,9 @@ def area_caixa_mesas():
                         with col_it1:
                             st.markdown(f"<div class='pedido-item-compacto'>- <b>{q}x {p.get('item')}</b> ({preco_u:,.2f} Kz) — <b>{subtotal_item:,.2f} Kz</b></div>", unsafe_allow_html=True)
                         with col_it2:
-                            # Botão para abrir o seletor de anulação com justificativa
                             if st.button(f"🗑️ Anular", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
                                 st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = True
                         
-                        # Bloco condicional que abre o campo de justificativa logo abaixo do item se solicitado
                         if st.session_state.get(f"abrindo_anulacao_{m_sel}_{idx_p}", False):
                             with st.container():
                                 st.markdown(f"<div style='background: #1e1e2f; padding: 10px; border-radius: 6px; border: 1px solid #ef4444; margin-bottom: 8px;'>", unsafe_allow_html=True)
@@ -930,17 +987,14 @@ def area_caixa_mesas():
                                 with col_j1:
                                     if st.button("Confirmar Anulação", type="primary", key=f"conf_anular_{m_sel}_{idx_p}", use_container_width=True):
                                         if motivo_anulacao.strip():
-                                            # Atualiza status do item
                                             p['status'] = "Anulado"
                                             p['motivo_anulacao'] = motivo_anulacao
                                             
-                                            # Recalcula total da mesa
                                             novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                                             dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
                                             mesas_data[str(m_sel)] = dados_m_sel
                                             salvar_mesas_disco(mesas_data)
                                             
-                                            # Registo para a aba do Administrador: Vendas Excluídas
                                             vendas_excluidas = carregar_vendas_excluidas() if 'carregar_vendas_excluidas' in globals() else []
                                             reg_excluido = {
                                                 "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
