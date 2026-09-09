@@ -591,7 +591,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para o formato circular e animações
+    # Injeção de CSS para o formato circular, animações e container com scroll para as mesas
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -616,19 +616,26 @@ def area_caixa_mesas():
             background-color: #1a1a2e;
             border: 2px solid #333355;
             border-radius: 50%;
-            width: 95px;
-            height: 95px;
+            width: 85px;
+            height: 85px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            margin: 0 auto 8px auto;
+            margin: 0 auto 4px auto;
             color: #fff;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
         .mesa-aberta { background-color: #1f3b2c; border: 2px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
+        
+        /* Container scrollável para a grelha de mesas manter tudo na tela */
+        .grid-mesas-scroll {
+            max-height: 650px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -722,36 +729,33 @@ def area_caixa_mesas():
 
     # Layout superior de saldos
     st.markdown(f"""
-        <div style="background-color: #141428; padding: 14px 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background-color: #141428; padding: 12px 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <span style="font-size: 0.95rem; color: #a0a0c0;">Saldo em Caixa (Dinheiro):</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
-                <span style="font-size: 0.95rem; color: #a0a0c0;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
+                <span style="font-size: 0.9rem; color: #a0a0c0;">Saldo em Caixa (Dinheiro):</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
+                <span style="font-size: 0.9rem; color: #a0a0c0;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
             </div>
             <div>
-                <span style="font-size: 0.9rem;">👤 Operador: <b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</span>
+                <span style="font-size: 0.85rem;">👤 Operador: <b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # ABAS DE NAVEGAÇÃO DO CAIXA (Atualizado para 3 abas)
+    # ABAS DE NAVEGAÇÃO DO CAIXA
     aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
         "🗺️ Mesas & Operações", 
         "📚 Histórico de Vendas por Cliente", 
         "🔒 Fecho de Caixa / Resumo"
     ])
 
-    # --- ABA 3 (ANTIGA 4): FECHO DE CAIXA / RESUMO ---
+    # --- ABA 3: FECHO DE CAIXA / RESUMO ---
     with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
-        st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados. Quando estiver seguro, poderá efetuar o fecho do período.")
+        st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados.")
         
         col_res1, col_res2, col_res3 = st.columns(3)
-        with col_res1:
-            st.metric("Saldo Inicial (Fundo)", f"{saldo_inicial_turno:,.2f} Kz")
-        with col_res2:
-            st.metric("Vendas em Dinheiro", f"{total_dinheiro_vendas:,.2f} Kz")
-        with col_res3:
-            st.metric("Vendas em TPA", f"{total_tpa_vendas:,.2f} Kz")
+        with col_res1: st.metric("Saldo Inicial (Fundo)", f"{saldo_inicial_turno:,.2f} Kz")
+        with col_res2: st.metric("Vendas em Dinheiro", f"{total_dinheiro_vendas:,.2f} Kz")
+        with col_res3: st.metric("Vendas em TPA", f"{total_tpa_vendas:,.2f} Kz")
             
         st.markdown("---")
         st.markdown("#### 📦 Extrato de Produtos Vendidos no Turno")
@@ -771,34 +775,19 @@ def area_caixa_mesas():
                     itens_consolidados[nome_prod]["quantidade"] += qtd_prod
                     itens_consolidados[nome_prod]["total"] += (qtd_prod * preco_prod)
             
-            col_t1, col_t2, col_t3, col_t4 = st.columns([2, 1, 1, 1.2])
-            with col_t1: st.markdown("**Produto / Item**")
-            with col_t2: st.markdown("**Qtd Total**")
-            with col_t3: st.markdown("**Preço Unit.**")
-            with col_t4: st.markdown("**Subtotal**")
-            st.divider()
-            
             for prod, dados in itens_consolidados.items():
-                col_i1, col_i2, col_i3, col_i4 = st.columns([2, 1, 1, 1.2])
-                with col_i1: st.write(prod)
-                with col_i2: st.write(str(dados["quantidade"]))
-                with col_i3: st.write(f"{dados['preco']:,.2f} Kz")
-                with col_i4: st.write(f"{dados['total']:,.2f} Kz")
+                st.write(f"- **{dados['quantidade']}x** {prod} — {dados['total']:,.2f} Kz")
             
-            st.markdown("---")
             total_geral_turno = sum(d["total"] for d in itens_consolidados.values())
-            
             st.markdown(f"### 💰 Faturação Total do Turno: **{total_geral_turno:,.2f} Kz**")
-            st.markdown(f"### 💵 Valor de Caixa (Dinheiro em Gaveta): **{saldo_em_caixa_fisico:,.2f} Kz**")
             
-            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🔒 Fechar Período de Caixa com Segurança", type="primary", use_container_width=True):
                 sessao_op["logado"] = False
                 sessao_op["operador"] = "Nenhum"
                 sessao_op["turno_aberto"] = False
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
-                st.success("Período de caixa encerrado com sucesso! Sessão terminada.")
+                st.success("Período de caixa encerrado com sucesso!")
                 st.rerun()
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
@@ -807,42 +796,31 @@ def area_caixa_mesas():
     with aba_operador_2:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
         if hist_vendas:
-            pesquisa_cli = st.text_input("Filtrar por Nome do Cliente ou Telefone:", placeholder="Digite o nome ou telemóvel...", key="filtro_hist_cli_caixa")
-            
-            vendas_filtradas = hist_vendas
-            if pesquisa_cli:
-                vendas_filtradas = [
-                    v for v in hist_vendas 
-                    if pesquisa_cli.lower() in str(v.get("Cliente", "")).lower() or pesquisa_cli in str(v.get("Telefone", ""))
-                ]
+            pesquisa_cli = st.text_input("Filtrar por Nome do Cliente ou Telefone:", placeholder="Digite o nome...", key="filtro_hist_cli_caixa")
+            vendas_filtradas = [v for v in hist_vendas if pesquisa_cli.lower() in str(v.get("Cliente", "")).lower() or pesquisa_cli in str(v.get("Telefone", ""))] if pesquisa_cli else hist_vendas
             
             for v_item in reversed(vendas_filtradas):
-                cli_info = v_item.get("Cliente", "Desconhecido")
-                tel_info = v_item.get("Telefone", "N/A")
-                mesa_origem = v_item.get("Mesa", "?")
-                total_v = v_item.get("Total", 0.0)
-                data_v = v_item.get("Data", "")
-                op_v = v_item.get("Operador", "")
-                
-                with st.expander(f"Mesa {mesa_origem} — Cliente: {cli_info} ({tel_info}) | Total: {total_v:,.2f} Kz | Data: {data_v}"):
-                    st.write(f"**Operador responsável:** {op_v}")
-                    st.write(f"**Forma de Pagamento:** Dinheiro: {v_item.get('Valor Dinheiro', 0):,.2f} Kz | TPA: {v_item.get('Valor TPA', 0):,.2f} Kz")
-                    st.write("**Itens Consumidos:**")
+                with st.expander(f"Mesa {v_item.get('Mesa', '?')} — Cliente: {v_item.get('Cliente', 'Desconhecido')} | Total: {v_item.get('Total', 0.0):,.2f} Kz"):
+                    st.write(f"**Operador:** {v_item.get('Operador', '')} | **Data:** {v_item.get('Data', '')}")
                     for p in v_item.get("pedidos", []):
                         st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
         else:
-            st.info("Ainda não existem registos no histórico de vendas.")
+            st.info("Sem registos no histórico de vendas.")
 
     # --- ABA 1: MESAS & OPERAÇÕES ---
     with aba_operador_1:
-        col_esq, col_dir = st.columns([0.85, 1.15])
+        col_esq, col_dir = st.columns([1.1, 0.9])
 
         with col_dir:
-            st.markdown("#### 🗺️ Mesas")
+            st.markdown("#### 🗺️ Mesas (1 a 30)")
+            
+            # Envolvemos a grelha num bloco HTML com scroll vertical fixo para caber perfeitamente na tela
+            st.markdown('<div class="grid-mesas-scroll">', unsafe_allow_html=True)
+            
             cols_grelha = 3
             rows = 10
-            
             mesa_idx = 1
+            
             for r in range(rows):
                 cols = st.columns(cols_grelha)
                 for c in range(cols_grelha):
@@ -856,25 +834,9 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    tem_pronto = any(
-                        p.get("cozinha_status") == "Feito" 
-                        for p in dados_m["pedidos"] 
-                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                    )
-
-                    tem_bebida = any(
-                        "bebida" in str(p.get("categoria", "")).lower() or 
-                        any(palavra in str(p.get("item", "")).lower() for palavra in ["sumo", "cerveja", "refrigerante", "vinho", "agua", "cocktail", "whisky"])
-                        for p in dados_m["pedidos"]
-                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                    )
-
-                    tem_sobremesa = any(
-                        "sobremesa" in str(p.get("categoria", "")).lower() or 
-                        any(palavra in str(p.get("item", "")).lower() for palavra in ["gelado", "bolo", "pudim", "doce", "torta", "sobremesa"])
-                        for p in dados_m["pedidos"]
-                        if p['status'] not in ["Anulado", "Recusado pela Cozinha"]
-                    )
+                    tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_bebida = any("bebida" in str(p.get("categoria", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_sobremesa = any("sobremesa" in str(p.get("categoria", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
                     if solicitou_fecho:
@@ -888,11 +850,8 @@ def area_caixa_mesas():
                     else:
                         classe_css = "mesa-fechada"
 
-                    if tem_bebida:
-                        simbolos_topo_lista.append("🍹")
-                    if tem_sobremesa:
-                        simbolos_topo_lista.append("🍰")
-
+                    if tem_bebida: simbolos_topo_lista.append("🍹")
+                    if tem_sobremesa: simbolos_topo_lista.append("🍰")
                     simbolo_topo = " ".join(simbolos_topo_lista)
 
                     with cols[c]:
@@ -900,18 +859,20 @@ def area_caixa_mesas():
                         
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.65rem; line-height: 1.1; min-height: 14px;">{simbolo_topo}</div>
-                                <span style="font-size: 0.8rem; font-weight: bold;">Mesa {mesa_idx}</span>
-                                <span style="font-size: 0.6rem; color: #ddd;">{nome_cliente_curto}</span>
-                                <span style="font-size: 0.55rem; color: #ffb703;">{total_m:,.0f}Kz</span>
+                                <div style="font-size: 0.6rem; line-height: 1; min-height: 12px;">{simbolo_topo}</div>
+                                <span style="font-size: 0.75rem; font-weight: bold;">Mesa {mesa_idx}</span>
+                                <span style="font-size: 0.55rem; color: #ddd;">{nome_cliente_curto}</span>
+                                <span style="font-size: 0.5rem; color: #ffb703;">{total_m:,.0f}Kz</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Gerir #{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
+                        if st.button(f"#{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.rerun()
                         
                     mesa_idx += 1
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
         with col_esq:
             with st.container():
@@ -923,23 +884,8 @@ def area_caixa_mesas():
                 
                 st.markdown(f"### ⚙️ Mesa {m_sel} — <span style='color: #ffb703;'>({nome_cliente_titulo})</span>", unsafe_allow_html=True)
                 
-                # --- EXIBIÇÃO DO QR CODE DA MESA ---
-                with st.expander(f"📱 Ver QR Code da Mesa {m_sel}", expanded=False):
-                    url_mesa = f"https://nobresabor.streamlit.app/?mesa={m_sel}"
-                    st.markdown(f"**Link de acesso rápido para a Mesa {m_sel}:**")
-                    st.code(url_mesa, language="text")
-                    
-                    import urllib.parse
-                    url_encoded = urllib.parse.quote(url_mesa, safe="")
-                    qr_image_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={url_encoded}"
-                    
-                    col_qr1, col_qr2, col_qr3 = st.columns([1, 2, 1])
-                    with col_qr2:
-                        st.image(qr_image_url, caption=f"QR Code - Mesa {m_sel}", use_container_width=True)
-
                 # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
-                
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
@@ -955,43 +901,33 @@ def area_caixa_mesas():
                         with col_it1:
                             st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — **{subtotal_item:,.2f} Kz**")
                         with col_it2:
-                            if st.button(f"🗑️ Anular Item", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
+                            if st.button(f"🗑️ Anular", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
                                 p['status'] = "Anulado"
-                                
-                                novo_total = sum(
-                                    float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) 
-                                    for item in dados_m_sel["pedidos"] 
-                                    if item.get('status') not in ["Anulado", "Recusado pela Cozinha"]
-                                )
-                                dados_m_sel["total"] = novo_total
-                                
-                                if not any(item.get('status') not in ["Anulado", "Recusado pela Cozinha"] for item in dados_m_sel["pedidos"]):
-                                    dados_m_sel["total"] = 0.0
-                                
+                                novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                                dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
                                 mesas_data[str(m_sel)] = dados_m_sel
                                 salvar_mesas_disco(mesas_data)
-                                st.success(f"Item '{p.get('item')}' anulado com sucesso!")
+                                st.success("Item anulado!")
                                 st.rerun()
                 else:
-                    st.info("Ainda não existem registos ativos nesta mesa.")
+                    st.info("Sem consumos ativos nesta mesa.")
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
-                st.markdown(f"### 💵 Total Atual da Mesa: **{total_a_pagar:,.2f} Kz**")
+                st.markdown(f"### 💵 Total: **{total_a_pagar:,.2f} Kz**")
                 
                 if total_a_pagar > 0 or cli_atual:
                     st.markdown("---")
-                    st.markdown("### 💳 Processar Pagamento e Emitir Recibo")
-                    tipo_pagamento = st.selectbox("Forma de Pagamento:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
+                    st.markdown("### 💳 Pagamento")
+                    tipo_pagamento = st.selectbox("Forma:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
                     
-                    v_dinheiro = 0.0
-                    v_tpa = 0.0
+                    v_dinheiro, v_tpa = 0.0, 0.0
                     if tipo_pagamento == "Dinheiro":
                         v_dinheiro = total_a_pagar
                     elif tipo_pagamento == "TPA":
                         v_tpa = total_a_pagar
                     else:
-                        v_dinheiro = st.number_input("Valor em Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
-                        v_tpa = st.number_input("Valor em TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
+                        v_dinheiro = st.number_input("Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
+                        v_tpa = st.number_input("TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
 
                     if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
                         nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
@@ -1014,19 +950,11 @@ def area_caixa_mesas():
                         salvar_historico_vendas(hist_vendas)
                         
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada",
-                            "cliente": None,
-                            "pedidos": [],
-                            "total": 0.0,
-                            "garcon": "",
-                            "solicitou_fecho": False
+                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
                         }
                         salvar_mesas_disco(mesas_data)
-                        
-                        st.success(f"Conta da Mesa {m_sel} encerrada com sucesso!")
+                        st.success(f"Conta da Mesa {m_sel} encerrada!")
                         st.rerun()
-                else:
-                    st.info(f"Mesa {m_sel} encontra-se totalmente livre e sem consumos pendentes.")
                                                                                    
 # ==========================================
 # ÁREA: ADMINISTRADOR
