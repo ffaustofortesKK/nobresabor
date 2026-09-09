@@ -591,7 +591,7 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para círculos mais compactos das mesas e alertas
+    # Injeção de CSS para círculos compactos, alertas e redução de espaçamento na lista de pedidos
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -632,6 +632,14 @@ def area_caixa_mesas():
         }
         .mesa-aberta { background-color: #1f3b2c; border: 1.5px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
+        
+        /* Aproxima e encolhe os itens da lista de pedidos */
+        .item-pedido-compacto {
+            margin-bottom: 2px !important;
+            padding-bottom: 0px !important;
+            line-height: 1.2 !important;
+            font-size: 0.9rem;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -680,7 +688,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -723,15 +731,13 @@ def area_caixa_mesas():
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    # Layout superior de saldos
+    # Layout superior ajustado: Operador e saldos no canto superior direito
     st.markdown(f"""
-        <div style="background-color: #141428; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <span style="font-size: 0.85rem; color: #a0a0c0;">Saldo em Caixa (Dinheiro):</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
-                <span style="font-size: 0.85rem; color: #a0a0c0;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
-            </div>
-            <div>
-                <span style="font-size: 0.8rem;">👤 Operador: <b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</span>
+        <div style="background-color: #141428; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2a2a4a; display: flex; justify-content: flex-end; align-items: center;">
+            <div style="text-align: right; font-size: 0.9rem; line-height: 1.4;">
+                Operador : <b>{sessao_op['operador']}</b><br>
+                Saldo em Caixa:<br>
+                Dinheiro : <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | TPA: <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -808,7 +814,7 @@ def area_caixa_mesas():
         col_esq, col_dir = st.columns([1.2, 0.8])
 
         with col_dir:
-            st.markdown("#### 🗺️ Mesas (1 a 30)")
+            st.markdown("#### MESAS")
             
             cols_grelha = 3
             rows = 10
@@ -854,7 +860,7 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Se solicitou fecho, exibe badge superior com tamanho de fonte aumentado (0.75rem ~ +50% maior)
+                        # Se solicitou fecho, exibe badge superior com tamanho de fonte aumentado (+50%)
                         if solicitou_fecho:
                             st.markdown("""
                                 <div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">
@@ -887,12 +893,13 @@ def area_caixa_mesas():
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                st.markdown(f"### ⚙️ Mesa {m_sel} — <span style='color: #ffb703;'>({nome_cliente_titulo})</span>", unsafe_allow_html=True)
+                # Título atualizado no formato exato: Pedido da Mesa 3 - Nome do Cliente
+                st.markdown(f"### Pedido da Mesa {m_sel} - {nome_cliente_titulo}", unsafe_allow_html=True)
                 
                 # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status'] not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
                     for idx_p, p in enumerate(pedidos_mesa):
@@ -904,7 +911,7 @@ def area_caixa_mesas():
                         
                         col_it1, col_it2 = st.columns([2.2, 1])
                         with col_it1:
-                            st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — **{subtotal_item:,.2f} Kz**")
+                            st.markdown(f"<div class='item-pedido-compacto'>- <b>{q}x {p.get('item')}</b> ({preco_u:,.2f} Kz) — <b>{subtotal_item:,.2f} Kz</b></div>", unsafe_allow_html=True)
                         with col_it2:
                             # Botão para abrir o seletor de anulação com justificativa
                             if st.button(f"🗑️ Anular", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
