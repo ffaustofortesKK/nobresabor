@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais e Modernizados
+# Estilos CSS Profissionais e Compactos
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -23,17 +23,17 @@ st.markdown("""
     
     .block-container {
         padding-top: 3rem !important;
-        padding-bottom: 1.5rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
+        padding-bottom: 1rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
         max-width: 90% !important;
         margin: 0 auto !important;
         background-color: #0c0c16 !important;
     }
 
-    /* Tipografia Profissional com Menos Peso (Sem excesso de negrito) */
+    /* Reduzir o peso do negrito global para um visual mais profissional */
     html, body, [class*="css"], .stMarkdown, p, span, label, div {
-        color: #e0e0e6 !important;
+        color: #e0e0e0 !important;
         font-weight: 400 !important;
     }
 
@@ -58,75 +58,59 @@ st.markdown("""
         display: none;
     }
 
-    /* Círculos de Mesas Compactos e Alinhados à Direita */
+    /* Redução das linhas e dimensões dos círculos das mesas */
     .mesa-circle {
-        width: 55px;
-        height: 55px;
-        border-radius: 50%;
-        margin: 0 auto 1px auto;
+        background-color: #141420;
+        border: 1px solid #2a2a40;
+        border-radius: 6px;
+        width: 100%;
+        height: 52px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        margin: 0 auto;
+        color: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        padding: 2px;
     }
 
-    .mesa-aberta {
-        border: 2px solid #2ea44f;
-        background-color: #0f2316;
-        color: #4ac26b !important;
-    }
+    .mesa-aberta { background-color: #11261d; border: 1px solid #2ea44f; }
+    .mesa-fechada { background-color: #12121c; }
 
-    .mesa-fechada {
-        border: 1px solid #2a2a3c;
-        background-color: #141420;
-        color: #b0b0c0 !important;
+    @keyframes oscilarVermelho {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        50% { transform: scale(1.02); box-shadow: 0 0 8px 3px rgba(239, 68, 68, 0.8); background-color: #ef4444 !important; color: #fff !important; }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
-
+    @keyframes oscilarVerde {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0.7); }
+        50% { transform: scale(1.02); box-shadow: 0 0 8px 3px rgba(74, 194, 107, 0.8); background-color: #4ac26b !important; color: #000 !important; }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0); }
+    }
+    .mesa-conta-solicitada {
+        animation: oscilarVermelho 1.2s infinite ease-in-out;
+        border: 1px solid #fff !important;
+    }
     .mesa-pronta-alerta {
-        border: 2px solid #ff4b4b;
-        background-color: #2b0d0d;
-        color: #ff6b6b !important;
-        animation: borda-vermelha-piscar 1s infinite;
+        animation: oscilarVerde 1.2s infinite ease-in-out;
+        border: 1px solid #fff !important;
     }
 
-    @keyframes borda-vermelha-piscar {
-        0% { border: 2px solid #ff4b4b; box-shadow: 0 0 6px #ff4b4b; }
-        50% { border: 2px solid #ffa0a0; box-shadow: none; }
-        100% { border: 2px solid #ff4b4b; box-shadow: 0 0 6px #ff4b4b; }
-    }
-
-    .piscar-alerta {
-        animation: piscar-aviso 1s infinite;
-        color: #ff4b4b !important;
-    }
-
-    @keyframes piscar-aviso {
-        0% { opacity: 1; }
-        50% { opacity: 0.3; }
-        100% { opacity: 1; }
-    }
-
-    .fatura-box {
-        background-color: #141428;
-        border: 1px dashed #ffb703;
-        padding: 15px;
-        border-radius: 8px;
+    .pedido-item-compacto {
+        margin-bottom: 1px !important;
+        padding-bottom: 1px !important;
+        line-height: 1.1 !important;
+        font-size: 0.85rem !important;
     }
     
     .stButton>button {
         border-radius: 6px;
         font-weight: 500 !important;
-        padding: 3px 6px !important;
+        padding: 2px 6px !important;
         font-size: 0.8rem !important;
         color: #000000 !important;
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    .stButton>button p, .stButton>button span {
-        color: #000000 !important;
-        font-weight: 500 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -440,13 +424,13 @@ if "rh" not in st.session_state:
 def area_cliente():
     st.markdown("""
         <style>
-        .tablet-container { max-width: 320px; margin: 0 auto; background: #000000; border: 2px solid #1a1a24; border-radius: 10px; padding: 6px; }
-        .stButton button { padding: 0.2rem 0.4rem; font-size: 0.75rem; background-color: #111118; color: #ffffff; border: 1px solid #2a2a3c; }
-        .stButton button:hover { background-color: #1a1a28; border-color: #44445c; }
+        .tablet-container { max-width: 320px; margin: 0 auto; background: #000000; border: 4px solid #111111; border-radius: 12px; padding: 6px; }
+        .stButton button { padding: 0.2rem 0.4rem; font-size: 0.75rem; background-color: #111111; color: #ffffff; border: 1px solid #333333; }
+        .stButton button:hover { background-color: #222222; border-color: #555555; }
         .element-container, .stTextInput, .stSelectbox { margin-bottom: -0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { background-color: #000000; }
-        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #888899; font-size: 0.70rem; }
-        .stTabs [aria-selected="true"] { background-color: #111118 !important; color: #ffb703 !important; }
+        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #aaaaaa; font-size: 0.70rem; }
+        .stTabs [aria-selected="true"] { background-color: #111111 !important; color: #ffb703 !important; }
         @media (max-width: 400px) { .tablet-container { border: none; padding: 0; background: #000000; } }
         </style>
     """, unsafe_allow_html=True)
@@ -468,14 +452,14 @@ def area_cliente():
         st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
         
         for item in fat['itens']:
-            st.markdown(f"<span style='font-size:0.7rem; color:#aaaaaa;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
             
-        st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'>Total Pago: <b>{fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
+        st.markdown(f"<b style='font-size:0.8rem; color:#ffffff;'>Total Pago: {fat['total']:,.2f}Kz</b>", unsafe_allow_html=True)
         
         st.markdown("""
-            <div style='background-color: #111118; padding: 10px; border-radius: 6px; border: 1px dashed #ffb703; text-align: center; margin: 10px 0;'>
-                <p style='color: #4ac26b; font-size: 0.75rem; font-weight: 500; margin-bottom: 4px;'>🙏 Muito Obrigado!</p>
-                <p style='color: #9999aa; font-size: 0.65rem; line-height: 1.2;'>Agradecemos a sua preferência por ter estado connosco no <b>Restaurante Nobre Sabor</b>. Volte sempre!</p>
+            <div style='background-color: #111118; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
+                <p style='color: #4ac26b; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;'>🙏 Muito Obrigado!</p>
+                <p style='color: #cccccc; font-size: 0.7rem; line-height: 1.2;'>Agradecemos a sua preferência por ter estado connosco no <b>Restaurante Nobre Sabor</b>. Volte sempre!</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -492,9 +476,9 @@ def area_cliente():
 
     if not dados_m.get("cliente"):
         st.markdown(f"""
-            <div style='text-align: center; background: #111118; padding: 10px; border-radius: 6px; border: 1px solid #222233; margin-bottom: 8px;'>
-                <h4 style='font-size:0.9rem; color:#ffffff; margin-bottom: 3px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
-                <p style='font-size:0.7rem; color:#9999aa; margin: 0;'>Por favor, faça o seu registo para iniciar o atendimento na <b>Mesa {num_mesa}</b>.</p>
+            <div style='text-align: center; background: #111118; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 10px;'>
+                <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
+                <p style='font-size:0.75rem; color:#cccccc; margin: 0;'>Por favor, faça o seu registo para iniciar o atendimento na <b>Mesa {num_mesa}</b>.</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -513,7 +497,7 @@ def area_cliente():
     else:
         cli = dados_m["cliente"]
         st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#111118; padding:4px; border-radius:4px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#111111; padding:5px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Fazer Pedido", "📊 Consultar Conta", "🎉 Eventos"])
         
@@ -546,7 +530,7 @@ def area_cliente():
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
                     prod = st.selectbox("Item:", itens['Produto'].tolist())
                     qtd = st.number_input("Quantidade:", 1, 99, 1)
-                    obs_cliente = st.text_input("Observação (opcional):", placeholder="Ex: Sem gelo...")
+                    obs_cliente = st.text_input("Observação (opcional):", placeholder="Ex: Sem gelo, bem passado...")
                     
                     if st.form_submit_button("🚀 Enviar Pedido", use_container_width=True):
                         p_row = itens[itens['Produto'] == prod].iloc[0]
@@ -577,13 +561,13 @@ def area_cliente():
                 t_item = p['quantidade'] * p['preco']
                 if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                     total_parcial += t_item
-                st.markdown(f"<span style='font-size:0.65rem; color:#aaaaaa;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — <b>{p['status']}</b></span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — <b>{p['status']}</b></span>", unsafe_allow_html=True)
             
-            st.markdown(f"<span style='font-size:0.75rem; color:#ffffff;'>Total Parcial: <b>{total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 4px 0; border-color: #222233;'>", unsafe_allow_html=True)
+            st.markdown(f"<b style='font-size:0.75rem; color:#ffffff;'>Total Parcial: {total_parcial:,.2f}Kz</b>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 6px 0; border-color: #222;'>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
-                st.info("⏳ Pedido de fecho enviado ao caixa. Aguarde.")
+                st.info("⏳ Pedido de fecho enviado ao caixa. Aguarde o atendimento.")
                 if st.button("Cancelar Pedido de Fecho", key=f"cf_{num_mesa}", use_container_width=True):
                     dados_m["solicitou_fecho"] = False
                     salvar_mesas_disco(mesas_data)
@@ -592,11 +576,11 @@ def area_cliente():
                 if st.button("🔔 Pedir Conta / Fechar", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
                     salvar_mesas_disco(mesas_data)
-                    st.success("Conta solicitada com sucesso!")
+                    st.success("Conta solicitada ao caixa com sucesso!")
                     st.rerun()
 
         with t_ev:
-            st.markdown("<span style='font-size:0.65rem; color:#9999aa;'><b>Agenda Cultural - Nobre Sabor:</b><br>• Sexta-feira: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-size:0.7rem; color:#cccccc;'><b>Agenda Cultural - Nobre Sabor:</b><br>• Sexta-feira: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -635,12 +619,12 @@ def area_cozinha():
                     
                     col_c1, col_c2, col_c3 = st.columns([3, 2, 3])
                     with col_c1:
-                        st.markdown(f"#### 🍽️ Mesa {i}")
-                        st.markdown(f"**Refeição:** {ped.get('item', 'Item')} | **Qtd:** {ped.get('quantidade', 1)}")
-                        st.markdown(f"Obs: _{ped.get('obs', ped.get('observacao', 'Nenhuma'))}_ | Hora: `{ped.get('hora', 'N/A')}`")
+                        st.write(f"### 🍽️ Mesa {i}")
+                        st.write(f"**Refeição:** {ped.get('item', 'Item')} | **Qtd:** {ped.get('quantidade', 1)}")
+                        st.write(f"Obs: _{ped.get('obs', ped.get('observacao', 'Nenhuma'))}_ | Hora: `{ped.get('hora', 'N/A')}`")
                     with col_c2:
                         cor_estado = "#ffb703" if c_status == "Pendente" else ("#2a9d8f" if c_status == "Aprovado" else "#457b9d")
-                        st.markdown(f"Estado: <span style='color:{cor_estado};'>{c_status}</span>", unsafe_allow_html=True)
+                        st.markdown(f"Estado: <b style='color:{cor_estado};'>{c_status}</b>", unsafe_allow_html=True)
                     with col_c3:
                         if c_status == "Pendente":
                             if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}und"):
@@ -666,7 +650,7 @@ def area_cozinha():
                                 mesas_data[str_i]["alarme_prato_feito"] = False
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
-                    st.markdown("<hr style='border-color: #1a1a28;'>", unsafe_allow_html=True)
+                    st.divider()
                     
         if not tem_pedidos:
             st.success("🎉 Sem refeições ativas de momento!")
@@ -677,8 +661,8 @@ def area_cozinha():
                   <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
                   Seu navegador não suporta elemento de áudio.
                 </audio>
-                <div style='background-color: #3b1010; border: 1px solid #ff4b4b; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 10px;'>
-                    <span style='color: #ff6b6b; font-weight: 500; font-size: 0.9rem;'>🚨 ALARME: Novo Pedido de Refeição Pendente! 🚨</span>
+                <div style='background-color: #780000; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px;'>
+                    <span style='color: white; font-weight: bold; font-size: 1rem;'>🚨 ALARME: Novo Pedido de Refeição Pendente! 🚨</span>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -708,58 +692,10 @@ def area_cozinha():
             st.dataframe(df_feitos, use_container_width=True)
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (LAYOUT PROFISSIONAL: MESAS À DIREITA E JUNTAS)
+# ÁREA: CAIXA / GESTÃO DE MESAS (Mesas Alinhadas à Direita e Mais Juntas)
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    st.markdown("""
-        <style>
-        @keyframes oscilarVermelho {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-            50% { transform: scale(1.02); box-shadow: 0 0 8px 3px rgba(239, 68, 68, 0.7); background-color: #ef4444 !important; color: #fff !important; }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-        @keyframes oscilarVerde {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0.5); }
-            50% { transform: scale(1.02); box-shadow: 0 0 8px 3px rgba(74, 194, 107, 0.7); background-color: #4ac26b !important; color: #000 !important; }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0); }
-        }
-        .mesa-conta-solicitada {
-            animation: oscilarVermelho 1.2s infinite ease-in-out;
-            border: 1px solid #fff !important;
-        }
-        .mesa-pronta-alerta {
-            animation: oscilarVerde 1.2s infinite ease-in-out;
-            border: 1px solid #fff !important;
-        }
-        /* Círculos mais compactos e limpos */
-        .mesa-circle {
-            background-color: #12121c;
-            border: 1px solid #252538;
-            border-radius: 50%;
-            width: 58px;
-            height: 58px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            margin: 0 auto 1px auto;
-            color: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            overflow: hidden;
-            padding: 1px;
-        }
-        .mesa-aberta { background-color: #162b20; border: 1px solid #2ea44f; }
-        .mesa-fechada { background-color: #101018; }
-        .pedido-item-compacto {
-            margin-bottom: 2px !important;
-            padding-bottom: 2px !important;
-            line-height: 1.2 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     mesas_data = carregar_mesas_disco()
 
     tem_mesas_prontas_com_alerta = False
@@ -778,7 +714,7 @@ def area_caixa_mesas():
             </audio>
         """, unsafe_allow_html=True)
 
-    st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-bottom:6px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
     if not st.session_state.caixa_aberto:
@@ -804,10 +740,9 @@ def area_caixa_mesas():
     # Ecrã de Caixa Trancado
     if sessao_op.get("trancado", False) and sessao_op["logado"]:
         st.markdown(f"""
-            <div style="background-color: #141422; padding: 15px; border-radius: 8px; border: 1px solid #ff4b4b; text-align: center; margin-bottom: 15px;">
-                <h3 style="color: #ff4b4b; font-size: 1.1rem;">🔒 CAIXA TRANCADO</h3>
-                <p style="margin: 4px 0;">Operador: <b>{sessao_op['operador']}</b></p>
-                <p style="font-size: 0.8rem; color: #9999aa;">Insira a sua senha para voltar ao trabalho.</p>
+            <div style="background-color: #141422; padding: 15px; border-radius: 6px; border: 1px solid #ff4b4b; text-align: center; margin-bottom: 15px;">
+                <h4 style="color: #ff4b4b; margin-bottom: 4px;">🔒 CAIXA TRANCADO</h4>
+                <p style="margin: 0; font-size: 0.85rem;">Operador: <b>{sessao_op['operador']}</b> | Insira a sua senha para voltar ao trabalho.</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -874,15 +809,15 @@ def area_caixa_mesas():
 
     if not sessao_op["turno_aberto"]:
         st.markdown(f"""
-            <div style="background-color: #141422; padding: 12px; border-radius: 6px; border: 1px solid #252538; margin-bottom: 12px;">
+            <div style="background-color: #12121c; padding: 12px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 12px;">
                 <p style="margin:2px 0;">👤 <b>Utilizador:</b> {sessao_op['operador']}</p>
                 <p style="margin:2px 0;">⏰ <b>Período:</b> {sessao_op['periodo']}</p>
-                <p style="color: #ffb703; font-size: 0.85rem; margin-top: 4px;">O saldo inicial provém estritamente do valor atribuído pelo ADM. Clique abaixo para abrir o seu turno.</p>
+                <p style="color: #ffb703; margin:2px 0; font-size:0.85rem;">O saldo inicial provém estritamente do valor atribuído pelo ADM. Clique abaixo para abrir o seu turno.</p>
             </div>
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -924,18 +859,18 @@ def area_caixa_mesas():
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    # Cabeçalho Profissional com Botão Trancar Caixa
+    # Cabeçalho com o Botão de Trancar Caixa ao lado do nome do Operador
     col_cab1, col_cab2 = st.columns([3, 1])
     with col_cab1:
         st.markdown(f"""
-            <div style="background-color: #141422; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #222233;">
-                <span style="font-size: 0.85rem; color: #ffb703;">Saldo em Caixa:</span><br>
-                <span style="font-size: 0.8rem; color: #9999aa; margin-left: 8px;">Dinheiro:</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
-                <span style="font-size: 0.8rem; color: #9999aa; margin-left: 8px;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
+            <div style="background-color: #12121c; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #222233;">
+                <span style="font-size: 0.85rem; color: #ffb703;">Saldo em Caixa:</span>
+                <span style="font-size: 0.85rem; color: #a0a0c0; margin-left: 8px;">Dinheiro:</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
+                <span style="font-size: 0.85rem; color: #a0a0c0;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
             </div>
         """, unsafe_allow_html=True)
     with col_cab2:
-        st.markdown(f"<div style='text-align: right; padding-top: 4px;'><span style='font-size: 0.9rem;'>Operador: <b>{sessao_op['operador']}</b></span><br><span style='font-size: 0.7rem; color: #888899;'>Período: {sessao_op['periodo']}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: right;'><span style='font-size: 0.9rem;'>Operador : <b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</span></div>", unsafe_allow_html=True)
         if st.button("🔒 Trancar Caixa", use_container_width=True, type="secondary"):
             sessao_op["trancado"] = True
             sessao_op["tentativas_falhadas"] = 0
@@ -957,7 +892,7 @@ def area_caixa_mesas():
         with col_res2: st.metric("Vendas em Dinheiro", f"{total_dinheiro_vendas:,.2f} Kz")
         with col_res3: st.metric("Vendas em TPA", f"{total_tpa_vendas:,.2f} Kz")
             
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
+        st.markdown("---")
         st.markdown("#### 📦 Extrato de Produtos Vendidos no Turno")
         
         if vendas_turno:
@@ -976,7 +911,7 @@ def area_caixa_mesas():
                     itens_consolidados[nome_prod]["total"] += (qtd_prod * preco_prod)
             
             for prod, dados in itens_consolidados.items():
-                st.markdown(f"- **{dados['quantidade']}x** {prod} — {dados['total']:,.2f} Kz")
+                st.write(f"- **{dados['quantidade']}x** {prod} — {dados['total']:,.2f} Kz")
             
             total_geral_turno = sum(d["total"] for d in itens_consolidados.values())
             st.markdown(f"### 💰 Faturação Total do Turno: **{total_geral_turno:,.2f} Kz**")
@@ -1011,14 +946,14 @@ def area_caixa_mesas():
             
             for v_item in reversed(vendas_filtradas):
                 with st.expander(f"Mesa {v_item.get('Mesa', '?')} — Cliente: {v_item.get('Cliente', 'Desconhecido')} | Total: {v_item.get('Total', 0.0):,.2f} Kz"):
-                    st.markdown(f"**Operador:** {v_item.get('Operador', '')} | **Data:** {v_item.get('Data', '')}")
+                    st.write(f"**Operador:** {v_item.get('Operador', '')} | **Data:** {v_item.get('Data', '')}")
                     for p in v_item.get("pedidos", []):
                         st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
         else:
             st.info("Sem registos no histórico de vendas.")
 
     with aba_operador_1:
-        # Layout Profissional: Gestão à Esquerda, Grelha de Mesas Compacta e Justa no Canto Direito
+        # Layout ajustado para puxar as mesas mais para o canto direito e compactas
         col_esq, col_dir = st.columns([1.1, 0.9])
 
         with col_esq:
@@ -1029,7 +964,7 @@ def area_caixa_mesas():
                 cli_atual = dados_m_sel.get("cliente")
                 nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
                 
-                st.markdown(f"#### ⚙️ Pedido da Mesa {m_sel} — {nome_cliente_titulo}")
+                st.markdown(f"### ⚙️ Mesa {m_sel} — {nome_cliente_titulo}", unsafe_allow_html=True)
                 
                 if st.button("➕ Adicionar Pedido a esta Mesa", key=f"btn_toggle_add_pedido_{m_sel}", type="secondary", use_container_width=True):
                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
@@ -1037,8 +972,8 @@ def area_caixa_mesas():
 
                 if st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False):
                     with st.container():
-                        st.markdown(f"<div style='background: #12121c; padding: 10px; border-radius: 6px; border: 1px solid #222233; margin-bottom: 10px;'>", unsafe_allow_html=True)
-                        st.markdown("##### 🛒 Registar Novo Item para o Cliente")
+                        st.markdown(f"<div style='background: #141420; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 10px;'>", unsafe_allow_html=True)
+                        st.markdown("#### 🛒 Registar Novo Item")
                         
                         if not stock_df_cx_card.empty:
                             categorias_disponiveis = ["Refeições", "Bebidas", "Sobremesas", "Outros"]
@@ -1046,21 +981,21 @@ def area_caixa_mesas():
                             if not categorias_validas:
                                 categorias_validas = stock_df_cx_card['Categoria'].unique().tolist()
 
-                            cat_escolhida = st.selectbox("Escolha a Categoria:", categorias_validas, key=f"cx_cat_{m_sel}")
+                            cat_escolhida = st.selectbox("Categoria:", categorias_validas, key=f"cx_cat_{m_sel}")
                             itens_da_cat = stock_df_cx_card[stock_df_cx_card['Categoria'] == cat_escolhida]
                             
                             if not itens_da_cat.empty:
                                 lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens_da_cat.iterrows()}
-                                item_selecionado_label = st.selectbox("Escolha o Item:", list(lista_itens_formatada.keys()), key=f"cx_item_label_{m_sel}")
+                                item_selecionado_label = st.selectbox("Item:", list(lista_itens_formatada.keys()), key=f"cx_item_label_{m_sel}")
                                 
                                 nome_item_escolhido = lista_itens_formatada[item_selecionado_label]
                                 p_row = itens_da_cat[itens_da_cat['Produto'] == nome_item_escolhido].iloc[0]
                                 preco_unitario = float(p_row['Preço Unitário'])
                                 
                                 qtd_adicionar = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"cx_qtd_{m_sel}")
-                                obs_item = st.text_input("Observações (ex: sem gelo):", key=f"cx_obs_{m_sel}")
+                                obs_item = st.text_input("Observações:", key=f"cx_obs_{m_sel}")
                                 
-                                if st.button("📥 Confirmar e Enviar Pedido", type="primary", key=f"cx_salvar_novo_ped_{m_sel}", use_container_width=True):
+                                if st.button("📥 Confirmar Item", type="primary", key=f"cx_salvar_novo_ped_{m_sel}", use_container_width=True):
                                     is_ref_cx = cat_escolhida.lower() in ["refeições", "refeicoes", "pratos", "comida"]
                                     novo_item_reg = {
                                         "item": nome_item_escolhido,
@@ -1086,17 +1021,17 @@ def area_caixa_mesas():
                                     salvar_mesas_disco(mesas_data)
                                     
                                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
-                                    st.success(f"Item '{nome_item_escolhido}' adicionado com sucesso à Mesa {m_sel}!")
+                                    st.success(f"Item adicionado!")
                                     st.rerun()
                             else:
-                                st.warning("Esta categoria não possui itens.")
+                                st.warning("Categoria vazia.")
                         else:
-                            st.warning("O stock está vazio.")
+                            st.warning("Stock vazio.")
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                st.markdown("##### 📋 Pedidos da Mesa")
+                st.markdown("#### 📋 Consumos")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status'] not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
                     for idx_p, p in enumerate(pedidos_mesa):
@@ -1106,26 +1041,24 @@ def area_caixa_mesas():
                         preco_u = p.get('preco', 0.0)
                         subtotal_item = q * preco_u
                         
-                        col_it1, col_it2 = st.columns([2.3, 0.9])
+                        col_it1, col_it2 = st.columns([2.5, 1])
                         with col_it1:
-                            st.markdown(f"<div class='pedido-item-compacto'>- <b>{q}x {p.get('item')}</b> ({preco_u:,.2f} Kz) — <b>{subtotal_item:,.2f} Kz</b></div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='pedido-item-compacto'>- <b>{q}x {p.get('item')}</b> ({subtotal_item:,.2f} Kz)</div>", unsafe_allow_html=True)
                         with col_it2:
-                            if st.button(f"🗑️ Anular", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
+                            if st.button(f"🗑️", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
                                 st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = True
                         
                         if st.session_state.get(f"abrindo_anulacao_{m_sel}_{idx_p}", False):
                             with st.container():
-                                st.markdown(f"<div style='background: #141422; padding: 8px; border-radius: 6px; border: 1px solid #ff4b4b; margin-bottom: 6px;'>", unsafe_allow_html=True)
-                                motivo_anulacao = st.text_input(f"Motivo da anulação para: {p.get('item')}", key=f"motivo_anulacao_txt_{m_sel}_{idx_p}")
-                                
+                                motivo_anulacao = st.text_input(f"Motivo da anulação:", key=f"motivo_anulacao_txt_{m_sel}_{idx_p}")
                                 col_j1, col_j2 = st.columns(2)
                                 with col_j1:
-                                    if st.button("Confirmar Anulação", type="primary", key=f"conf_anular_{m_sel}_{idx_p}", use_container_width=True):
+                                    if st.button("Confirmar", type="primary", key=f"conf_anular_{m_sel}_{idx_p}", use_container_width=True):
                                         if motivo_anulacao.strip():
                                             p['status'] = "Anulado"
                                             p['motivo_anulacao'] = motivo_anulacao
                                             
-                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status'] not in ["Anulado", "Recusado pela Cozinha"])
+                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
                                             dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
                                             mesas_data[str(m_sel)] = dados_m_sel
                                             salvar_mesas_disco(mesas_data)
@@ -1144,24 +1077,22 @@ def area_caixa_mesas():
                                             salvar_vendas_excluidas(vendas_excluidas)
                                             
                                             st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
-                                            st.success("Item anulado e registado na auditoria!")
+                                            st.success("Anulado!")
                                             st.rerun()
                                         else:
-                                            st.warning("Insira uma justificativa.")
+                                            st.warning("Insira o motivo.")
                                 with col_j2:
-                                    if st.button("Cancelar", key=f"fechar_anular_{m_sel}_{idx_p}", use_container_width=True):
+                                    if st.button("Sair", key=f"fechar_anular_{m_sel}_{idx_p}", use_container_width=True):
                                         st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
                                         st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    st.info("Sem consumos ativos nesta mesa.")
+                    st.info("Sem consumos.")
 
                 total_a_pagar = dados_m_sel.get("total", 0.0)
-                st.markdown(f"#### 💵 Total: **{total_a_pagar:,.2f} Kz**")
+                st.markdown(f"#### Total: **{total_a_pagar:,.2f} Kz**")
                 
                 if total_a_pagar > 0 or cli_atual:
-                    st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-                    st.markdown("##### 💳 Pagamento")
+                    st.markdown("---")
                     tipo_pagamento = st.selectbox("Forma:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
                     
                     v_dinheiro, v_tpa = 0.0, 0.0
@@ -1199,18 +1130,14 @@ def area_caixa_mesas():
                             "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
                         }
                         salvar_mesas_disco(mesas_data)
-                        st.success(f"Conta da Mesa {m_sel} encerrada!")
+                        st.success(f"Mesa {m_sel} encerrada!")
                         st.rerun()
 
-        # Coluna Direita: Grelha de Mesas Compactada, Justa e Posicionada no Canto Direito
+        # Coluna Direita: Mesas mais juntas, compactas e alinhadas estritamente à direita
         with col_dir:
-            st.markdown("<div style='text-align: right;'><h4 style='display: inline-block; margin-bottom: 6px;'>MESAS</h4></div>", unsafe_allow_html=True)
-            
-            # Recipiente dedicado à direita com padding reduzido para maior proximidade
-            st.markdown("<div style='background: #0e0e14; padding: 8px; border-radius: 8px; border: 1px solid #1a1a24;'>", unsafe_allow_html=True)
-            
-            cols_grelha = 4  # 4 colunas para ficar mais estreito, compacto e alinhado à direita
-            rows = 8
+            st.markdown("<h4 style='text-align: right; margin-bottom:4px;'>MESAS</h4>", unsafe_allow_html=True)
+            cols_grelha = 3
+            rows = 10
             mesa_idx = 1
             
             for r in range(rows):
@@ -1249,12 +1176,6 @@ def area_caixa_mesas():
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         if solicitou_fecho or tem_pronto:
-                            badge_html = '<div style="text-align: center; margin-bottom: 1px; white-space: nowrap;">'
-                            if solicitou_fecho:
-                                badge_html += '<span style="background-color: #ef4444; color: white; font-size: 0.55rem; padding: 1px 3px; border-radius: 3px;">Conta 💵</span>'
-                            badge_html += '</div>'
-                            st.markdown(badge_html, unsafe_allow_html=True)
-                            
                             if tem_pronto:
                                 if st.button("🔔", key=f"btn_sino_{mesa_idx}", use_container_width=True):
                                     st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
@@ -1267,9 +1188,9 @@ def area_caixa_mesas():
 
                         conteudo_circulo = f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.4rem; line-height: 1; text-align: center; white-space: nowrap;">{simbolo_topo}</div>
-                                <span style="font-size: 0.6rem; font-weight: 500; line-height: 1.1;">M.{mesa_idx}</span>
-                                <span style="font-size: 0.4rem; color: #999; line-height: 1;">{nome_cliente_curto}</span>
+                                <div style="font-size: 0.4rem; line-height: 1;">{simbolo_topo}</div>
+                                <span style="font-size: 0.75rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
+                                <span style="font-size: 0.45rem; color: #ffb703; line-height: 1;">{total_m:,.0f}K</span>
                             </div>
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
@@ -1281,7 +1202,6 @@ def area_caixa_mesas():
                             st.rerun()
                         
                     mesa_idx += 1
-            st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
 # ÁREA: ADMINISTRADOR
@@ -1312,7 +1232,7 @@ def area_administrador():
             st.rerun()
             
     with col_links_rapidos:
-        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.85rem; margin-bottom: 4px;'>🔗 Acessos Rápidos:</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: right; color: #ffb703; font-size: 0.9rem; margin-bottom: 4px;'>🔗 Acessos Rápidos:</div>", unsafe_allow_html=True)
         col_lnk1, col_lnk2 = st.columns(2)
         with col_lnk1:
             st.link_button("💻 Abrir Painel do Caixa", "?perfil=caixa", use_container_width=True)
@@ -1320,7 +1240,7 @@ def area_administrador():
             st.link_button("🍳 Abrir Painel da Cozinha", "?perfil=cozinha", use_container_width=True)
             
     st.success("Painel de Administração desbloqueado com sucesso.")
-    st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
+    st.markdown("---")
 
     vendas_exc_check = carregar_vendas_excluidas()
     tem_novas_exclusoes = len(vendas_exc_check) > 0
@@ -1331,18 +1251,18 @@ def area_administrador():
     nome_aba_desbloqueio = "🔓 Desbloquear Acessos (⚠️ ATENÇÃO!)" if tem_bloqueios_ativos else "🔓 Desbloquear Acessos"
 
     tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch, tab_exc, tab_qr, tab_bloq = st.tabs([
-        "💰 Finanças & Abertura do Dia", 
-        "📋 Fechos de Período (Caixa)", 
+        "💰 Finanças & Abertura", 
+        "📋 Fechos de Período", 
         "💸 Saídas de Caixa", 
         "📦 Stock & Menu", 
-        "👥 DCH (Colaboradores & Bónus)",
+        "👥 DCH (Colaboradores)",
         nome_aba_excluidas,
-        "🖨️ QR Codes das Mesas",
+        "🖨️ QR Codes",
         nome_aba_desbloqueio
     ])
     
     with tab_fin:
-        st.subheader("⚙️ Controlo Geral de Abertura e Fecho do Dia (Caixa e Cozinha)")
+        st.subheader("⚙️ Controlo Geral de Abertura e Fecho do Dia")
         
         if "financa_aba_autenticada" not in st.session_state:
             st.session_state.financa_aba_autenticada = False
@@ -1362,7 +1282,7 @@ def area_administrador():
                 st.session_state.financa_aba_autenticada = False
                 st.rerun()
                 
-            st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
+            st.markdown("---")
             st.session_state.caixa_aberto = ler_estado_caixa_disco()
             
             col_adm_c1, col_adm_c2 = st.columns([1, 3])
@@ -1371,19 +1291,19 @@ def area_administrador():
                     if st.button("🔒 Fechar Dia do Restaurante", type="primary"):
                         gravar_estado_caixa_disco(False)
                         st.session_state.caixa_aberto = False
-                        st.success("Dia fechado com sucesso! Caixa e Cozinha bloqueados.")
+                        st.success("Dia fechado com sucesso!")
                         st.rerun()
                 else:
                     if st.button("🟢 Abrir Dia do Restaurante", type="primary"):
                         gravar_estado_caixa_disco(True)
                         st.session_state.caixa_aberto = True
-                        st.success("Dia aberto com sucesso! Caixa e Cozinha desbloqueados.")
+                        st.success("Dia aberto com sucesso!")
                         st.rerun()
             with col_adm_c2:
                 if st.session_state.caixa_aberto:
-                    st.info("🟢 O Sistema encontra-se atualmente **ABERTO** (Caixa e Cozinha operacionais).")
+                    st.info("🟢 O Sistema encontra-se atualmente **ABERTO**.")
                 else:
-                    st.warning("🔴 O Sistema encontra-se atualmente **FECHADO** pelo Administrador.")
+                    st.warning("🔴 O Sistema encontra-se atualmente **FECHADO**.")
 
             sessao_op_adm = carregar_sessao_operador()
             hist_vendas_adm = carregar_historico_vendas()
@@ -1398,22 +1318,22 @@ def area_administrador():
             fundo_inicial_adm = float(sessao_op_adm.get("saldo_inicial", 0.0))
             saldo_fisico_atual = fundo_inicial_adm + vendas_dinheiro_adm
             
-            operador_atual_nome = sessao_op_adm.get("operador", "Nenhum") if sessao_op_adm.get("logado") else "Nenhum operador logado"
+            operador_atual_nome = sessao_op_adm.get("operador", "Nenhum") if sessao_op_adm.get("logado") else "Nenhum"
             periodo_atual_nome = sessao_op_adm.get("periodo", "N/A")
 
             st.markdown(f"""
-                <div style="background-color: #141422; padding: 10px 14px; border-radius: 6px; border: 1px solid #ffb703; margin-top: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 0.9rem; color: #ffb703;">💵 <b>Saldo Disponível em Caixa:</b> <span style="color: #4ac26b;">{saldo_fisico_atual:,.2f} Kz</span></span><br>
-                    <span style="font-size: 0.8rem; color: #9999aa;">👤 <b>Funcionário em Caixa:</b> {operador_atual_nome} (Período: {periodo_atual_nome}) | Fundo Inicial: {fundo_inicial_adm:,.2f} Kz | Vendas Dinheiro: {vendas_dinheiro_adm:,.2f} Kz</span>
+                <div style="background-color: #12121c; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; margin-top: 10px; margin-bottom: 12px;">
+                    <span style="color: #ffb703;">💵 <b>Saldo Disponível em Caixa:</b> <span style="color: #4ac26b;">{saldo_fisico_atual:,.2f} Kz</span></span><br>
+                    <span style="font-size: 0.85rem; color: #d0d0e0;">👤 <b>Operador:</b> {operador_atual_nome} ({periodo_atual_nome}) | Fundo: {fundo_inicial_adm:,.2f} Kz</span>
                 </div>
             """, unsafe_allow_html=True)
 
-            st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
+            st.markdown("---")
             st.subheader("📊 Histórico Geral de Vendas")
             hist_vendas = carregar_historico_vendas()
             
             if not hist_vendas:
-                st.info("Ainda não existem vendas faturadas registadas.")
+                st.info("Ainda não existem vendas faturadas.")
             else:
                 df_vendas = pd.DataFrame(hist_vendas)
                 st.dataframe(df_vendas, use_container_width=True)
@@ -1425,29 +1345,28 @@ def area_administrador():
         fechos_registados = carregar_fechos_caixa()
         
         if not fechos_registados:
-            st.info("Nenhum fecho de período registado pelos operadores de caixa ainda.")
+            st.info("Nenhum fecho registado.")
         else:
             df_fechos = pd.DataFrame(fechos_registados)
             st.dataframe(df_fechos, use_container_width=True)
             total_fechos_acumulado = df_fechos['Total Fecho'].sum() if 'Total Fecho' in df_fechos.columns else 0
-            st.markdown(f"### Total Registado em Fechos de Período: **{total_fechos_acumulado:,.2f} Kz**")
+            st.markdown(f"### Total Registado em Fechos: **{total_fechos_acumulado:,.2f} Kz**")
 
     with tab_saidas:
-        st.subheader("💸 Gestão e Registo de Saídas de Caixa (Atribuição de Fundo / Troco)")
+        st.subheader("💸 Gestão e Registo de Saídas de Caixa")
         with st.form("form_registar_saida"):
             col_sc1, col_sc2 = st.columns(2)
             with col_sc1:
-                motivo_saida = st.text_input("Motivo da Saída (Ex: Fundo de Maneio, Trocos):")
+                motivo_saida = st.text_input("Motivo da Saída:")
                 lista_utilizadores_padrao = ["Carlos", "Ana", "OperadorCaixa1", "OperadorCaixa2"]
-                destino_utilizador = st.selectbox("Destinatário (Utilizador do Caixa):", lista_utilizadores_padrao)
+                destino_utilizador = st.selectbox("Destinatário:", lista_utilizadores_padrao)
             with col_sc2:
-                valor_saida = st.number_input("Valor da Saída / Fundo (Kz):", min_value=0.0, value=20000.0, step=1000.0)
-                periodo_destino = st.selectbox("Período Destino:", ["Noite", "Dia"])
+                valor_saida = st.number_input("Valor (Kz):", min_value=0.0, value=20000.0, step=1000.0)
+                periodo_destino = st.selectbox("Período:", ["Noite", "Dia"])
             
-            responsavel_saida = st.text_input("Autorizado por (ADM):", value="Administração")
+            responsavel_saida = st.text_input("Autorizado por:", value="Administração")
             
-            btn_salvar_saida = st.form_submit_button("🚀 Registar Saída e Enviar para o Caixa", use_container_width=True)
-            if btn_salvar_saida and motivo_saida and valor_saida > 0:
+            if st.form_submit_button("🚀 Registar Saída", use_container_width=True) and motivo_saida and valor_saida > 0:
                 saidas_list = carregar_saidas_caixa()
                 saidas_list.append({
                     "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1458,22 +1377,19 @@ def area_administrador():
                     "Responsável": responsavel_saida
                 })
                 salvar_saidas_caixa(saidas_list)
-                st.success(f"Saída registada e enviada para {destino_utilizador} ({periodo_destino})!")
+                st.success("Saída registada!")
                 st.rerun()
 
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-        st.markdown("#### Histórico de Saídas de Caixa")
+        st.divider()
         saidas_registadas = carregar_saidas_caixa()
         if not saidas_registadas:
-            st.info("Nenhuma saída de caixa registada.")
+            st.info("Nenhuma saída registada.")
         else:
             df_saidas = pd.DataFrame(saidas_registadas)
             st.dataframe(df_saidas, use_container_width=True)
-            total_saidas = df_saidas['Valor'].sum() if 'Valor' in df_saidas.columns else 0
-            st.markdown(f"### Total Retirado em Saídas: **{total_saidas:,.2f} Kz**")
 
     with tab_stk:
-        st.subheader("📦 Gestão de Stock e Produtos/Pratos")
+        st.subheader("📦 Gestão de Stock e Produtos")
         stock_df = st.session_state.stock
         
         with st.form("form_add_produto"):
@@ -1482,39 +1398,35 @@ def area_administrador():
                 novo_produto = st.text_input("Nome do Produto/Prato:")
                 nova_categoria = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Entradas", "Outros"])
             with col_s2:
-                nova_qtd = st.number_input("Quantidade em Stock:", min_value=0, value=10)
+                nova_qtd = st.number_input("Quantidade:", min_value=0, value=10)
                 novo_preco = st.number_input("Preço Unitário (Kz):", min_value=0.0, value=500.0, step=100.0)
                 
-            btn_salvar_prod = st.form_submit_button("💾 Salvar / Atualizar Produto", use_container_width=True)
-            if btn_salvar_prod and novo_produto:
+            if st.form_submit_button("💾 Salvar Produto", use_container_width=True) and novo_produto:
                 if not stock_df.empty and novo_produto in stock_df['Produto'].values:
                     stock_df.loc[stock_df['Produto'] == novo_produto, ['Categoria', 'Quantidade', 'Preço Unitário']] = [nova_categoria, nova_qtd, novo_preco]
-                    st.success(f"Produto '{novo_produto}' atualizado!")
                 else:
                     novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
                     stock_df = pd.concat([stock_df, novo_df_linha], ignore_index=True)
-                    st.success(f"Produto '{novo_produto}' adicionado!")
                 st.session_state.stock = stock_df
                 salvar_stock_disco(stock_df)
+                st.success("Atualizado com sucesso!")
                 st.rerun()
 
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-        st.markdown("#### Lista Atual de Produtos")
+        st.divider()
         st.dataframe(stock_df, use_container_width=True)
         
         if not stock_df.empty:
             with st.form("form_del_produto"):
-                produto_a_remover = st.selectbox("Selecionar produto para remover:", stock_df['Produto'].tolist())
-                if st.form_submit_button("🗑️ Remover Produto Selecionado", use_container_width=True):
+                produto_a_remover = st.selectbox("Remover produto:", stock_df['Produto'].tolist())
+                if st.form_submit_button("🗑️ Remover", use_container_width=True):
                     stock_df = stock_df[stock_df['Produto'] != produto_a_remover].reset_index(drop=True)
                     st.session_state.stock = stock_df
                     salvar_stock_disco(stock_df)
-                    st.success(f"Produto '{produto_a_remover}' removido!")
+                    st.success("Removido!")
                     st.rerun()
 
     with tab_dch:
-        st.subheader("👥 DCH — Cadastramento de Colaboradores & Bónus Acumulados")
-        
+        st.subheader("👥 DCH — Colaboradores & Bónus")
         df_rh_atual = carregar_rh_disco()
         
         if df_rh_atual.empty or "Código" not in df_rh_atual.columns:
@@ -1530,155 +1442,81 @@ def area_administrador():
             proximo_num = (max(numeros) + 1) if numeros else (len(df_rh_atual) + 1)
             proximo_codigo = f"NS{proximo_num:04d}"
 
-        with st.expander("➕ Cadastrar Novo Colaborador", expanded=True):
+        with st.expander("➕ Cadastrar Novo Colaborador", expanded=False):
             with st.form("form_cadastrar_colaborador"):
-                st.markdown(f"**Código Gerado Automaticamente:** `{proximo_codigo}`")
+                st.markdown(f"**Código:** `{proximo_codigo}`")
                 col_r1, col_r2 = st.columns(2)
                 with col_r1:
                     nome_func = st.text_input("Nome Completo:")
-                    cat_func = st.selectbox("Categoria / Cargo:", ["Garçon", "Operador de Caixa", "Operador de Limpeza", "Chefe de Cozinha", "Ajudante de Cozinha"])
+                    cat_func = st.selectbox("Cargo:", ["Garçon", "Operador de Caixa", "Operador de Limpeza", "Chefe de Cozinha", "Ajudante de Cozinha"])
                     salario_func = st.number_input("Salário (Kz):", min_value=0.0, value=75000.0, step=5000.0)
                 with col_r2:
                     tel_func = st.text_input("Telefone:")
                     bi_func = st.text_input("Nº de BI:")
                 
-                if st.form_submit_button("💾 Salvar Novo Colaborador", use_container_width=True) and nome_func:
+                if st.form_submit_button("💾 Salvar Colaborador", use_container_width=True) and nome_func:
                     nova_linha_rh = pd.DataFrame([[proximo_codigo, nome_func, cat_func, tel_func, bi_func, salario_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI", "Salário"])
                     df_rh_atual = pd.concat([df_rh_atual, nova_linha_rh], ignore_index=True)
                     salvar_rh_disco(df_rh_atual)
-                    st.success(f"Colaborador '{nome_func}' ({proximo_codigo}) guardado com sucesso!")
+                    st.success("Guardado!")
                     st.rerun()
 
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-        st.subheader("✏️ Editar Registo de Colaborador Existente")
-        if not df_rh_atual.empty:
-            colaborador_selecionado = st.selectbox("Selecionar Colaborador para Editar:", df_rh_atual['Nome'].tolist(), key="select_edit_colab")
-            dados_colab = df_rh_atual[df_rh_atual['Nome'] == colaborador_selecionado].iloc[0]
-            
-            with st.form("form_editar_colaborador"):
-                st.markdown(f"**Código:** `{dados_colab['Código']}`")
-                col_e1, col_e2 = st.columns(2)
-                with col_e1:
-                    novo_nome = st.text_input("Nome Completo:", value=str(dados_colab['Nome']))
-                    
-                    cats_possiveis = ["Garçon", "Operador de Caixa", "Operador de Limpeza", "Chefe de Cozinha", "Ajudante de Cozinha"]
-                    cat_atual_idx = cats_possiveis.index(dados_colab['Categoria']) if dados_colab['Categoria'] in cats_possiveis else 0
-                    nova_cat = st.selectbox("Categoria / Cargo:", cats_possiveis, index=cat_atual_idx)
-                    
-                    novo_salario = st.number_input("Salário (Kz):", min_value=0.0, value=float(dados_colab['Salário']) if 'Salário' in dados_colab and pd.notnull(dados_colab['Salário']) else 0.0, step=5000.0)
-                with col_e2:
-                    novo_tel = st.text_input("Telefone:", value=str(dados_colab['Telefone']))
-                    novo_bi = st.text_input("Nº de BI:", value=str(dados_colab['BI']))
-                
-                if st.form_submit_button("💾 Atualizar Colaborador", use_container_width=True):
-                    df_rh_atual.loc[df_rh_atual['Código'] == dados_colab['Código'], ['Nome', 'Categoria', 'Telefone', 'BI', 'Salário']] = [novo_nome, nova_cat, novo_tel, novo_bi, novo_salario]
-                    salvar_rh_disco(df_rh_atual)
-                    st.success(f"Dados do colaborador '{novo_nome}' atualizados com sucesso!")
-                    st.rerun()
-
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-        st.markdown("#### 📋 Lista Completa de Colaboradores Cadastrados")
-        df_rh_atual_final = carregar_rh_disco()
-        st.dataframe(df_rh_atual_final, use_container_width=True)
-
-        if not df_rh_atual_final.empty:
-            with st.form("form_remover_colaborador"):
-                func_remover = st.selectbox("Selecionar colaborador para remover:", df_rh_atual_final['Nome'].tolist())
-                if st.form_submit_button("🗑️ Remover Colaborador Selecionado", use_container_width=True):
-                    df_rh_atual_final = df_rh_atual_final[df_rh_atual_final['Nome'] != func_remover].reset_index(drop=True)
-                    salvar_rh_disco(df_rh_atual_final)
-                    st.success(f"Colaborador '{func_remover}' removido!")
-                    st.rerun()
-
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-        st.subheader("🏆 Resumo de Bónus Acumulados por Atendimento de Mesas")
-        atendimentos = carregar_atendimentos_garcon()
-        if not atendimentos:
-            st.info("Ainda não existem mesas atendidas registadas para calcular bónus.")
-        else:
-            df_atend = pd.DataFrame(atendimentos)
-            df_resumo_bonus = df_atend.groupby("Garçon").agg(
-                Mesas_Atendidas=("Mesa", "count"),
-                Total_Vendido=("Valor", "sum")
-            ).reset_index()
-            
-            df_resumo_bonus["Bónus Acumulado (Kz)"] = df_resumo_bonus["Mesas_Atendidas"] * 500.0
-            st.dataframe(df_resumo_bonus, use_container_width=True)
-            st.dataframe(df_atend, use_container_width=True)
+        st.dataframe(df_rh_atual, use_container_width=True)
 
     with tab_exc:
         if tem_novas_exclusoes:
-            st.markdown("<h3 class='piscar-alerta'>🚨 ALERTA: Existem Vendas/Itens Excluídos e Anulados pelos Operadores!</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 class='piscar-alerta'>🚨 ALERTA: Itens Excluídos/Anulados!</h3>", unsafe_allow_html=True)
         else:
-            st.subheader("🚨 Registo de Vendas e Itens Excluídos / Anulados")
+            st.subheader("🚨 Registo de Vendas Excluídas / Anuladas")
 
         vendas_excluidas_list = carregar_vendas_excluidas()
         if not vendas_excluidas_list:
-            st.info("Nenhum item ou venda foi excluído ou anulado até ao momento.")
+            st.info("Nenhum item excluído.")
         else:
             df_exc = pd.DataFrame(vendas_excluidas_list)
             st.dataframe(df_exc, use_container_width=True)
-            
-            if st.button("🧹 Limpar / Marcar como Visto o Registo de Excluídos"):
+            if st.button("🧹 Limpar Registo"):
                 salvar_vendas_excluidas([])
-                st.success("Registo limpo com sucesso!")
+                st.success("Limpo!")
                 st.rerun()
 
     with tab_qr:
-        st.subheader("🖨️ Gerador, Links Diretos e Visualizador de QR Codes para as Mesas (1 a 30)")
-        st.write("Copie o link direto de cada mesa ou descarregue o respetivo QR Code para imprimir.")
-        
-        url_base_padrao = "https://nobresabor.streamlit.app"
-        url_site = st.text_input("URL base da Aplicação (Deploy):", value=url_base_padrao)
-        
-        st.markdown("<hr style='border-color: #222233;'>", unsafe_allow_html=True)
-        
+        st.subheader("🖨️ QR Codes das Mesas (1 a 30)")
+        url_site = st.text_input("URL base:", value="https://nobresabor.streamlit.app")
         for linha in range(10):
             cols = st.columns(3)
             for c in range(3):
                 num_mesa_qr = linha * 3 + c + 1
                 if num_mesa_qr > 30:
                     break
-                
                 link_mesa = f"{url_site}/?mesa={num_mesa_qr}"
-                
                 with cols[c]:
-                    st.markdown(f"#### 🏷️ Mesa {num_mesa_qr}")
-                    st.text_input(f"Link Mesa {num_mesa_qr}:", value=link_mesa, key=f"link_txt_mesa_{num_mesa_qr}")
+                    st.markdown(f"**Mesa {num_mesa_qr}**")
                     qr_bytes = gerar_imagem_qrcode_pil(link_mesa)
-                    st.image(qr_bytes, width=150, caption=f"Mesa {num_mesa_qr}")
-                    st.download_button(
-                        label=f"📥 Baixar QR Mesa {num_mesa_qr}",
-                        data=qr_bytes,
-                        file_name=f"qrcode_mesa_{num_mesa_qr}.png",
-                        mime="image/png",
-                        key=f"dl_qr_{num_mesa_qr}"
-                    )
-                    st.markdown("<hr style='border-color: #1a1a28;'>", unsafe_allow_html=True)
+                    st.image(qr_bytes, width=120)
+                    st.download_button(f"Baixar M{num_mesa_qr}", data=qr_bytes, file_name=f"qr_mesa_{num_mesa_qr}.png", mime="image/png", key=f"dl_qr_{num_mesa_qr}")
 
     with tab_bloq:
         if tem_bloqueios_ativos:
-            st.markdown("<h3 class='piscar-alerta'>⚠️ ATENÇÃO: Existem Operadores Bloqueados por Tentativas Inválidas de Senha!</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 class='piscar-alerta'>⚠️ ATENÇÃO: Operadores Bloqueados!</h3>", unsafe_allow_html=True)
         else:
-            st.subheader("🔓 Painel de Desbloqueio e Ativação de Acessos")
+            st.subheader("🔓 Desbloqueio e Ativação de Acessos")
 
         bloqueios_data = carregar_bloqueios()
         bloqueios_ativos = [b for b in bloqueios_data if not b.get("Resolvido", False)]
 
         if not bloqueios_ativos:
-            st.info("Nenhum operador bloqueado no momento.")
+            st.info("Nenhum operador bloqueado.")
         else:
             for idx_b, b_item in enumerate(bloqueios_ativos):
                 st.markdown(f"""
-                    <div style="background-color: #240a0a; border: 1px solid #ff4b4b; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <p style="color: #ff6b6b; font-weight: 500; margin: 2px 0;">🚨 Operador Bloqueado: {b_item.get('Operador')}</p>
-                        <p style="margin: 2px 0; font-size: 0.85rem;">⏰ <b>Data/Hora:</b> {b_item.get('Data')}</p>
-                        <p style="margin: 2px 0; font-size: 0.85rem;">🔑 <b>Senha Antiga (Correta):</b> <code style="color: #4ac26b;">{b_item.get('Senha Antiga (Correta)')}</code></p>
-                        <p style="margin: 2px 0; font-size: 0.85rem;">❌ <b>Senha Errada Inserida:</b> <code style="color: #ff4b4b;">{b_item.get('Senha Errada Inserida')}</code></p>
+                    <div style="background-color: #1c1212; border: 1px solid #ff4b4b; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                        <p style="color: #ff6b6b; margin:0;">🚨 Operador: <b>{b_item.get('Operador')}</b></p>
+                        <p style="margin:2px 0; font-size:0.85rem;">Hora: {b_item.get('Data')} | Senha Correta: <code style="color:#4ac26b;">{b_item.get('Senha Antiga (Correta)')}</code> | Senha Tentada: <code style="color:#ff4b4b;">{b_item.get('Senha Errada Inserida')}</code></p>
                     </div>
                 """, unsafe_allow_html=True)
 
-                if st.button(f"✅ Desbloquear Operador {b_item.get('Operador')}", key=f"btn_desbl_{idx_b}", use_container_width=True):
+                if st.button(f"✅ Desbloquear {b_item.get('Operador')}", key=f"btn_desbl_{idx_b}", use_container_width=True):
                     for item_b in bloqueios_data:
                         if item_b.get("Operador") == b_item.get("Operador") and item_b.get("Data") == b_item.get("Data"):
                             item_b["Resolvido"] = True
@@ -1690,7 +1528,7 @@ def area_administrador():
                         sessao_atual_op["tentativas_falhadas"] = 0
                         salvar_sessao_operador(sessao_atual_op)
 
-                    st.success(f"Operador {b_item.get('Operador')} desbloqueado com sucesso!")
+                    st.success("Desbloqueado com sucesso!")
                     st.rerun()
 
 # ==========================================
