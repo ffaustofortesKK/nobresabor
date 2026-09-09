@@ -274,8 +274,8 @@ def carregar_rh_disco():
         except:
             pass
     return pd.DataFrame([
-        ["G001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
-        ["G002", "Ana Paula", "Garçon", "912333444", "009876543LA031"]
+        ["NS0001", "Carlos Manuel", "Garçon", "923000111", "001234567LA042"],
+        ["NS0002", "Ana Paula", "Operador de Caixa", "912333444", "009876543LA031"]
     ], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
 
 def salvar_rh_disco(df):
@@ -1405,30 +1405,52 @@ def area_administrador():
 
     with tab_dch:
         st.subheader("👥 DCH — Cadastramento de Colaboradores & Bónus Acumulados")
-        with st.expander("➕ Cadastrar Novo Colaborador / Garçon", expanded=False):
+        
+        df_rh_atual = carregar_rh_disco()
+        
+        # Gerar o próximo código automático (Ex: NS0001, NS0002...)
+        proximo_num = 1
+        if not df_rh_atual.empty and "Código" in df_rh_atual.columns:
+            codigos_existentes = df_rh_atual["Código"].dropna().tolist()
+            numeros = []
+            for cod in codigos_existentes:
+                if str(cod).startswith("NS"):
+                    try:
+                        numeros.append(int(str(cod).replace("NS", "")))
+                    except:
+                        pass
+            if numeros:
+                proximo_num = max(numeros) + 1
+        codigo_gerado = f"NS{proximo_num:04d}"
+
+        with st.expander("➕ Cadastrar Novo Colaborador", expanded=True):
             with st.form("form_cadastrar_colaborador"):
+                st.info(f"🔑 Código Automático Atribuído: **{codigo_gerado}**")
                 col_r1, col_r2 = st.columns(2)
                 with col_r1:
-                    cod_func = st.text_input("Código do Funcionário (Ex: G003):")
                     nome_func = st.text_input("Nome Completo:")
-                    cat_func = st.selectbox("Categoria / Cargo:", ["Garçon", "Chefe de Sala", "Bartender", "Outro"])
+                    cat_func = st.selectbox("Categoria / Cargo:", [
+                        "Garçon", 
+                        "Operador de Caixa", 
+                        "Operador de Limpeza", 
+                        "Chefe de Cozinha", 
+                        "Ajudante de Cozinha"
+                    ])
                 with col_r2:
                     tel_func = st.text_input("Telefone:")
                     bi_func = st.text_input("Nº de BI:")
                 
-                if st.form_submit_button("💾 Salvar Colaborador", use_container_width=True) and cod_func and nome_func:
-                    df_rh = carregar_rh_disco()
-                    if not df_rh.empty and (cod_func in df_rh['Código'].values):
-                        df_rh.loc[df_rh['Código'] == cod_func, ['Nome', 'Categoria', 'Telefone', 'BI']] = [nome_func, cat_func, tel_func, bi_func]
+                if st.form_submit_button("💾 Salvar Colaborador", use_container_width=True) and nome_func:
+                    if not df_rh_atual.empty and (codigo_gerado in df_rh_atual['Código'].values):
+                        df_rh_atual.loc[df_rh_atual['Código'] == codigo_gerado, ['Nome', 'Categoria', 'Telefone', 'BI']] = [nome_func, cat_func, tel_func, bi_func]
                     else:
-                        nova_linha_rh = pd.DataFrame([[cod_func, nome_func, cat_func, tel_func, bi_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
-                        df_rh = pd.concat([df_rh, nova_linha_rh], ignore_index=True)
-                    salvar_rh_disco(df_rh)
-                    st.success(f"Colaborador '{nome_func}' guardado com sucesso!")
+                        nova_linha_rh = pd.DataFrame([[codigo_gerado, nome_func, cat_func, tel_func, bi_func]], columns=["Código", "Nome", "Categoria", "Telefone", "BI"])
+                        df_rh_atual = pd.concat([df_rh_atual, nova_linha_rh], ignore_index=True)
+                    salvar_rh_disco(df_rh_atual)
+                    st.success(f"Colaborador '{nome_func}' guardado com o código {codigo_gerado} com sucesso!")
                     st.rerun()
 
         st.markdown("#### 📋 Lista de Colaboradores Cadastrados")
-        df_rh_atual = carregar_rh_disco()
         st.dataframe(df_rh_atual, use_container_width=True)
 
         if not df_rh_atual.empty:
