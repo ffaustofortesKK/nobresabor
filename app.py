@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais, Compactos e Estáveis
+# Estilos CSS Profissionais e Simulação de Ecrã de Telemóvel
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -22,7 +22,7 @@ st.markdown("""
     }
     
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
@@ -56,6 +56,18 @@ st.markdown("""
 
     [data-testid="stSidebar"] {
         display: none;
+    }
+
+    /* Moldura de Telemóvel Realista para o Cliente */
+    .phone-frame {
+        max-width: 380px;
+        margin: 0 auto;
+        background-color: #000000;
+        border: 10px solid #1a1a24;
+        border-radius: 32px;
+        padding: 16px 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        min-height: 650px;
     }
 
     .mesa-circle {
@@ -120,7 +132,7 @@ st.markdown("""
     .stButton>button {
         border-radius: 6px;
         font-weight: 500 !important;
-        padding: 3px 6px !important;
+        padding: 4px 8px !important;
         font-size: 0.8rem !important;
         color: #000000 !important;
     }
@@ -429,24 +441,12 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE
+# ÁREA: CLIENTE (ESTILO ECRÃ DE TELEFONE)
 # ==========================================
 @st.fragment(run_every=6)
 def area_cliente():
-    st.markdown("""
-        <style>
-        .tablet-container { max-width: 320px; margin: 0 auto; background: #000000; border: 3px solid #1a1a1a; border-radius: 10px; padding: 6px; }
-        .stButton button { padding: 0.2rem 0.4rem; font-size: 0.75rem; background-color: #111111; color: #ffffff; border: 1px solid #333333; }
-        .stButton button:hover { background-color: #222222; border-color: #555555; }
-        .element-container, .stTextInput, .stSelectbox { margin-bottom: -0.4rem !important; }
-        .stTabs [data-baseweb="tab-list"] { background-color: #000000; }
-        .stTabs [data-baseweb="tab"] { background-color: #000000; color: #888888; font-size: 0.70rem; }
-        .stTabs [aria-selected="true"] { background-color: #111111 !important; color: #ffb703 !important; }
-        @media (max-width: 400px) { .tablet-container { border: none; padding: 0; background: #000000; } }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="tablet-container">', unsafe_allow_html=True)
+    # Envolve toda a área do cliente numa moldura de telemóvel elegante e centralizada
+    st.markdown('<div class="phone-frame">', unsafe_allow_html=True)
 
     if not (mesa_detectada and 1 <= mesa_detectada <= 30):
         st.error("⚠️ Mesa inválida! Escaneie o QR correto.")
@@ -459,18 +459,18 @@ def area_cliente():
 
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        st.markdown("<h4 style='text-align:center; font-size:0.85rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align:center; font-size:0.7rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
         
         for item in fat['itens']:
-            st.markdown(f"<span style='font-size:0.65rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
             
-        st.markdown(f"<span style='font-size:0.75rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
         
         st.markdown("""
-            <div style='background-color: #111118; padding: 8px; border-radius: 5px; border: 1px solid #ffb703; text-align: center; margin: 8px 0;'>
-                <p style='color: #4ac26b; font-size: 0.75rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
-                <p style='color: #aaaaaa; font-size: 0.65rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
+            <div style='background-color: #111118; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
+                <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
+                <p style='color: #aaaaaa; font-size: 0.7rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -487,9 +487,9 @@ def area_cliente():
 
     if not dados_m.get("cliente"):
         st.markdown(f"""
-            <div style='text-align: center; background: #111118; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 8px;'>
-                <h4 style='font-size:0.85rem; color:#ffffff; margin-bottom: 2px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
-                <p style='font-size:0.7rem; color:#aaaaaa; margin: 0;'>Registe-se para iniciar na <b>Mesa {num_mesa}</b>.</p>
+            <div style='text-align: center; background: #141420; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px;'>
+                <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
+                <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados para iniciar na <b>Mesa {num_mesa}</b>.</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -507,8 +507,7 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         cli = dados_m["cliente"]
-        st.markdown("<div style='height: 2px;'></div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='font-size:0.7rem; color:#ffb703; margin-bottom:4px; text-align:center; background:#111111; padding:4px; border-radius:4px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#141420; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
@@ -571,10 +570,10 @@ def area_cliente():
                 t_item = p['quantidade'] * p['preco']
                 if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
                     total_parcial += t_item
-                st.markdown(f"<span style='font-size:0.65rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
             
-            st.markdown(f"<span style='font-size:0.7rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 4px 0; border-color: #222;'>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 6px 0; border-color: #222;'>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
                 st.info("⏳ Pedido de fecho enviado ao caixa.")
@@ -590,7 +589,7 @@ def area_cliente():
                     st.rerun()
 
         with t_ev:
-            st.markdown("<span style='font-size:0.65rem; color:#aaaaaa;'><b>Agenda:</b><br>• Sexta: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
+            st.markdown("<span style='font-size:0.7rem; color:#aaaaaa;'><b>Agenda:</b><br>• Sexta: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
         st.markdown('</div>', unsafe_allow_html=True)
 
