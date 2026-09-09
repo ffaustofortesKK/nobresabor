@@ -309,8 +309,8 @@ def salvar_stock_disco(df):
     except:
         pass
 
-def gerar_qrcode_bytes(url_texto):
-    qr = qrcode.QRCode(version=1, box_size=6, border=2)
+def gerar_imagem_qrcode_pil(url_texto):
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(url_texto)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
@@ -1232,13 +1232,14 @@ def area_administrador():
     tem_novas_exclusoes = len(vendas_exc_check) > 0
     nome_aba_excluidas = "🚨 Vendas Excluídas (NOVO!)" if tem_novas_exclusoes else "🚨 Vendas Excluídas"
 
-    tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch, tab_exc = st.tabs([
+    tab_fin, tab_fechos_cx, tab_saidas, tab_stk, tab_dch, tab_exc, tab_qr = st.tabs([
         "💰 Finanças & Abertura do Dia", 
         "📋 Fechos de Período (Caixa)", 
         "💸 Saídas de Caixa", 
         "📦 Stock & Menu", 
         "👥 DCH (Colaboradores & Bónus)",
-        nome_aba_excluidas
+        nome_aba_excluidas,
+        "🖨️ QR Codes das Mesas"
     ])
     
     with tab_fin:
@@ -1249,7 +1250,7 @@ def area_administrador():
 
         if not st.session_state.financa_aba_autenticada:
             with st.form("form_senha_aba_financa"):
-                st.markdown("#### 🔒 Acesso Restrito à Aba Finanças")
+                st.markdown("#### 🔒 Acesso Restrito às Finanças")
                 senha_fin = st.text_input("Introduza a senha de acesso às Finanças:", type="password")
                 if st.form_submit_button("Desbloquear Finanças"):
                     if senha_fin == "123123123":
@@ -1482,6 +1483,37 @@ def area_administrador():
                 salvar_vendas_excluidas([])
                 st.success("Registo limpo com sucesso!")
                 st.rerun()
+
+    with tab_qr:
+        st.subheader("🖨️ Gerador e Visualizador de QR Codes para as Mesas (1 a 30)")
+        st.write("Cada QR Code direciona diretamente o cliente para a interface da respetiva mesa no micro-tablet.")
+        
+        url_base_padrao = "https://nobresabor.streamlit.app"
+        url_site = st.text_input("URL base da Aplicação (Deploy):", value=url_base_padrao)
+        
+        st.markdown("---")
+        
+        for linha in range(10):
+            cols = st.columns(3)
+            for c in range(3):
+                num_mesa_qr = linha * 3 + c + 1
+                if num_mesa_qr > 30:
+                    break
+                
+                link_mesa = f"{url_site}/?mesa={num_mesa_qr}"
+                
+                with cols[c]:
+                    st.markdown(f"#### 🏷️ Mesa {num_mesa_qr}")
+                    qr_bytes = gerar_imagem_qrcode_pil(link_mesa)
+                    st.image(qr_bytes, width=150, caption=f"Mesa {num_mesa_qr}")
+                    st.download_button(
+                        label=f"📥 Baixar QR Mesa {num_mesa_qr}",
+                        data=qr_bytes,
+                        file_name=f"qrcode_mesa_{num_mesa_qr}.png",
+                        mime="image/png",
+                        key=f"dl_qr_{num_mesa_qr}"
+                    )
+                    st.markdown("---")
 
 # ==========================================
 # ROTEADOR PRINCIPAL DA APLICAÇÃO
