@@ -627,6 +627,8 @@ def area_caixa_mesas():
             margin: 0 auto 2px auto;
             color: #fff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            overflow: hidden;
+            padding: 2px;
         }
         .mesa-aberta { background-color: #1f3b2c; border: 1.5px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
@@ -832,7 +834,7 @@ def area_caixa_mesas():
                     simbolos_topo_lista = []
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
-                        simbolos_topo_lista.append("💵")
+                        simbolos_topo_lista.append("💵 Pediu Conta")
                     elif tem_pronto:
                         classe_css = "mesa-pronta-alerta"
                         simbolos_topo_lista.append("🍲")
@@ -850,10 +852,10 @@ def area_caixa_mesas():
                         
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.5rem; line-height: 1; min-height: 10px;">{simbolo_topo}</div>
-                                <span style="font-size: 0.65rem; font-weight: bold;">Mesa {mesa_idx}</span>
-                                <span style="font-size: 0.45rem; color: #bbb;">{nome_cliente_curto}</span>
-                                <span style="font-size: 0.45rem; color: #ffb703;">{total_m:,.0f}K</span>
+                                <div style="font-size: 0.45rem; line-height: 1; text-align: center; white-space: nowrap;">{simbolo_topo}</div>
+                                <span style="font-size: 0.6rem; font-weight: bold; line-height: 1.1;">Mesa {mesa_idx}</span>
+                                <span style="font-size: 0.42rem; color: #bbb; line-height: 1;">{nome_cliente_curto}</span>
+                                <span style="font-size: 0.42rem; color: #ffb703; line-height: 1;">{total_m:,.0f}K</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
