@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais, Compactos e Sem Efeito Fusco
+# Estilos CSS Profissionais e Compactos
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -145,7 +145,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Caminhos dos Ficheiros de Base de Dados Local
+# Caminhos dos Ficheiros de Base de Dados Local (Persistência em Disco)
 ARQUIVO_ESTADO_CAIXA = "caixa_status.txt"
 ARQUIVO_DADOS_MESAS = "mesas_dados.json"
 ARQUIVO_HISTORICO_VENDAS = "historico_vendas.json"
@@ -291,22 +291,6 @@ def salvar_vendas_excluidas(exc_list):
     except:
         pass
 
-def carregar_atendimentos_garcon():
-    if os.path.exists(ARQUIVO_ATENDIMENTOS_GARCON):
-        try:
-            with open(ARQUIVO_ATENDIMENTOS_GARCON, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            pass
-    return []
-
-def salvar_atendimentos_garcon(atend_list):
-    try:
-        with open(ARQUIVO_ATENDIMENTOS_GARCON, "w", encoding="utf-8") as f:
-            json.dump(atend_list, f, ensure_ascii=False, indent=4)
-    except:
-        pass
-
 def carregar_rh_disco():
     if os.path.exists(ARQUIVO_RH_COLABORADORES):
         try:
@@ -353,54 +337,6 @@ def salvar_stock_disco(df):
     except:
         pass
 
-def gerar_pdf_fatura(fat_data, num_mesa):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Restaurante Nobre Sabor", ln=True, align="C")
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 10, f"Fatura / Recibo — Mesa {num_mesa}", ln=True, align="C")
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 7, f"Data: {fat_data['data']}", ln=True)
-    pdf.cell(0, 7, f"Cliente: {fat_data['cliente']}", ln=True)
-    pdf.cell(0, 7, f"Telefone: {fat_data['telefone']}", ln=True)
-    if fat_data.get('nif'):
-        pdf.cell(0, 7, f"NIF: {fat_data['nif']}", ln=True)
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(90, 8, "Descrição do Item", 1)
-    pdf.cell(20, 8, "Qtd", 1, align="C")
-    pdf.cell(40, 8, "Preço Unit.", 1, align="R")
-    pdf.cell(40, 8, "Total", 1, align="R", ln=True)
-    
-    pdf.set_font("Arial", "", 10)
-    for item in fat_data['itens']:
-        sub_item = item['quantidade'] * item['preco']
-        pdf.cell(90, 8, str(item['item']), 1)
-        pdf.cell(20, 8, str(item['quantidade']), 1, align="C")
-        pdf.cell(40, 8, f"{item['preco']:,.2f} Kz", 1, align="R")
-        pdf.cell(40, 8, f"{sub_item:,.2f} Kz", 1, align="R", ln=True)
-        
-    pdf.ln(5)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, f"Forma de Pagamento: {fat_data['pagamento_detalhe']}", ln=True)
-    
-    pdf.set_font("Arial", "B", 13)
-    pdf.cell(0, 10, f"Total Pago: {fat_data['total']:,.2f} Kz", ln=True, align="R")
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", "I", 10)
-    pdf.cell(0, 8, "Muito obrigado pela sua preferência! Volte sempre ao Restaurante Nobre Sabor.", ln=True, align="C")
-    
-    nome_arquivo = f"fatura_mesa_{num_mesa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    pdf.output(nome_arquivo)
-    return nome_arquivo
-
 def gerar_imagem_qrcode_pil(url_texto):
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(url_texto)
@@ -409,6 +345,46 @@ def gerar_imagem_qrcode_pil(url_texto):
     buffer = BytesIO()
     img.save(buffer, format="PNG")
     return buffer.getvalue()
+
+def gerar_pdf_fatura(fat_data, num_mesa):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Restaurante Nobre Sabor", ln=True, align="C")
+    pdf.set_font("Arial", "", 12)
+    pdf.cell(0, 10, f"Fatura / Recibo — Mesa {num_mesa}", ln=True, align="C")
+    pdf.ln(5)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 7, f"Data: {fat_data['data']}", ln=True)
+    pdf.cell(0, 7, f"Cliente: {fat_data['cliente']}", ln=True)
+    pdf.cell(0, 7, f"Telefone: {fat_data['telefone']}", ln=True)
+    if fat_data.get('nif'):
+        pdf.cell(0, 7, f"NIF: {fat_data['nif']}", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(90, 8, "Descrição do Item", 1)
+    pdf.cell(20, 8, "Qtd", 1, align="C")
+    pdf.cell(40, 8, "Preço Unit.", 1, align="R")
+    pdf.cell(40, 8, "Total", 1, align="R", ln=True)
+    pdf.set_font("Arial", "", 10)
+    for item in fat_data['itens']:
+        sub_item = item['quantidade'] * item['preco']
+        pdf.cell(90, 8, str(item['item']), 1)
+        pdf.cell(20, 8, str(item['quantidade']), 1, align="C")
+        pdf.cell(40, 8, f"{item['preco']:,.2f} Kz", 1, align="R")
+        pdf.cell(40, 8, f"{sub_item:,.2f} Kz", 1, align="R", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 8, f"Forma de Pagamento: {fat_data['pagamento_detalhe']}", ln=True)
+    pdf.set_font("Arial", "B", 13)
+    pdf.cell(0, 10, f"Total Pago: {fat_data['total']:,.2f} Kz", ln=True, align="R")
+    pdf.ln(10)
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(0, 8, "Muito obrigado pela sua preferência! Volte sempre ao Restaurante Nobre Sabor.", ln=True, align="C")
+    nome_arquivo = f"fatura_mesa_{num_mesa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    pdf.output(nome_arquivo)
+    return nome_arquivo
 
 # Parâmetros URL
 mesa_detectada = None
@@ -439,7 +415,7 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE
+# ÁREA: CLIENTE (MICRO-TABLET ESTREITO E COMPACTO)
 # ==========================================
 def area_cliente():
     st.markdown("""
@@ -470,19 +446,15 @@ def area_cliente():
         fat = dados_m["fatura_emitida"]
         st.markdown("<h4 style='text-align:center; font-size:0.85rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
         st.markdown("<p style='text-align:center; font-size:0.7rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
-        
         for item in fat['itens']:
             st.markdown(f"<span style='font-size:0.65rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
-            
         st.markdown(f"<span style='font-size:0.75rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
-        
         st.markdown("""
             <div style='background-color: #111118; padding: 8px; border-radius: 5px; border: 1px solid #ffb703; text-align: center; margin: 8px 0;'>
                 <p style='color: #4ac26b; font-size: 0.75rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
                 <p style='color: #aaaaaa; font-size: 0.65rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
             </div>
         """, unsafe_allow_html=True)
-
         try:
             pdf_path = gerar_pdf_fatura(fat, num_mesa)
             if os.path.exists(pdf_path):
@@ -490,7 +462,6 @@ def area_cliente():
                     st.download_button("📥 Descarregar PDF", data=f, file_name=f"Fatura_NobreSabor_Mesa_{num_mesa}.pdf", use_container_width=True)
         except Exception:
             pass
-            
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -523,7 +494,6 @@ def area_cliente():
         
         with t_menu:
             categorias_fixas = ["Bebidas", "Refeições", "Sobremesas", "Outros"]
-            
             if 'stock' in st.session_state and not st.session_state.stock.empty:
                 stock_df = st.session_state.stock.copy()
                 utilitarios_extras = [
@@ -555,7 +525,6 @@ def area_cliente():
                     if st.form_submit_button("🚀 Enviar Pedido", use_container_width=True):
                         p_row = itens[itens['Produto'] == prod].iloc[0]
                         preco_unit = float(p_row['Preço Unitário']) if 'Preço Unitário' in p_row else 0.0
-                        
                         is_ref = cat.lower() in ["refeições", "refeicoes", "pratos", "comida"]
                         
                         dados_m["pedidos"].append({
@@ -716,20 +685,24 @@ def area_cozinha():
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    tem_mesas_prontas_com_alerta = False
+    # ALARME PARA O CAIXA QUANDO A COZINHA MARCA UM PRATO COMO "FEITO"
+    tem_prato_feito_cozinha = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
         silenciado_pelo_operador = st.session_state.get(f"silenciar_alarme_mesa_{str_m}", False)
         if tem_pronto and not silenciado_pelo_operador:
-            tem_mesas_prontas_com_alerta = True
+            tem_prato_feito_cozinha = True
             break
 
-    if tem_mesas_prontas_com_alerta:
+    if tem_prato_feito_cozinha:
         st.markdown("""
             <audio autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
               Seu navegador não suporta elemento de áudio.
             </audio>
+            <div style='background-color: #1b4332; border: 2px solid #4ac26b; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 12px;'>
+                <span style='color: #4ac26b; font-size: 0.95rem; font-weight: bold;'>🍲 ATENÇÃO CAIXA: Há prato(s) pronto(s) na Cozinha aguardando recolha/entrega! 🍲</span>
+            </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<h3 style='margin-bottom:6px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
@@ -771,7 +744,6 @@ def area_caixa_mesas():
             
             if btn_sub_destrancar:
                 senha_correta_sistema = "123123" 
-                
                 if senha_destrancar == senha_correta_sistema:
                     sessao_op["trancado"] = False
                     sessao_op["tentativas_falhadas"] = 0
@@ -877,7 +849,6 @@ def area_caixa_mesas():
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    # Cabeçalho Compacto com Botão "Trancar Caixa" ao lado do nome do Operador
     col_cab1, col_cab2 = st.columns([2.5, 1.5])
     with col_cab1:
         st.markdown(f"""
@@ -905,12 +876,10 @@ def area_caixa_mesas():
 
     with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
-        
         col_res1, col_res2, col_res3 = st.columns(3)
         with col_res1: st.metric("Saldo Inicial", f"{saldo_inicial_turno:,.2f} Kz")
         with col_res2: st.metric("Dinheiro", f"{total_dinheiro_vendas:,.2f} Kz")
         with col_res3: st.metric("TPA", f"{total_tpa_vendas:,.2f} Kz")
-            
         st.markdown("---")
         
         if vendas_turno:
@@ -1488,7 +1457,7 @@ def area_administrador():
                 st.rerun()
 
     with tab_qr:
-        st.subheader("🖨️ QR Codes e Links Diretos das Mesas (1 a 30)")
+        st.subheader("🖨️ QR Codes das Mesas (1 a 30)")
         url_site = st.text_input("URL base:", value="https://nobresabor.streamlit.app")
         
         st.markdown("---")
@@ -1505,7 +1474,6 @@ def area_administrador():
                     qr_bytes = gerar_imagem_qrcode_pil(link_mesa)
                     st.image(qr_bytes, width=130)
                     st.download_button(f"📥 Baixar M{num_mesa_qr}", data=qr_bytes, file_name=f"qrcode_mesa_{num_mesa_qr}.png", mime="image/png", key=f"dl_qr_{num_mesa_qr}")
-                    st.markdown("---")
 
     with tab_bloq:
         if tem_bloqueios_ativos:
@@ -1536,7 +1504,7 @@ def area_administrador():
                     sessao_atual_op = carregar_sessao_operador()
                     if sessao_atual_op.get("operador") == b_item.get("Operador"):
                         sessao_atual_op["trancado"] = False
-                        sessao_atual_op["tentativas_falhadas"] = 0
+                        sessao_op["tentativas_falhadas"] = 0
                         salvar_sessao_operador(sessao_atual_op)
 
                     st.success("Desbloqueado com sucesso!")
