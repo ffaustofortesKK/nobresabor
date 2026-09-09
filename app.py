@@ -876,7 +876,7 @@ def area_caixa_mesas():
                 # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status'] not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
                     for idx_p, p in enumerate(pedidos_mesa):
