@@ -1033,7 +1033,6 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    # Recalcular total limpo (sem anulados/recusados) para exibição na grelha
                     total_m = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                     dados_m["total"] = total_m
 
@@ -1141,7 +1140,7 @@ def area_caixa_mesas():
                                     salvar_mesas_disco(mesas_data)
                                     
                                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
-                                    st.success(f"Adicionado!")
+                                    st.success("Adicionado!")
                                     st.rerun()
                             else:
                                 st.warning("Sem itens nesta categoria.")
@@ -1152,7 +1151,6 @@ def area_caixa_mesas():
                 st.markdown("<span style='font-size: 0.85rem;'><b>Consumos da Mesa</b></span>", unsafe_allow_html=True)
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
-                # Filtrar apenas pedidos ativos (excluindo anulados e recusados pela cozinha)
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
                 
                 if pedidos_ativos:
@@ -1167,7 +1165,7 @@ def area_caixa_mesas():
                         with col_it1:
                             st.markdown(f"<span style='font-size: 0.75rem;'>- {q}x {p.get('item')} ({subtotal_item:,.0f}Kz) — [{p.get('cozinha_status', 'OK')}]</span>", unsafe_allow_html=True)
                         with col_it2:
-                            if st.button(f"🗑️", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
+                            if st.button("🗑️", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
                                 st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = True
                         
                         if st.session_state.get(f"abrindo_anulacao_{m_sel}_{idx_p}", False):
