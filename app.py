@@ -742,14 +742,18 @@ def area_caixa_mesas():
 
     mesas_data = carregar_mesas_disco()
 
-    # --- VERIFICAÇÃO DE PEDIDOS PRONTOS PARA SOM DE ALERTA ---
-    tem_alguma_mesa_pronta = any(
-        any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-        for dados_m in mesas_data.values()
-    )
+    # --- VERIFICAÇÃO DE PEDIDOS PRONTOS QUE AINDA NÃO FORAM SILENCIADOS ---
+    tem_mesas_prontas_com_alerta = False
+    for str_m, dados_m in mesas_data.items():
+        tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+        silenciado_pelo_operador = st.session_state.get(f"silenciar_alarme_mesa_{str_m}", False)
+        
+        if tem_pronto and not silenciado_pelo_operador:
+            tem_mesas_prontas_com_alerta = True
+            break
 
-    # Injeção de áudio em JavaScript com Web Audio API para tocar um bipe contínuo se houver pratos prontos
-    if tem_alguma_mesa_pronta:
+    # Injeção de áudio em JavaScript via Web Audio API
+    if tem_mesas_prontas_com_alerta:
         st.markdown("""
             <script>
             if (!window.audioAlertaInterval) {
@@ -996,15 +1000,20 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Bloco superior indicador de eventos (Pedido Conta / Sino de Cozinha Pronta)
+                        # Bloco superior com o Sino interativo para silenciar o alarme ao clicar diretamente nele
                         if solicitou_fecho or tem_pronto:
                             badge_html = '<div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">'
                             if solicitou_fecho:
                                 badge_html += '<span style="background-color: #ef4444; color: white; font-size: 0.65rem; font-weight: bold; padding: 2px 4px; border-radius: 4px; margin-right: 2px;">Pediu Conta 💵</span>'
-                            if tem_pronto:
-                                badge_html += '<span style="background-color: #4ac26b; color: black; font-size: 0.65rem; font-weight: bold; padding: 2px 4px; border-radius: 4px;">🔔 Prato</span>'
                             badge_html += '</div>'
                             st.markdown(badge_html, unsafe_allow_html=True)
+                            
+                            # Botão específico para clicar diretamente em cima do Sino do Prato e calar o alarme desta mesa
+                            if tem_pronto:
+                                if st.button("🔔 Prato", key=f"btn_sino_{mesa_idx}", use_container_width=True):
+                                    st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
+                                    st.session_state.mesa_selecionada_caixa = mesa_idx
+                                    st.rerun()
 
                         # Círculo interativo da mesa
                         conteudo_circulo = f"""
@@ -1017,9 +1026,10 @@ def area_caixa_mesas():
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
                         
-                        # Botão para gerir a mesa (ao clicar aqui, seleciona a mesa e pára o alarme se era a única pronta)
+                        # Botão para gerir a mesa (ao clicar aqui, seleciona a mesa, cessa o alarme e abre os detalhes)
                         if st.button(f"Gerir Mesa {mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
+                            st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
                             st.session_state[f"adicionando_pedido_cx_{mesa_idx}"] = False
                             st.rerun()
                         
@@ -1201,6 +1211,9 @@ def area_caixa_mesas():
                         
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
+                        
+                        # Limpa também a flag de silenciamento ao fechar a mesa
+                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
                         
                         mesas_data[str(m_sel)] = {
                             "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
