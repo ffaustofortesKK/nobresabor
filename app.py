@@ -832,24 +832,38 @@ def area_caixa_mesas():
                     tem_sobremesa = any("sobremesa" in str(p.get("categoria", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
+                    if tem_pronto:
+                        simbolos_topo_lista.append("🍲")
+                    if tem_bebida:
+                        simbolos_topo_lista.append("🍹")
+                    if tem_sobremesa:
+                        simbolos_topo_lista.append("🍰")
+                    
+                    simbolo_topo = " ".join(simbolos_topo_lista)
+
+                    # Estilo base da mesa
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
-                        simbolos_topo_lista.append("💵 Pediu Conta")
                     elif tem_pronto:
                         classe_css = "mesa-pronta-alerta"
-                        simbolos_topo_lista.append("🍲")
                     elif status_m == "Aberta" or cli_m:
                         classe_css = "mesa-aberta"
                     else:
                         classe_css = "mesa-fechada"
 
-                    if tem_bebida: simbolos_topo_lista.append("🍹")
-                    if tem_sobremesa: simbolos_topo_lista.append("🍰")
-                    simbolo_topo = " ".join(simbolos_topo_lista)
-
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
+                        # Se solicitou fecho, exibe badge superior "Pediu Conta 💵" logo acima do círculo da mesa
+                        if solicitou_fecho:
+                            st.markdown("""
+                                <div style="text-align: center; margin-bottom: 2px;">
+                                    <span style="background-color: #ef4444; color: white; font-size: 0.5rem; font-weight: bold; padding: 1px 5px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
+                                        Pediu Conta 💵
+                                    </span>
+                                </div>
+                            """, unsafe_allow_html=True)
+
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
                                 <div style="font-size: 0.45rem; line-height: 1; text-align: center; white-space: nowrap;">{simbolo_topo}</div>
