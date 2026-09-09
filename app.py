@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais e Moldura Realista de Telemóvel
+# Estilos CSS Profissionais, Moldura Realista de Telemóvel e Animação de Sucesso
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -81,6 +81,27 @@ st.markdown("""
         height: 16px;
         background-color: #1a1a24;
         border-radius: 10px;
+    }
+
+    /* Animação de Alerta de Pedido Enviado com Sucesso */
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateY(-10px); }
+        20% { opacity: 1; transform: translateY(0); }
+        80% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    .pedido-enviado-toast {
+        background: linear-gradient(135deg, #2ea44f, #218838);
+        color: white;
+        padding: 10px 14px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+        box-shadow: 0 4px 15px rgba(46, 164, 79, 0.4);
+        margin-bottom: 12px;
+        animation: fadeInOut 3s ease-in-out;
     }
 
     .mesa-circle {
@@ -466,7 +487,6 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
-    # Abre a moldura do smartphone com entalhe superior integrado
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
     if dados_m.get("fatura_emitida"):
@@ -519,6 +539,14 @@ def area_cliente():
     else:
         cli = dados_m["cliente"]
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        
+        if st.session_state.get(f"pedido_recente_mesa_{num_mesa}", False):
+            st.markdown("""
+                <div class="pedido-enviado-toast">
+                    ✅ Pedido enviado com sucesso! A preparar...
+                </div>
+            """, unsafe_allow_html=True)
+            st.session_state[f"pedido_recente_mesa_{num_mesa}"] = False
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
@@ -573,18 +601,24 @@ def area_cliente():
                             "hora": datetime.now().strftime("%H:%M")
                         })
                         
-                        dados_m["total"] = float(sum(p['quantidade']*p['preco'] for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"]))
+                        # Recalcula o total ignorando itens anulados ou recusados pela cozinha
+                        dados_m["total"] = float(sum(p['quantidade']*p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                         salvar_mesas_disco(mesas_data)
-                        st.success("Pedido enviado!")
+                        
+                        st.session_state[f"pedido_recente_mesa_{num_mesa}"] = True
+                        st.balloons()
                         st.rerun()
 
         with t_cons:
             total_parcial = 0
             for p in dados_m["pedidos"]:
                 t_item = p['quantidade'] * p['preco']
-                if p['status'] not in ["Anulado", "Recusado pela Cozinha"]:
+                # Exclui itens recusados ou anulados do cálculo e visualização ativa do parcial
+                if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado":
                     total_parcial += t_item
-                st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<span style='font-size:0.7rem; color:#ff4b4b; text-decoration: line-through;'>• {p['quantidade']}x {p['item']} (Recusado/Anulado)</span>", unsafe_allow_html=True)
             
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
             st.markdown("<hr style='margin: 6px 0; border-color: #222;'>", unsafe_allow_html=True)
@@ -635,7 +669,7 @@ def area_cozinha():
                 cat_p = str(ped.get("tipo", "")).lower()
                 c_status = ped.get("cozinha_status", "Pendente")
                 
-                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped.get("status") != "Anulado" and c_status != "Entregue":
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped.get("status") != "Anulado" and c_status != "Entregue" and c_status != "Recusado":
                     tem_pedidos = True
                     if c_status == "Pendente":
                         tem_novos_pendentes = True
@@ -656,8 +690,14 @@ def area_cozinha():
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
                             if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}und"):
+                                # Atualiza o estado da cozinha para recusado e remove o valor da mesa imediatamente
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
                                 mesas_data[str_i]["pedidos"][idx_p]["status"] = "Recusado pela Cozinha"
+                                
+                                # Recalcula o total da mesa excluindo o item recusado
+                                novo_total = sum(float(p_item.get('quantidade', 1)) * float(p_item.get('preco', 0.0)) for p_item in mesas_data[str_i]["pedidos"] if p_item.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p_item.get('cozinha_status') != "Recusado")
+                                mesas_data[str_i]["total"] = novo_total if novo_total > 0 else 0.0
+                                
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
                         elif c_status == "Aprovado":
@@ -721,14 +761,13 @@ def area_caixa_mesas():
 
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
-        tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+        tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
         silenciado_pelo_operador = st.session_state.get(f"silenciar_alarme_mesa_{str_m}", False)
         if tem_pronto and not silenciado_pelo_operador:
             tem_mesas_prontas_com_alerta = True
             break
 
     if tem_mesas_prontas_com_alerta:
-        # Alerta com efeito sonoro clássico de telefone antigo (anos 90)
         st.markdown("""
             <audio autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3" type="audio/mpeg">
@@ -836,7 +875,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -915,7 +954,7 @@ def area_caixa_mesas():
             itens_consolidados = {}
             for v in vendas_turno:
                 for p in v.get("pedidos", []):
-                    if p.get('status') in ["Anulado", "Recusado pela Cozinha"]:
+                    if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
                         continue
                     nome_prod = p.get('item', 'Desconhecido')
                     qtd_prod = int(p.get('quantidade', 1))
@@ -964,7 +1003,8 @@ def area_caixa_mesas():
                 with st.expander(f"Mesa {v_item.get('Mesa', '?')} — {v_item.get('Cliente', 'Desconhecido')} | {v_item.get('Total', 0.0):,.2f} Kz"):
                     st.write(f"Operador: {v_item.get('Operador', '')} | Data: {v_item.get('Data', '')}")
                     for p in v_item.get("pedidos", []):
-                        st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
+                        if p.get('cozinha_status') != "Recusado":
+                            st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
         else:
             st.info("Sem histórico.")
 
@@ -990,10 +1030,9 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    # Emojis garantidos exatamente por cima do círculo da mesa no painel do caixa
-                    tem_refeicao = any("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-                    tem_bebida = any("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-                    tem_sobremesa = any("sobremesa" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                    tem_refeicao = any("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+                    tem_bebida = any("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+                    tem_sobremesa = any("sobremesa" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
                     
                     simbolos_topo_lista = []
                     if tem_refeicao: simbolos_topo_lista.append("🍲")
@@ -1003,7 +1042,7 @@ def area_caixa_mesas():
 
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
-                    elif any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]):
+                    elif any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
                         classe_css = "mesa-pronta-alerta"
                     elif status_m == "Aberta" or cli_m:
                         classe_css = "mesa-aberta"
@@ -1088,7 +1127,7 @@ def area_caixa_mesas():
                                         dados_m_sel["status"] = "Aberta"
                                     
                                     dados_m_sel["pedidos"].append(novo_item_reg)
-                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"] and i.get('cozinha_status') != "Recusado")
                                     dados_m_sel["total"] = novo_total
                                     
                                     mesas_data[str(m_sel)] = dados_m_sel
@@ -1105,11 +1144,12 @@ def area_caixa_mesas():
 
                 st.markdown("<span style='font-size: 0.85rem;'><b>Consumos da Mesa</b></span>", unsafe_allow_html=True)
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
                 
-                if pedidos_ativos:
+                if pedidos_ativos or pedidos_mesa:
                     for idx_p, p in enumerate(pedidos_mesa):
-                        if p.get('status') in ["Anulado", "Recusado pela Cozinha"]:
+                        if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
+                            st.markdown(f"<span style='font-size: 0.75rem; color:#ff4b4b; text-decoration: line-through;'>- {p.get('quantidade', 1)}x {p.get('item')} (Recusado/Anulado)</span>", unsafe_allow_html=True)
                             continue
                         q = p.get('quantidade', 1)
                         preco_u = p.get('preco', 0.0)
@@ -1132,7 +1172,7 @@ def area_caixa_mesas():
                                             p['status'] = "Anulado"
                                             p['motivo_anulacao'] = motivo_anulacao
                                             
-                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"] and item.get('cozinha_status') != "Recusado")
                                             dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
                                             mesas_data[str(m_sel)] = dados_m_sel
                                             salvar_mesas_disco(mesas_data)
@@ -1192,7 +1232,7 @@ def area_caixa_mesas():
                             "Valor Dinheiro": v_dinheiro,
                             "Valor TPA": v_tpa,
                             "Valor Total": total_a_pagar,
-                            "pedidos": dados_m_sel.get("pedidos", [])
+                            "pedidos": [p for p in dados_m_sel.get("pedidos", []) if p.get('cozinha_status') != "Recusado"]
                         }
                         
                         hist_vendas.append(registo_venda)
