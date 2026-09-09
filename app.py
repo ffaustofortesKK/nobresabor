@@ -866,7 +866,7 @@ def area_caixa_mesas():
                                 </div>
                             """, unsafe_allow_html=True)
 
-                        # Círculo visual da mesa
+                        # Círculo interativo da mesa
                         conteudo_circulo = f"""
                             <div class="mesa-circle {classe_css}">
                                 <div style="font-size: 0.45rem; line-height: 1; text-align: center; white-space: nowrap;">{simbolo_topo}</div>
@@ -877,7 +877,6 @@ def area_caixa_mesas():
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
                         
-                        # Botão integrado para selecionar a mesa
                         if st.button(f"Gerir Mesa {mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.session_state[f"adicionando_pedido_cx_{mesa_idx}"] = False
@@ -901,68 +900,67 @@ def area_caixa_mesas():
                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
                     st.rerun()
 
-                # --- SEÇÃO DE ADIÇÃO DE PEDIDO (Idêntica à visão do cliente via Categorias) ---
+                # --- SEÇÃO DE ADIÇÃO DE PEDIDO COM AS CATEGORIAS DO CLIENTE ---
                 if st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False):
                     with st.container():
-                        st.markdown(f"<div style='background: #161625; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;'>", unsafe_allow_html=True)
-                        st.markdown("#### 🛒 Cardápio - Adicionar Itens à Mesa")
+                        st.markdown(f"<div style='background: #161625; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 15px;'>", unsafe_allow_html=True)
+                        st.markdown("#### 🛒 Registar Novo Item para o Cliente")
                         
                         if cardapio_data:
-                            # Apresenta as categorias do restaurante em expansores/separadores tal e qual o cliente
-                            for cat_nome, itens_dict in cardapio_data.items():
-                                with st.expander(f"📁 {cat_nome}", expanded=False):
-                                    if itens_dict:
-                                        for nome_item, dados_item in itens_dict.items():
-                                            preco_unit = float(dados_item.get("preco", 0.0))
-                                            descricao_item = dados_item.get("descricao", "")
-                                            
-                                            cols_item = st.columns([2.5, 1.5])
-                                            with cols_item[0]:
-                                                st.markdown(f"**{nome_item}**")
-                                                if descricao_item:
-                                                    st.markdown(f"<span style='font-size:0.8rem; color:#aaa;'>{descricao_item}</span>", unsafe_allow_html=True)
-                                                st.markdown(f"<span style='color:#ffb703; font-weight:bold;'>{preco_unit:,.2f} Kz</span>", unsafe_allow_html=True)
-                                            
-                                            with cols_item[1]:
-                                                qtd_pedida = st.number_input("Qtd", min_value=1, value=1, step=1, key=f"cx_qtd_{m_sel}_{cat_nome}_{nome_item}")
-                                                obs_pedida = st.text_input("Obs:", placeholder="Ex: Sem gelo", key=f"cx_obs_{m_sel}_{cat_nome}_{nome_item}")
-                                                
-                                                if st.button("➕ Adicionar", key=f"cx_add_item_btn_{m_sel}_{cat_nome}_{nome_item}", type="primary", use_container_width=True):
-                                                    novo_item_reg = {
-                                                        "item": nome_item,
-                                                        "quantidade": int(qtd_pedida),
-                                                        "preco": preco_unit,
-                                                        "categoria": cat_nome,
-                                                        "observacao": obs_pedida,
-                                                        "status": "Pendente",
-                                                        "cozinha_status": "Pendente",
-                                                        "origem": f"Caixa ({sessao_op['operador']})"
-                                                    }
-                                                    
-                                                    if not dados_m_sel.get("cliente"):
-                                                        dados_m_sel["cliente"] = {"nome": "Cliente Balcão", "telefone": "N/A"}
-                                                        dados_m_sel["status"] = "Aberta"
-                                                    
-                                                    dados_m_sel["pedidos"].append(novo_item_reg)
-                                                    
-                                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-                                                    dados_m_sel["total"] = novo_total
-                                                    
-                                                    mesas_data[str(m_sel)] = dados_m_sel
-                                                    salvar_mesas_disco(mesas_data)
-                                                    
-                                                    st.success(f"Adicionado: {qtd_pedida}x {nome_item}!")
-                                                    st.rerun()
-                                            st.markdown("---")
-                                    else:
-                                        st.info("Sem itens nesta categoria.")
+                            # As categorias principais garantidas tal e qual como na visão do cliente
+                            categorias_disponiveis = ["Refeições", "Bebidas", "Sobremesas"]
+                            # Filtramos apenas as que existem de facto no cardápio carregado para evitar erros caso alguma esteja em falta
+                            categorias_validas = [cat for cat in categorias_disponiveis if cat in cardapio_data]
+                            if not categorias_validas:
+                                categorias_validas = list(cardapio_data.keys())
+
+                            cat_escolhida = st.selectbox("Escolha a Categoria:", categorias_validas, key=f"cx_cat_{m_sel}")
+                            
+                            itens_da_cat = cardapio_data.get(cat_escolhida, {})
+                            if itens_da_cat:
+                                # Seleção do item exibindo o respetivo preço ao lado para total clareza
+                                lista_itens_formatada = {f"{item_nome} — {item_info.get('preco', 0.0):,.2f} Kz": item_nome for item_nome, item_info in itens_da_cat.items()}
+                                item_selecionado_label = st.selectbox("Escolha o Item:", list(lista_itens_formatada.keys()), key=f"cx_item_label_{m_sel}")
+                                
+                                nome_item_escolhido = lista_itens_formatada[item_selecionado_label]
+                                dados_item = itens_da_cat[nome_item_escolhido]
+                                preco_unitario = float(dados_item.get("preco", 0.0))
+                                
+                                qtd_adicionar = st.number_input("Quantidade:", min_value=1, value=1, step=1, key=f"cx_qtd_{m_sel}")
+                                obs_item = st.text_input("Observações (ex: sem gelo, bem passado):", key=f"cx_obs_{m_sel}")
+                                
+                                if st.button("📥 Confirmar e Enviar Pedido", type="primary", key=f"cx_salvar_novo_ped_{m_sel}", use_container_width=True):
+                                    novo_item_reg = {
+                                        "item": nome_item_escolhido,
+                                        "quantidade": int(qtd_adicionar),
+                                        "preco": preco_unitario,
+                                        "categoria": cat_escolhida,
+                                        "observacao": obs_item,
+                                        "status": "Pendente",
+                                        "cozinha_status": "Pendente",
+                                        "origem": f"Caixa ({sessao_op['operador']})"
+                                    }
+                                    
+                                    if not dados_m_sel.get("cliente"):
+                                        dados_m_sel["cliente"] = {"nome": "Cliente Balcão", "telefone": "N/A"}
+                                        dados_m_sel["status"] = "Aberta"
+                                    
+                                    dados_m_sel["pedidos"].append(novo_item_reg)
+                                    
+                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                                    dados_m_sel["total"] = novo_total
+                                    
+                                    mesas_data[str(m_sel)] = dados_m_sel
+                                    salvar_mesas_disco(mesas_data)
+                                    
+                                    st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
+                                    st.success(f"Item '{nome_item_escolhido}' adicionado com sucesso à Mesa {m_sel}!")
+                                    st.rerun()
+                            else:
+                                st.warning("Esta categoria não possui itens disponíveis no momento.")
                         else:
                             st.warning("O cardápio está vazio ou indisponível.")
                         
-                        if st.button("❌ Fechar Painel de Adição", key=f"fechar_painel_add_{m_sel}", use_container_width=True):
-                            st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
-                            st.rerun()
-
                         st.markdown("</div>", unsafe_allow_html=True)
 
                 # --- LISTA DOS PEDIDOS ---
