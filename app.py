@@ -309,6 +309,15 @@ def salvar_stock_disco(df):
     except:
         pass
 
+def gerar_qrcode_bytes(url_texto):
+    qr = qrcode.QRCode(version=1, box_size=6, border=2)
+    qr.add_data(url_texto)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
 def gerar_imagem_qrcode_pil(url_texto):
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
     qr.add_data(url_texto)
@@ -732,33 +741,10 @@ def area_caixa_mesas():
 
     if tem_mesas_prontas_com_alerta:
         st.markdown("""
-            <script>
-            if (!window.audioAlertaInterval) {
-                window.audioAlertaInterval = setInterval(() => {
-                    try {
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.value = 659.25;
-                        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.25);
-                    } catch(e) {}
-                }, 1400);
-            }
-            </script>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <script>
-            if (window.audioAlertaInterval) {
-                clearInterval(window.audioAlertaInterval);
-                window.audioAlertaInterval = null;
-            }
-            </script>
+            <audio autoplay loop>
+              <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+              Seu navegador não suporta elemento de áudio.
+            </audio>
         """, unsafe_allow_html=True)
 
     st.markdown("<h3 style='margin-bottom:8px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
@@ -988,6 +974,11 @@ def area_caixa_mesas():
                             if tem_pronto:
                                 if st.button("🔔 Prato", key=f"btn_sino_{mesa_idx}", use_container_width=True):
                                     st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
+                                    # Marcar todos os pratos "Feito" desta mesa como "Entregue" automaticamente
+                                    for p_item in mesas_data[str_m].get("pedidos", []):
+                                        if p_item.get("cozinha_status") == "Feito":
+                                            p_item["cozinha_status"] = "Entregue"
+                                    salvar_mesas_disco(mesas_data)
                                     st.session_state.mesa_selecionada_caixa = mesa_idx
                                     st.rerun()
 
@@ -1486,7 +1477,7 @@ def area_administrador():
 
     with tab_qr:
         st.subheader("🖨️ Gerador e Visualizador de QR Codes para as Mesas (1 a 30)")
-        st.write("Cada QR Code direciona diretamente o cliente para a interface da respetiva mesa no micro-tablet.")
+        st.write("Cada QR Code direciona o cliente diretamente para a interface correspondente da respetiva mesa.")
         
         url_base_padrao = "https://nobresabor.streamlit.app"
         url_site = st.text_input("URL base da Aplicação (Deploy):", value=url_base_padrao)
