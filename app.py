@@ -571,122 +571,6 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
         
 # ==========================================
-# ÁREA: COZINHA (Com Alarme Sonoro e Histórico Persistente)
-# ==========================================
-@st.fragment(run_every=6)
-def area_cozinha():
-    st.title("🍳 Área da Cozinha - Gestão de Refeições")
-    st.session_state.caixa_aberto = ler_estado_caixa_disco()
-    mesas_data = carregar_mesas_disco()
-
-    if not st.session_state.caixa_aberto:
-        st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
-        return
-
-    # Garantir chaves de controlo de alarme no session_state
-    if "cozinha_tem_pendentes_som" not in st.session_state:
-        st.session_state.cozinha_tem_pendentes_som = False
-
-    tab_pendentes, tab_historico_cozinha = st.tabs(["🔥 Pedidos Pendentes e Ativos", "📋 Histórico de Pratos Preparados no Dia"])
-
-    with tab_pendentes:
-        st.subheader("Pedidos de Refeições vindos das Mesas / Caixa")
-        tem_pedidos = False
-        tem_novos_pendentes = False
-        
-        for i in range(1, 31):
-            str_i = str(i)
-            dados_m = mesas_data[str_i]
-            for idx_p, ped in enumerate(dados_m["pedidos"]):
-                cat_p = str(ped.get("tipo", "")).lower()
-                c_status = ped.get("cozinha_status", "Pendente")
-                
-                # Consideramos visíveis na cozinha os que não foram cancelados
-                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and c_status != "Entregue":
-                    tem_pedidos = True
-                    if c_status == "Pendente":
-                        tem_novos_pendentes = True
-                    
-                    col_c1, col_c2, col_c3 = st.columns([3, 2, 3])
-                    with col_c1:
-                        st.write(f"### 🍽️ Mesa {i}")
-                        st.write(f"**Refeição:** {ped['item']} | **Qtd:** {ped['quantidade']}")
-                        st.write(f"Obs: _{ped.get('obs', ped.get('observacao', 'Nenhuma'))}_ | Hora: `{ped.get('hora', 'N/A')}`")
-                    with col_c2:
-                        cor_estado = "#ffb703" if c_status == "Pendente" else ("#2a9d8f" if c_status == "Aprovado" else "#457b9d")
-                        st.markdown(f"Estado: <b style='color:{cor_estado};'>{c_status}</b>", unsafe_allow_html=True)
-                    with col_c3:
-                        if c_status == "Pendente":
-                            if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}und"):
-                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
-                                mesas_data[str_i]["pedidos"][idx_p]["status"] = "Confirmado"
-                                salvar_mesas_disco(mesas_data)
-                                st.rerun()
-                            if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}und"):
-                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
-                                mesas_data[str_i]["pedidos"][idx_p]["status"] = "Recusado pela Cozinha"
-                                salvar_mesas_disco(mesas_data)
-                                st.rerun()
-                        elif c_status == "Aprovado":
-                            if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}und"):
-                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
-                                # Sinaliza para o Caixa que há um prato pronto que gerou alarme
-                                mesas_data[str_i]["alarme_prato_feito"] = True
-                                salvar_mesas_disco(mesas_data)
-                                st.rerun()
-                        elif c_status == "Feito":
-                            st.info("A aguardar recolha/entrega")
-                            if st.button("🚚 Marcar Entregue", key=f"entregue_cz_{i}_{idx_p}und"):
-                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Entregue"
-                                salvar_mesas_disco(mesas_data)
-                                st.rerun()
-                    st.divider()
-                    
-        if not tem_pedidos:
-            st.success("🎉 Sem refeições ativas de momento!")
-
-        # --- ALARME SONORO CONTÍNUO PARA A COZINHA (Enquanto houver pedidos Pendentes) ---
-        if tem_novos_pendentes:
-            st.markdown("""
-                <audio autoplay loop>
-                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-                  Seu navegador não suporta elemento de áudio.
-                </audio>
-                <div style='background-color: #780000; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px;'>
-                    <span style='color: white; font-weight: bold; font-size: 1rem;'>🚨 ALARME: Novo Pedido de Refeição Pendente! 🚨</span>
-                </div>
-            """, unsafe_allow_html=True)
-
-    with tab_historico_cozinha:
-        st.subheader("📋 Registo de Pratos Preparados e Finalizados (Persistente até o Fecho)")
-        
-        # Sistema robusto para recolher todo o histórico do dia acumulado nas mesas
-        lista_pratos_feitos = []
-        for i in range(1, 31):
-            str_i = str(i)
-            dados_m = mesas_data[str_i]
-            for ped in dados_m["pedidos"]:
-                cat_p = str(ped.get("tipo", "")).lower()
-                c_status = ped.get("cozinha_status", "")
-                # Mantém no histórico tudo o que passou por "Feito" ou "Entregue" durante o turno
-                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and c_status in ["Feito", "Entregue"]:
-                    lista_pratos_feitos.append({
-                        "Mesa": i,
-                        "Prato / Refeição": ped['item'],
-                        "Quantidade": ped['quantidade'],
-                        "Observações": ped.get('obs', ped.get('observacao', '')),
-                        "Hora do Pedido": ped.get('hora', ''),
-                        "Estado na Cozinha": c_status
-                    })
-        
-        if not lista_pratos_feitos:
-            st.info("Ainda nenhum prato foi finalizado hoje. Os registos ficarão guardados aqui até o fecho do período.")
-        else:
-            df_feitos = pd.DataFrame(lista_pratos_feitos)
-            st.dataframe(df_feitos, use_container_width=True)
-            st.markdown(f"### Total Acumulado de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
-
-# ==========================================
 # ÁREA: CAIXA / GESTÃO DE MESAS (CIRCULAR INTERATIVO & ADIÇÃO DE PEDIDOS)
 # ==========================================
 @st.fragment(run_every=5)
@@ -752,8 +636,15 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # Injeção de áudio em JavaScript via Web Audio API
+    # Se houver mesas prontas, garantimos um botão de ativação de áudio caso o navegador bloqueie o autoplay
     if tem_mesas_prontas_com_alerta:
+        if not st.session_state.get("audio_liberado_usuario", False):
+            if st.button("🔊 CLIQUE AQUI PARA ATIVAR O SOM DOS PRONTOS", type="primary", use_container_width=True):
+                st.session_state["audio_liberado_usuario"] = True
+                st.rerun()
+
+    # Injeção de áudio via Web Audio API (só toca se o utilizador já tiver interagido/liberado)
+    if tem_mesas_prontas_com_alerta and st.session_state.get("audio_liberado_usuario", False):
         st.markdown("""
             <script>
             if (!window.audioAlertaInterval) {
@@ -764,13 +655,13 @@ def area_caixa_mesas():
                         const gain = audioCtx.createGain();
                         osc.type = 'sine';
                         osc.frequency.value = 587.33; // Nota D5
-                        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                         osc.connect(gain);
                         gain.connect(audioCtx.destination);
                         osc.start();
-                        osc.stop(audioCtx.currentTime + 0.2);
+                        osc.stop(audioCtx.currentTime + 0.25);
                     } catch(e) {}
-                }, 1500);
+                }, 1200);
             }
             </script>
         """, unsafe_allow_html=True)
@@ -888,14 +779,15 @@ def area_caixa_mesas():
     """, unsafe_allow_html=True)
 
     # ABAS DE NAVEGAÇÃO DO CAIXA
-    aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
+    aba_operador_1, aba_operador_2, aba_operador_3, aba_operador_4 = st.tabs([
         "🗺️ Mesas & Operações", 
-        "📚 Histórico de Vendas por Cliente", 
-        "🔒 Fecho de Caixa / Resumo"
+        "📱 QR Codes das Mesas", 
+        "📚 Histórico de Vendas", 
+        "🔒 Fecho de Caixa"
     ])
 
-    # --- ABA 3: FECHO DE CAIXA ---
-    with aba_operador_3:
+    # --- ABA 4: FECHO DE CAIXA ---
+    with aba_operador_4:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
         st.info("Reveja abaixo todo o movimento do seu turno, itens vendidos, quantidades e valores acumulados.")
         
@@ -939,8 +831,8 @@ def area_caixa_mesas():
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
 
-    # --- ABA 2: HISTÓRICO DE VENDAS ---
-    with aba_operador_2:
+    # --- ABA 3: HISTÓRICO DE VENDAS ---
+    with aba_operador_3:
         st.markdown("### 🔍 Histórico Detalhado de Vendas por Mesa / Cliente")
         if hist_vendas:
             pesquisa_cli = st.text_input("Filtrar por Nome do Cliente ou Telefone:", placeholder="Digite o nome...", key="filtro_hist_cli_caixa")
@@ -953,6 +845,31 @@ def area_caixa_mesas():
                         st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
         else:
             st.info("Sem registos no histórico de vendas.")
+
+    # --- ABA 2: QR CODES DAS MESAS ---
+    with aba_operador_2:
+        st.markdown("### 📱 Gestão de QR Codes para Auto-Atendimento nas Mesas")
+        st.info("Aqui pode visualizar e descarregar os códigos QR correspondentes a cada mesa para os clientes efetuarem pedidos.")
+        
+        col_qr1, col_qr2 = st.columns(2)
+        with col_qr1:
+            mesa_qr_sel = st.selectbox("Selecione a Mesa para o QR Code:", list(range(1, 31)), key="select_mesa_qr_caixa")
+        
+        try:
+            import qrcode
+            from io import BytesIO
+            
+            # Gerador visual do QR Code para a mesa selecionada
+            url_mesa = f"https://seuapp.streamlit.app/?mesa={mesa_qr_sel}"
+            img_qr = qrcode.make(url_mesa)
+            buf = BytesIO()
+            img_qr.save(buf, format="PNG")
+            
+            st.markdown(f"#### QR Code - Mesa {mesa_qr_sel}")
+            st.image(buf.getvalue(), width=250)
+            st.caption(Link de Acesso: `{url_mesa}` text)
+        except ImportError:
+            st.warning("A biblioteca 'qrcode' não está instalada no ambiente Python. Instale com `pip install qrcode[pil]` para gerar as imagens.")
 
     # --- ABA 1: MESAS & OPERAÇÕES ---
     with aba_operador_1:
