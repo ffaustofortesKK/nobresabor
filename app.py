@@ -571,7 +571,7 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
         
 # ==========================================
-# ÁREA: COZINHA
+# ÁREA: COZINHA (Com Alarme Sonoro e Histórico Persistente)
 # ==========================================
 @st.fragment(run_every=6)
 def area_cozinha():
@@ -583,52 +583,84 @@ def area_cozinha():
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
         return
 
+    # Garantir chaves de controlo de alarme no session_state
+    if "cozinha_tem_pendentes_som" not in st.session_state:
+        st.session_state.cozinha_tem_pendentes_som = False
+
     tab_pendentes, tab_historico_cozinha = st.tabs(["🔥 Pedidos Pendentes e Ativos", "📋 Histórico de Pratos Preparados no Dia"])
 
     with tab_pendentes:
         st.subheader("Pedidos de Refeições vindos das Mesas / Caixa")
         tem_pedidos = False
+        tem_novos_pendentes = False
+        
         for i in range(1, 31):
             str_i = str(i)
             dados_m = mesas_data[str_i]
             for idx_p, ped in enumerate(dados_m["pedidos"]):
                 cat_p = str(ped.get("tipo", "")).lower()
-                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and ped.get("cozinha_status") != "Feito" and ped.get("cozinha_status") != "Entregue":
+                c_status = ped.get("cozinha_status", "Pendente")
+                
+                # Consideramos visíveis na cozinha os que não foram cancelados
+                if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped["status"] != "Anulado" and c_status != "Entregue":
                     tem_pedidos = True
+                    if c_status == "Pendente":
+                        tem_novos_pendentes = True
                     
                     col_c1, col_c2, col_c3 = st.columns([3, 2, 3])
                     with col_c1:
                         st.write(f"### 🍽️ Mesa {i}")
                         st.write(f"**Refeição:** {ped['item']} | **Qtd:** {ped['quantidade']}")
-                        st.write(f"Obs: _{ped.get('obs', 'Nenhuma')}_ | Hora: `{ped.get('hora', 'N/A')}`")
+                        st.write(f"Obs: _{ped.get('obs', ped.get('observacao', 'Nenhuma'))}_ | Hora: `{ped.get('hora', 'N/A')}`")
                     with col_c2:
-                        st.write(f"Estado: **{ped.get('cozinha_status', 'Pendente')}**")
+                        cor_estado = "#ffb703" if c_status == "Pendente" else ("#2a9d8f" if c_status == "Aprovado" else "#457b9d")
+                        st.markdown(f"Estado: <b style='color:{cor_estado};'>{c_status}</b>", unsafe_allow_html=True)
                     with col_c3:
-                        estado_atual = ped.get('cozinha_status', 'Pendente')
-                        if estado_atual == "Pendente":
-                            if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}"):
+                        if c_status == "Pendente":
+                            if st.button("✅ Aprovar", key=f"aprov_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Aprovado"
                                 mesas_data[str_i]["pedidos"][idx_p]["status"] = "Confirmado"
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
-                            if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}"):
+                            if st.button("❌ Recusar", key=f"rec_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Recusado"
                                 mesas_data[str_i]["pedidos"][idx_p]["status"] = "Recusado pela Cozinha"
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
-                        elif estado_atual == "Aprovado":
-                            if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}"):
+                        elif c_status == "Aprovado":
+                            if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
+                                # Sinaliza para o Caixa que há um prato pronto que gerou alarme
+                                mesas_data[str_i]["alarme_prato_feito"] = True
+                                salvar_mesas_disco(mesas_data)
+                                st.rerun()
+                        elif c_status == "Feito":
+                            st.info("A aguardar recolha/entrega")
+                            if st.button("🚚 Marcar Entregue", key=f"entregue_cz_{i}_{idx_p}und"):
+                                mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Entregue"
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
                     st.divider()
                     
         if not tem_pedidos:
-            st.success("🎉 Sem refeições pendentes de momento!")
+            st.success("🎉 Sem refeições ativas de momento!")
+
+        # --- ALARME SONORO CONTÍNUO PARA A COZINHA (Enquanto houver pedidos Pendentes) ---
+        if tem_novos_pendentes:
+            st.markdown("""
+                <audio autoplay loop>
+                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+                  Seu navegador não suporta elemento de áudio.
+                </audio>
+                <div style='background-color: #780000; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 10px;'>
+                    <span style='color: white; font-weight: bold; font-size: 1rem;'>🚨 ALARME: Novo Pedido de Refeição Pendente! 🚨</span>
+                </div>
+            """, unsafe_allow_html=True)
 
     with tab_historico_cozinha:
-        st.subheader("📋 Registo de Pratos Preparados e Finalizados")
+        st.subheader("📋 Registo de Pratos Preparados e Finalizados (Persistente até o Fecho)")
         
+        # Sistema robusto para recolher todo o histórico do dia acumulado nas mesas
         lista_pratos_feitos = []
         for i in range(1, 31):
             str_i = str(i)
@@ -636,29 +668,30 @@ def area_cozinha():
             for ped in dados_m["pedidos"]:
                 cat_p = str(ped.get("tipo", "")).lower()
                 c_status = ped.get("cozinha_status", "")
+                # Mantém no histórico tudo o que passou por "Feito" ou "Entregue" durante o turno
                 if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and c_status in ["Feito", "Entregue"]:
                     lista_pratos_feitos.append({
                         "Mesa": i,
                         "Prato / Refeição": ped['item'],
                         "Quantidade": ped['quantidade'],
-                        "Observações": ped.get('obs', ''),
-                        "Hora": ped.get('hora', ''),
+                        "Observações": ped.get('obs', ped.get('observacao', '')),
+                        "Hora do Pedido": ped.get('hora', ''),
                         "Estado na Cozinha": c_status
                     })
         
         if not lista_pratos_feitos:
-            st.info("Ainda nenhum prato foi finalizado hoje.")
+            st.info("Ainda nenhum prato foi finalizado hoje. Os registos ficarão guardados aqui até o fecho do período.")
         else:
             df_feitos = pd.DataFrame(lista_pratos_feitos)
             st.dataframe(df_feitos, use_container_width=True)
-            st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
+            st.markdown(f"### Total Acumulado de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
 
 # ==========================================
 # ÁREA: CAIXA / GESTÃO DE MESAS (CIRCULAR INTERATIVO & ADIÇÃO DE PEDIDOS)
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para círculos interativos, compactos e alertas
+    # Injeção de CSS para círculos interativos, compactos, alertas e animação do sino
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
@@ -670,6 +703,19 @@ def area_caixa_mesas():
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0.7); }
             50% { transform: scale(1.04); box-shadow: 0 0 10px 5px rgba(74, 194, 107, 0.9); background-color: #4ac26b !important; color: #000 !important; }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0); }
+        }
+        @keyframes balocarSino {
+            0% { transform: rotate(0deg); }
+            20% { transform: rotate(14deg); }
+            40% { transform: rotate(-14deg); }
+            60% { transform: rotate(10deg); }
+            80% { transform: rotate(-10deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .sino-alerta {
+            display: inline-block;
+            animation: balocarSino 0.9s infinite ease-in-out;
+            font-size: 0.85rem;
         }
         .mesa-conta-solicitada {
             animation: oscilarVermelho 1.2s infinite ease-in-out;
@@ -882,6 +928,9 @@ def area_caixa_mesas():
     with aba_operador_1:
         col_esq, col_dir = st.columns([1.2, 0.8])
 
+        # Verificar se alguma mesa tem prato pronto e ainda não foi gerida/clicada pelo operador
+        tocar_alarme_geral = False
+
         with col_dir:
             st.markdown("#### MESAS")
             
@@ -902,19 +951,36 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
+                    # Verificação de prato pronto na cozinha
                     tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
+                    
+                    # Controlo para o alarme tocar apenas se houver prato pronto E o operador ainda não tiver entrado em "Gerir Mesa"
+                    alerta_ativo_mesa = f"alerta_som_mesa_{mesa_idx}"
+                    if tem_pronto:
+                        if alerta_ativo_mesa not in st.session_state:
+                            st.session_state[alerta_ativo_mesa] = True  # Ativa o alerta sonoro e visual
+                        if st.session_state.get(alerta_ativo_mesa, False):
+                            tocar_alarme_geral = True
+                    else:
+                        st.session_state[alerta_ativo_mesa] = False
+
                     tem_bebida = any("bebida" in str(p.get("categoria", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"]) for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     tem_sobremesa = any("sobremesa" in str(p.get("categoria", "")).lower() for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"])
                     
                     simbolos_topo_lista = []
-                    if tem_pronto: simbolos_topo_lista.append("🍲")
+                    # Se houver prato pronto, adiciona o sino animado em destaque
+                    if tem_pronto and st.session_state.get(alerta_ativo_mesa, False):
+                        simbolos_topo_lista.append('<span class="sino-alerta">🔔</span>')
+                    elif tem_pronto:
+                        simbolos_topo_lista.append("🍲")
+                        
                     if tem_bebida: simbolos_topo_lista.append("🍹")
                     if tem_sobremesa: simbolos_topo_lista.append("🍰")
                     simbolo_topo = " ".join(simbolos_topo_lista)
 
                     if solicitou_fecho:
                         classe_css = "mesa-conta-solicitada"
-                    elif tem_pronto:
+                    elif tem_pronto and st.session_state.get(alerta_ativo_mesa, False):
                         classe_css = "mesa-pronta-alerta"
                     elif status_m == "Aberta" or cli_m:
                         classe_css = "mesa-aberta"
@@ -944,12 +1010,22 @@ def area_caixa_mesas():
                         """
                         st.markdown(conteudo_circulo, unsafe_allow_html=True)
                         
+                        # Ao clicar no botão para gerir a mesa, desativamos o alarme daquela mesa específica (o sino para)
                         if st.button(f"Gerir Mesa {mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.session_state[f"adicionando_pedido_cx_{mesa_idx}"] = False
+                            st.session_state[f"alerta_som_mesa_{mesa_idx}"] = False  # Desliga o som/sino da mesa
                             st.rerun()
                         
                     mesa_idx += 1
+
+        # Dispara o som de alerta global se houver alguma mesa com prato pronto não atendida
+        if tocar_alarme_geral:
+            st.markdown("""
+                <audio autoplay>
+                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+                </audio>
+            """, unsafe_allow_html=True)
 
         with col_esq:
             with st.container():
@@ -974,9 +1050,7 @@ def area_caixa_mesas():
                         st.markdown("#### 🛒 Registar Novo Item para o Cliente")
                         
                         if cardapio_data:
-                            # As categorias principais garantidas tal e qual como na visão do cliente
                             categorias_disponiveis = ["Refeições", "Bebidas", "Sobremesas"]
-                            # Filtramos apenas as que existem de facto no cardápio carregado para evitar erros caso alguma esteja em falta
                             categorias_validas = [cat for cat in categorias_disponiveis if cat in cardapio_data]
                             if not categorias_validas:
                                 categorias_validas = list(cardapio_data.keys())
@@ -985,7 +1059,6 @@ def area_caixa_mesas():
                             
                             itens_da_cat = cardapio_data.get(cat_escolhida, {})
                             if itens_da_cat:
-                                # Seleção do item exibindo o respetivo preço ao lado para total clareza
                                 lista_itens_formatada = {f"{item_nome} — {item_info.get('preco', 0.0):,.2f} Kz": item_nome for item_nome, item_info in itens_da_cat.items()}
                                 item_selecionado_label = st.selectbox("Escolha o Item:", list(lista_itens_formatada.keys()), key=f"cx_item_label_{m_sel}")
                                 
