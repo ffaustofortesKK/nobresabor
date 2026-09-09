@@ -321,11 +321,16 @@ def salvar_rh_disco(df):
 def carregar_stock_disco():
     if os.path.exists(ARQUIVO_STOCK):
         try:
-            df_loaded = pd.read_json(ARQUIVO_STOCK)
+            df_loaded = pd.read_json(ARQUIVO_STOCK, orient="split")
             if not df_loaded.empty:
                 return df_loaded
         except:
-            pass
+            try:
+                df_loaded = pd.read_json(ARQUIVO_STOCK)
+                if not df_loaded.empty:
+                    return df_loaded
+            except:
+                pass
     return pd.DataFrame([
         ["Água 0.5L", "Bebidas", 50, 300.0],
         ["Refrigerante Cola", "Bebidas", 40, 450.0],
@@ -341,7 +346,10 @@ def salvar_stock_disco(df):
     try:
         df.to_json(ARQUIVO_STOCK, orient="split", index=False)
     except:
-        pass
+        try:
+            df.to_json(ARQUIVO_STOCK)
+        except:
+            pass
 
 def gerar_imagem_qrcode_pil(url_texto):
     qr = qrcode.QRCode(version=1, box_size=10, border=2)
@@ -507,27 +515,27 @@ def area_cliente():
         with t_menu:
             categorias_fixas = ["Bebidas", "Refeições", "Sobremesas", "Outros"]
             
-            if 'stock' in st.session_state and not st.session_state.stock.empty:
-                stock_df = st.session_state.stock.copy()
+            stock_df_atual = carregar_stock_disco()
+            if not stock_df_atual.empty:
                 utilitarios_extras = [
                     {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
                 ]
-                stock_df = pd.concat([stock_df, pd.DataFrame(utilitarios_extras)], ignore_index=True)
+                stock_df_atual = pd.concat([stock_df_atual, pd.DataFrame(utilitarios_extras)], ignore_index=True)
             else:
-                stock_df = pd.DataFrame([
+                stock_df_atual = pd.DataFrame([
                     {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
                     {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
                 ])
 
-            cats_disponiveis = [c for c in categorias_fixas if c in stock_df['Categoria'].unique().tolist()]
+            cats_disponiveis = [c for c in categorias_fixas if c in stock_df_atual['Categoria'].unique().tolist()]
             if not cats_disponiveis:
-                cats_disponiveis = stock_df['Categoria'].unique().tolist()
+                cats_disponiveis = stock_df_atual['Categoria'].unique().tolist()
 
             cat = st.selectbox("Categoria:", cats_disponiveis, key="c_cat")
-            itens = stock_df[stock_df['Categoria'] == cat]
+            itens = stock_df_atual[stock_df_atual['Categoria'] == cat]
             
             if not itens.empty:
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
@@ -698,7 +706,6 @@ def area_cozinha():
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # Detetar pratos prontos em qualquer mesa para disparar o alarme sonoro para o caixa
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"])
@@ -1373,7 +1380,7 @@ def area_administrador():
 
     with tab_stk:
         st.subheader("📦 Stock & Menu")
-        stock_df = st.session_state.stock
+        stock_df = carregar_stock_disco()
         
         with st.form("form_add_produto"):
             col_s1, col_s2 = st.columns(2)
@@ -1390,9 +1397,9 @@ def area_administrador():
                 else:
                     novo_df_linha = pd.DataFrame([[novo_produto, nova_categoria, nova_qtd, novo_preco]], columns=["Produto", "Categoria", "Quantidade", "Preço Unitário"])
                     stock_df = pd.concat([stock_df, novo_df_linha], ignore_index=True)
-                st.session_state.stock = stock_df
+                
                 salvar_stock_disco(stock_df)
-                st.success("Guardado!")
+                st.success("Produto guardado com sucesso no disco!")
                 st.rerun()
 
         st.divider()
@@ -1403,7 +1410,6 @@ def area_administrador():
                 produto_a_remover = st.selectbox("Remover produto:", stock_df['Produto'].tolist())
                 if st.form_submit_button("🗑️ Remover", use_container_width=True):
                     stock_df = stock_df[stock_df['Produto'] != produto_a_remover].reset_index(drop=True)
-                    st.session_state.stock = stock_df
                     salvar_stock_disco(stock_df)
                     st.success("Removido!")
                     st.rerun()
@@ -1480,7 +1486,7 @@ def area_administrador():
                 with cols[c]:
                     st.markdown(f"**Mesa {num_mesa_qr}**")
                     st.text_input(f"Link M{num_mesa_qr}:", value=link_mesa, key=f"link_txt_mesa_{num_mesa_qr}")
-                    qr_bytes = gerada_bytes = gerar_imagem_qrcode_pil(link_mesa)
+                    gerada_bytes = gerar_imagem_qrcode_pil(link_mesa)
                     st.image(gerada_bytes, width=130)
                     st.download_button(f"📥 Baixar M{num_mesa_qr}", data=gerada_bytes, file_name=f"qrcode_mesa_{num_mesa_qr}.png", mime="image/png", key=f"dl_qr_{num_mesa_qr}")
 
