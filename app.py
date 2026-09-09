@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilos CSS Profissionais e Simulação de Ecrã de Telemóvel
+# Estilos CSS Profissionais e Simulação Estável de Ecrã de Telemóvel
 st.markdown("""
     <style>
     .stApp, body, html {
@@ -58,16 +58,15 @@ st.markdown("""
         display: none;
     }
 
-    /* Moldura de Telemóvel Realista para o Cliente */
-    .phone-frame {
+    /* Moldura de Telemóvel Centralizada */
+    .phone-container {
         max-width: 380px;
-        margin: 0 auto;
-        background-color: #000000;
-        border: 10px solid #1a1a24;
-        border-radius: 32px;
-        padding: 16px 12px;
+        margin: 20px auto;
+        background-color: #111118;
+        border: 8px solid #21262d;
+        border-radius: 24px;
+        padding: 20px 16px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        min-height: 650px;
     }
 
     .mesa-circle {
@@ -441,21 +440,20 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
-# ÁREA: CLIENTE (ESTILO ECRÃ DE TELEFONE)
+# ÁREA: CLIENTE (DENTRO DA TELA DO TELEFONE)
 # ==========================================
 @st.fragment(run_every=6)
 def area_cliente():
-    # Envolve toda a área do cliente numa moldura de telemóvel elegante e centralizada
-    st.markdown('<div class="phone-frame">', unsafe_allow_html=True)
-
     if not (mesa_detectada and 1 <= mesa_detectada <= 30):
         st.error("⚠️ Mesa inválida! Escaneie o QR correto.")
-        st.markdown('</div>', unsafe_allow_html=True)
         return
 
     num_mesa = mesa_detectada
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
+
+    # Abre o contentor que simula a tela do telemóvel
+    st.markdown('<div class="phone-container">', unsafe_allow_html=True)
 
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
@@ -468,7 +466,7 @@ def area_cliente():
         st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
         
         st.markdown("""
-            <div style='background-color: #111118; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
+            <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
                 <p style='color: #aaaaaa; font-size: 0.7rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
             </div>
@@ -487,7 +485,7 @@ def area_cliente():
 
     if not dados_m.get("cliente"):
         st.markdown(f"""
-            <div style='text-align: center; background: #141420; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px;'>
+            <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px;'>
                 <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
                 <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados para iniciar na <b>Mesa {num_mesa}</b>.</p>
             </div>
@@ -504,10 +502,9 @@ def area_cliente():
                 dados_m["status"] = "Aberta"
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
     else:
         cli = dados_m["cliente"]
-        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#141420; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
@@ -591,7 +588,7 @@ def area_cliente():
         with t_ev:
             st.markdown("<span style='font-size:0.7rem; color:#aaaaaa;'><b>Agenda:</b><br>• Sexta: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # ÁREA: COZINHA
