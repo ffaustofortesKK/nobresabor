@@ -205,7 +205,9 @@ def carregar_fechos_caixa():
     if os.path.exists(ARQUIVO_FECHOS_CAIXA):
         try:
             with open(ARQUIVO_FECHOS_CAIXA, "r", encoding="utf-8") as f:
-                return json.load(f)
+                dados = json.load(f)
+                if isinstance(dados, list):
+                    return dados
         except:
             pass
     return []
@@ -214,8 +216,8 @@ def salvar_fechos_caixa(fechos_list):
     try:
         with open(ARQUIVO_FECHOS_CAIXA, "w", encoding="utf-8") as f:
             json.dump(fechos_list, f, ensure_ascii=False, indent=4)
-    except:
-        pass
+    except Exception as e:
+        st.error(f"Erro ao salvar fecho de caixa: {e}")
 
 def carregar_saidas_caixa():
     if os.path.exists(ARQUIVO_SAIDAS_CAIXA):
@@ -903,7 +905,7 @@ def area_caixa_mesas():
                 sessao_op["turno_aberto"] = False
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
-                st.success("Período de caixa encerrado com sucesso!")
+                st.success("Período de caixa encerrado com sucesso e guardado com segurança!")
                 st.rerun()
         else:
             st.info("Ainda não existem vendas registadas neste turno.")
@@ -1519,7 +1521,7 @@ def area_administrador():
                 st.rerun()
 
     with tab_qr:
-        st.subheader("🖨️ Gerador, Links Diretos e Visualizador de QR Codes para as Mesas (1 a 30)")
+        st.subheader("🖨️ Gerador, Links Diretos e Visualizador de QR Codes para las Mesas (1 a 30)")
         st.write("Copie o link direto de cada mesa ou descarregue o respetivo QR Code para imprimir.")
         
         url_base_padrao = "https://nobresabor.streamlit.app"
