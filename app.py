@@ -587,21 +587,21 @@ def area_cozinha():
             st.markdown(f"### Total de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (AUTOMÁTICO)
+# ÁREA: CAIXA / GESTÃO DE MESAS (COMPACTO & ANULAÇÕES COM JUSTIFICATIVA)
 # ==========================================
 @st.fragment(run_every=5)
 def area_caixa_mesas():
-    # Injeção de CSS para o formato circular, animações e container com scroll para as mesas
+    # Injeção de CSS para círculos mais compactos das mesas e alertas
     st.markdown("""
         <style>
         @keyframes oscilarVermelho {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            50% { transform: scale(1.06); box-shadow: 0 0 15px 8px rgba(239, 68, 68, 0.9); background-color: #ef4444 !important; color: #fff !important; }
+            50% { transform: scale(1.04); box-shadow: 0 0 10px 5px rgba(239, 68, 68, 0.9); background-color: #ef4444 !important; color: #fff !important; }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
         @keyframes oscilarVerde {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0.7); }
-            50% { transform: scale(1.06); box-shadow: 0 0 15px 8px rgba(74, 194, 107, 0.9); background-color: #4ac26b !important; color: #000 !important; }
+            50% { transform: scale(1.04); box-shadow: 0 0 10px 5px rgba(74, 194, 107, 0.9); background-color: #4ac26b !important; color: #000 !important; }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 194, 107, 0); }
         }
         .mesa-conta-solicitada {
@@ -612,30 +612,24 @@ def area_caixa_mesas():
             animation: oscilarVerde 1.2s infinite ease-in-out;
             border: 2px solid #fff !important;
         }
+        /* Círculos compactos para acomodar as 30 mesas sem precisar scrollar */
         .mesa-circle {
             background-color: #1a1a2e;
-            border: 2px solid #333355;
+            border: 1.5px solid #333355;
             border-radius: 50%;
-            width: 85px;
-            height: 85px;
+            width: 58px;
+            height: 58px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            margin: 0 auto 4px auto;
+            margin: 0 auto 2px auto;
             color: #fff;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-        .mesa-aberta { background-color: #1f3b2c; border: 2px solid #4ac26b; }
+        .mesa-aberta { background-color: #1f3b2c; border: 1.5px solid #4ac26b; }
         .mesa-fechada { background-color: #141420; }
-        
-        /* Container scrollável para a grelha de mesas manter tudo na tela */
-        .grid-mesas-scroll {
-            max-height: 650px;
-            overflow-y: auto;
-            padding-right: 8px;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -729,13 +723,13 @@ def area_caixa_mesas():
 
     # Layout superior de saldos
     st.markdown(f"""
-        <div style="background-color: #141428; padding: 12px 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background-color: #141428; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <span style="font-size: 0.9rem; color: #a0a0c0;">Saldo em Caixa (Dinheiro):</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
-                <span style="font-size: 0.9rem; color: #a0a0c0;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
+                <span style="font-size: 0.85rem; color: #a0a0c0;">Saldo em Caixa (Dinheiro):</span> <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | 
+                <span style="font-size: 0.85rem; color: #a0a0c0;">TPA:</span> <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
             </div>
             <div>
-                <span style="font-size: 0.85rem;">👤 Operador: <b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</span>
+                <span style="font-size: 0.8rem;">👤 Operador: <b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -809,13 +803,10 @@ def area_caixa_mesas():
 
     # --- ABA 1: MESAS & OPERAÇÕES ---
     with aba_operador_1:
-        col_esq, col_dir = st.columns([1.1, 0.9])
+        col_esq, col_dir = st.columns([1.2, 0.8])
 
         with col_dir:
             st.markdown("#### 🗺️ Mesas (1 a 30)")
-            
-            # Envolvemos a grelha num bloco HTML com scroll vertical fixo para caber perfeitamente na tela
-            st.markdown('<div class="grid-mesas-scroll">', unsafe_allow_html=True)
             
             cols_grelha = 3
             rows = 10
@@ -859,10 +850,10 @@ def area_caixa_mesas():
                         
                         st.markdown(f"""
                             <div class="mesa-circle {classe_css}">
-                                <div style="font-size: 0.6rem; line-height: 1; min-height: 12px;">{simbolo_topo}</div>
-                                <span style="font-size: 0.75rem; font-weight: bold;">Mesa {mesa_idx}</span>
-                                <span style="font-size: 0.55rem; color: #ddd;">{nome_cliente_curto}</span>
-                                <span style="font-size: 0.5rem; color: #ffb703;">{total_m:,.0f}Kz</span>
+                                <div style="font-size: 0.5rem; line-height: 1; min-height: 10px;">{simbolo_topo}</div>
+                                <span style="font-size: 0.65rem; font-weight: bold;">Mesa {mesa_idx}</span>
+                                <span style="font-size: 0.45rem; color: #bbb;">{nome_cliente_curto}</span>
+                                <span style="font-size: 0.45rem; color: #ffb703;">{total_m:,.0f}K</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -871,8 +862,6 @@ def area_caixa_mesas():
                             st.rerun()
                         
                     mesa_idx += 1
-            
-            st.markdown('</div>', unsafe_allow_html=True)
 
         with col_esq:
             with st.container():
@@ -887,7 +876,7 @@ def area_caixa_mesas():
                 # --- LISTA DOS PEDIDOS ---
                 st.markdown("#### 📋 Pedidos da Mesa")
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"]]
+                pedidos_ativos = [p for p in pedidos_mesa if p.get('status'] not in ["Anulado", "Recusado pela Cozinha"]]
                 
                 if pedidos_ativos:
                     for idx_p, p in enumerate(pedidos_mesa):
@@ -901,14 +890,55 @@ def area_caixa_mesas():
                         with col_it1:
                             st.markdown(f"- **{q}x {p.get('item')}** ({preco_u:,.2f} Kz) — **{subtotal_item:,.2f} Kz**")
                         with col_it2:
+                            # Botão para abrir o seletor de anulação com justificativa
                             if st.button(f"🗑️ Anular", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
-                                p['status'] = "Anulado"
-                                novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
-                                dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
-                                mesas_data[str(m_sel)] = dados_m_sel
-                                salvar_mesas_disco(mesas_data)
-                                st.success("Item anulado!")
-                                st.rerun()
+                                st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = True
+                        
+                        # Bloco condicional que abre o campo de justificativa logo abaixo do item se solicitado
+                        if st.session_state.get(f"abrindo_anulacao_{m_sel}_{idx_p}", False):
+                            with st.container():
+                                st.markdown(f"<div style='background: #1e1e2f; padding: 10px; border-radius: 6px; border: 1px solid #ef4444; margin-bottom: 8px;'>", unsafe_allow_html=True)
+                                motivo_anulacao = st.text_input(f"Motivo da anulação para: {p.get('item')}", key=f"motivo_anulacao_txt_{m_sel}_{idx_p}")
+                                
+                                col_j1, col_j2 = st.columns(2)
+                                with col_j1:
+                                    if st.button("Confirmar Anulação", type="primary", key=f"conf_anular_{m_sel}_{idx_p}", use_container_width=True):
+                                        if motivo_anulacao.strip():
+                                            # Atualiza status do item
+                                            p['status'] = "Anulado"
+                                            p['motivo_anulacao'] = motivo_anulacao
+                                            
+                                            # Recalcula total da mesa
+                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"])
+                                            dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
+                                            mesas_data[str(m_sel)] = dados_m_sel
+                                            salvar_mesas_disco(mesas_data)
+                                            
+                                            # Registo para a aba do Administrador: Vendas Excluídas
+                                            vendas_excluidas = carregar_vendas_excluidas() if 'carregar_vendas_excluidas' in globals() else []
+                                            reg_excluido = {
+                                                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                                "Caixa": sessao_op['operador'],
+                                                "Mesa": m_sel,
+                                                "Item": p.get('item'),
+                                                "Quantidade": q,
+                                                "Valor": subtotal_item,
+                                                "Motivo": motivo_anulacao,
+                                                "Período": sessao_op['periodo']
+                                            }
+                                            vendas_excluidas.append(reg_excluido)
+                                            salvar_vendas_excluidas(vendas_excluidas) if 'salvar_vendas_excluidas' in globals() else None
+                                            
+                                            st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
+                                            st.success("Item anulado e registado na auditoria do Administrador!")
+                                            st.rerun()
+                                        else:
+                                            st.warning("Insira uma justificativa obrigatória.")
+                                with col_j2:
+                                    if st.button("Cancelar", key=f"fechar_anular_{m_sel}_{idx_p}", use_container_width=True):
+                                        st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
+                                        st.rerun()
+                                st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.info("Sem consumos ativos nesta mesa.")
 
