@@ -778,6 +778,20 @@ def area_caixa_mesas():
             </audio>
         """, unsafe_allow_html=True)
 
+    # Inserir estilo CSS para a animação de piscar em verde
+    st.markdown("""
+        <style>
+        @keyframes piscar-verde {
+            0% { border-color: #4ac26b; box-shadow: 0 0 5px #4ac26b; background-color: rgba(74, 194, 107, 0.2); }
+            50% { border-color: #ffffff; box-shadow: 0 0 20px #4ac26b; background-color: rgba(74, 194, 107, 0.6); }
+            100% { border-color: #4ac26b; box-shadow: 0 0 5px #4ac26b; background-color: rgba(74, 194, 107, 0.2); }
+        }
+        .mesa-solicita-fecho-piscar {
+            animation: piscar-verde 1s infinite;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown("<h3 style='margin-bottom:6px;'>💻 Controlo do Caixa - Operador</h3>", unsafe_allow_html=True)
     st.session_state.caixa_aberto = ler_estado_caixa_disco()
 
@@ -1033,27 +1047,31 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
+                    # Recalcular total limpo (sem anulados/recusados) para exibição na grelha
                     total_m = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                     dados_m["total"] = total_m
 
-                    tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-                    tem_bebida = any(("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"])) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-                    tem_sobremesa = any(("sobremesa" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-                    
-                    simbolos_topo_lista = []
-                    if tem_refeicao: simbolos_topo_lista.append("🍲")
-                    if tem_bebida: simbolos_topo_lista.append("🍹")
-                    if tem_sobremesa: simbolos_topo_lista.append("🍰")
-                    simbolo_topo = " ".join(simbolos_topo_lista)
-
+                    # --- LÓGICA ATUALIZADA DE EMOJIS E CLASSES CSS ---
                     if solicitou_fecho:
-                        classe_css = "mesa-conta-solicitada"
-                    elif any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
-                        classe_css = "mesa-pronta-alerta"
-                    elif status_m == "Aberta" or cli_m:
-                        classe_css = "mesa-aberta"
+                        simbolo_topo = "💸"
+                        classe_css = "mesa-solicita-fecho-piscar"
                     else:
-                        classe_css = "mesa-fechada"
+                        tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+                        tem_bebida = any(("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"])) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+                        tem_sobremesa = any(("sobremesa" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+                        
+                        simbolos_topo_lista = []
+                        if tem_refeicao: simbolos_topo_lista.append("🍲")
+                        if tem_bebida: simbolos_topo_lista.append("🍹")
+                        if tem_sobremesa: simbolos_topo_lista.append("🍰")
+                        simbolo_topo = " ".join(simbolos_topo_lista)
+
+                        if any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
+                            classe_css = "mesa-pronta-alerta"
+                        elif status_m == "Aberta" or cli_m:
+                            classe_css = "mesa-aberta"
+                        else:
+                            classe_css = "mesa-fechada"
 
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
@@ -1140,7 +1158,7 @@ def area_caixa_mesas():
                                     salvar_mesas_disco(mesas_data)
                                     
                                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
-                                    st.success("Adicionado!")
+                                    st.success(f"Adicionado!")
                                     st.rerun()
                             else:
                                 st.warning("Sem itens nesta categoria.")
@@ -1151,6 +1169,7 @@ def area_caixa_mesas():
                 st.markdown("<span style='font-size: 0.85rem;'><b>Consumos da Mesa</b></span>", unsafe_allow_html=True)
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
+                # Filtrar apenas pedidos ativos (excluindo anulados e recusados pela cozinha)
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
                 
                 if pedidos_ativos:
@@ -1165,7 +1184,7 @@ def area_caixa_mesas():
                         with col_it1:
                             st.markdown(f"<span style='font-size: 0.75rem;'>- {q}x {p.get('item')} ({subtotal_item:,.0f}Kz) — [{p.get('cozinha_status', 'OK')}]</span>", unsafe_allow_html=True)
                         with col_it2:
-                            if st.button("🗑️", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
+                            if st.button(f"🗑️", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
                                 st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = True
                         
                         if st.session_state.get(f"abrindo_anulacao_{m_sel}_{idx_p}", False):
