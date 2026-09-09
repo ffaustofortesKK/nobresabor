@@ -585,7 +585,6 @@ def area_cozinha():
         st.error("⚠️ **O Caixa encontra-se atualmente FECHADO pela Administração.**")
         return
 
-    # Garantir chaves de controlo de alarme no session_state
     if "cozinha_tem_pendentes_som" not in st.session_state:
         st.session_state.cozinha_tem_pendentes_som = False
 
@@ -604,7 +603,6 @@ def area_cozinha():
                 cat_p = str(ped.get("tipo", "")).lower()
                 c_status = ped.get("cozinha_status", "Pendente")
                 
-                # Consideramos visíveis na cozinha os que não foram cancelados
                 if ("refei" in cat_p or "prato" in cat_p or "comida" in cat_p) and ped.get("status") != "Anulado" and c_status != "Entregue":
                     tem_pedidos = True
                     if c_status == "Pendente":
@@ -633,6 +631,7 @@ def area_cozinha():
                         elif c_status == "Aprovado":
                             if st.button("🍲 Marcar Feito", key=f"feito_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Feito"
+                                # Ativa o sinal para o caixa disparar o alarme sonoro desta mesa
                                 mesas_data[str_i]["alarme_prato_feito"] = True
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
@@ -640,6 +639,8 @@ def area_cozinha():
                             st.info("A aguardar recolha/entrega")
                             if st.button("🚚 Marcar Entregue", key=f"entregue_cz_{i}_{idx_p}und"):
                                 mesas_data[str_i]["pedidos"][idx_p]["cozinha_status"] = "Entregue"
+                                # Opcional: limpa o alarme ao marcar entregue
+                                mesas_data[str_i]["alarme_prato_feito"] = False
                                 salvar_mesas_disco(mesas_data)
                                 st.rerun()
                     st.divider()
@@ -647,7 +648,6 @@ def area_cozinha():
         if not tem_pedidos:
             st.success("🎉 Sem refeições ativas de momento!")
 
-        # --- ALARME SONORO CONTÍNUO PARA A COZINHA (Enquanto houver pedidos Pendentes) ---
         if tem_novos_pendentes:
             st.markdown("""
                 <audio autoplay loop>
@@ -660,8 +660,7 @@ def area_cozinha():
             """, unsafe_allow_html=True)
 
     with tab_historico_cozinha:
-        st.subheader("📋 Registo de Pratos Preparados e Finalizados (Persistente até o Fecho)")
-        
+        st.subheader("📋 Registo de Pratos Preparados e Finalizados")
         lista_pratos_feitos = []
         for i in range(1, 31):
             str_i = str(i)
@@ -680,11 +679,10 @@ def area_cozinha():
                     })
         
         if not lista_pratos_feitos:
-            st.info("Ainda nenhum prato foi finalizado hoje. Os registos ficarão guardados aqui até o fecho do período.")
+            st.info("Ainda nenhum prato foi finalizado hoje.")
         else:
             df_feitos = pd.DataFrame(lista_pratos_feitos)
             st.dataframe(df_feitos, use_container_width=True)
-            st.markdown(f"### Total Acumulado de Pratos Preparados: **{sum(item['Quantidade'] for item in lista_pratos_feitos)} unidades**")
                     
 # ==========================================
 # ÁREA: CAIXA / GESTÃO DE MESAS (CIRCULAR INTERATIVO & ALARME DE SINO)
