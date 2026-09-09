@@ -854,11 +854,11 @@ def area_caixa_mesas():
                     with cols[c]:
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
-                        # Se solicitou fecho, exibe badge superior "Pediu Conta 💵" logo acima do círculo da mesa
+                        # Se solicitou fecho, exibe badge superior com tamanho de fonte aumentado (0.75rem ~ +50% maior)
                         if solicitou_fecho:
                             st.markdown("""
-                                <div style="text-align: center; margin-bottom: 2px;">
-                                    <span style="background-color: #ef4444; color: white; font-size: 0.5rem; font-weight: bold; padding: 1px 5px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
+                                <div style="text-align: center; margin-bottom: 2px; white-space: nowrap;">
+                                    <span style="background-color: #ef4444; color: white; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
                                         Pediu Conta 💵
                                     </span>
                                 </div>
