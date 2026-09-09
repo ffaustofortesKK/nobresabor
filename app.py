@@ -786,7 +786,7 @@ def area_caixa_mesas():
     if tem_mesas_prontas_com_alerta:
         st.markdown("""
             <audio autoplay loop>
-              <source src="https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3" type="audio/mpeg">
+              <source src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3" type="audio/mpeg">
               Seu navegador não suporta elemento de áudio.
             </audio>
         """, unsafe_allow_html=True)
