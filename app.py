@@ -490,6 +490,7 @@ def area_cliente():
     # Abre a moldura do smartphone com entalhe superior integrado
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
+    # 1. VERIFICAÇÃO PRINCIPAL: Se a fatura foi emitida (pelo caixa ou fechamento), exibe a fatura completa e o agradecimento
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
@@ -500,6 +501,7 @@ def area_cliente():
             
         st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
         
+        # Mensagem de agradecimento logo abaixo da fatura pedida
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
@@ -518,6 +520,19 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
+    # 2. SE O CLIENTE PEDIU A CONTA ("solicitou_fecho"), mas o caixa ainda não gerou a fatura oficial
+    if dados_m.get("solicitou_fecho"):
+        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa}</div>", unsafe_allow_html=True)
+        st.markdown("""
+            <div style='background-color: #1a1a24; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; text-align: center; margin-top: 20px;'>
+                <h4 style='color: #ffffff; font-size: 0.9rem; margin-bottom: 8px;'>⏳ Conta Solicitada</h4>
+                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde um momento enquanto processamos a sua fatura.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        return
+
+    # 3. FLUXO NORMAL DE REGISTO DO CLIENTE (caso ainda não tenha inserido o nome)
     if not dados_m.get("cliente"):
         st.markdown(f"""
             <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px; margin-top: 10px;'>
@@ -538,6 +553,7 @@ def area_cliente():
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
     else:
+        # 4. FLUXO NORMAL DE PEDIDOS (Cardápio, Conta Parcial, Eventos)
         cli = dados_m["cliente"]
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
@@ -606,7 +622,6 @@ def area_cliente():
                         dados_m["total"] = float(sum(p['quantidade']*p['preco'] for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                         salvar_mesas_disco(mesas_data)
                         
-                        # Ativa o gatilho da animação visual na tela do telemóvel
                         st.session_state[f"pedido_recente_mesa_{num_mesa}"] = True
                         st.balloons()
                         st.rerun()
@@ -614,7 +629,6 @@ def area_cliente():
         with t_cons:
             total_parcial = 0
             for p in dados_m["pedidos"]:
-                # Ignorar itens recusados pela cozinha ou anulados na conta do cliente
                 if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
                     continue
                 
@@ -622,7 +636,6 @@ def area_cliente():
                 total_parcial += t_item
                 st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
             
-            # Sincronizar o total guardado com o total calculado sem os recusados/anulados
             dados_m["total"] = float(total_parcial)
             salvar_mesas_disco(mesas_data)
 
@@ -646,7 +659,7 @@ def area_cliente():
             st.markdown("<span style='font-size:0.7rem; color:#aaaaaa;'><b>Agenda:</b><br>• Sexta: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
             
     st.markdown('</div>', unsafe_allow_html=True)
-
+    
 # ==========================================
 # ÁREA: COZINHA
 # ==========================================
