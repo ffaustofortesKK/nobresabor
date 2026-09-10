@@ -475,142 +475,239 @@ if "rh" not in st.session_state:
     st.session_state.rh = carregar_rh_disco()
 
 # ==========================================
+
 # ÁREA: CLIENTE (DENTRO DA TELA DO TELEFONE)
+
 # ==========================================
+
 @st.fragment(run_every=6)
+
 def area_cliente():
+
     if not (mesa_detectada and 1 <= mesa_detectada <= 30):
+
         st.error("⚠️ Mesa inválida! Escaneie o QR correto.")
+
         return
 
+
+
     num_mesa = mesa_detectada
+
     mesas_data = carregar_mesas_disco()
+
     dados_m = mesas_data[str(num_mesa)]
+
+
 
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
-    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO (COM BOTÃO DE SAÍDA)
+
+
+    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO
+
     if dados_m.get("fatura_emitida"):
+
         fat = dados_m["fatura_emitida"]
+
         st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Recibo / Fatura Digital</h4>", unsafe_allow_html=True)
+
         st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
+
         
+
         for item in fat['itens']:
+
             st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
+
             
+
         st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
+
         
+
         st.markdown("""
+
             <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
+
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
+
                 <p style='color: #aaaaaa; font-size: 0.7rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
+
             </div>
+
         """, unsafe_allow_html=True)
+
+
 
         try:
+
             pdf_path = gerar_pdf_fatura(fat, num_mesa)
+
             if os.path.exists(pdf_path):
+
                 with open(pdf_path, "rb") as f:
+
                     st.download_button("📥 Descarregar PDF", data=f, file_name=f"Fatura_NobreSabor_Mesa_{num_mesa}.pdf", use_container_width=True)
+
         except Exception:
+
             pass
+
             
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Botão de Sair / Limpar Sessão do Cliente após pagamento emitido
-        if st.button("🚪 Sair / Terminar Sessão da Mesa", type="primary", use_container_width=True, key=f"btn_sair_cliente_{num_mesa}"):
-            mesas_data[str(num_mesa)] = {
-                "status": "Fechada",
-                "cliente": None,
-                "pedidos": [],
-                "total": 0.0,
-                "solicitou_fecho": False,
-                "fatura_emitida": None
-            }
-            salvar_mesas_disco(mesas_data)
-            st.success("Sessão terminada. Obrigado pela visita!")
-            st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+
         return
+
+
 
     # 2. CASO O CLIENTE TENHA SOLICITADO A CONTA MAS O CAIXA AINDA NÃO EMITIU
+
     if dados_m.get("solicitou_fecho"):
+
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa}</div>", unsafe_allow_html=True)
+
         st.markdown("""
+
             <div style='background-color: #1a1a24; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; text-align: center; margin-top: 20px;'>
+
                 <h4 style='color: #ffffff; font-size: 0.9rem; margin-bottom: 8px;'>⏳ Conta Solicitada</h4>
-                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. A fatura aparecerá aqui em instantes...</p>
+
+                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde o processamento.</p>
+
             </div>
+
         """, unsafe_allow_html=True)
+
         st.markdown('</div>', unsafe_allow_html=True)
+
         return
 
-    # 3. REGISTO DO CLIENTE (CASO AINDA NÃO TENHA IDENTIFICAÇÃO)
+ # 3. REGISTO DO CLIENTE (CASO AINDA NÃO TENHA IDENTIFICAÇÃO)
+
     if not dados_m.get("cliente"):
+
         st.markdown(f"""
+
             <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px; margin-top: 10px;'>
+
                 <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
+
                 <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados na <b>Mesa {num_mesa}</b>.</p>
+
             </div>
+
         """, unsafe_allow_html=True)
+
         
+
         with st.form(f"fc_{num_mesa}"):
+
             nome = st.text_input("Seu Nome:", placeholder="Ex: João Silva")
+
             tel = st.text_input("Telemóvel:", placeholder="Ex: 923456789")
+
             nif = st.text_input("NIF (Opcional):", placeholder="NIF para fatura")
+
             whatsapp = st.checkbox("Entrar no Grupo WhatsApp?")
+
             
+
             if st.form_submit_button("Entrar e Começar", use_container_width=True) and nome and tel:
+
                 dados_m["cliente"] = {"nome": nome, "telefone": tel, "nif": nif, "whatsapp": whatsapp}
+
                 dados_m["status"] = "Aberta"
+
                 salvar_mesas_disco(mesas_data)
+
                 st.rerun()
+
     else:
+
         # 4. CARDÁPIO E PEDIDOS
+
         cli = dados_m["cliente"]
+
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+
         
+
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
+
         
+
         with t_menu:
+
             stock_df_atual = carregar_stock_disco()
+
             cat = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Outros"], key="c_cat")
+
             itens = stock_df_atual[stock_df_atual['Categoria'] == cat] if not stock_df_atual.empty else pd.DataFrame()
+
             
+
             if not itens.empty:
+
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
+
                     lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens.iterrows()}
+
                     item_label_selecionado = st.selectbox("Item:", list(lista_itens_formatada.keys()))
+
                     prod = lista_itens_formatada[item_label_selecionado]
+
                     qtd = st.number_input("Quantidade:", 1, 99, 1)
+
                     
+
                     if st.form_submit_button("🚀 Enviar Pedido", use_container_width=True):
+
                         p_row = itens[itens['Produto'] == prod].iloc[0]
+
                         dados_m["pedidos"].append({
+
                             "item": prod, "tipo": cat, "quantidade": int(qtd),
+
                             "preco": float(p_row['Preço Unitário']), "status": "Pendente", "cozinha_status": "Pendente"
+
                         })
+
                         salvar_mesas_disco(mesas_data)
-                        
-                        # Notificação visual de sucesso imediata para o cliente
-                        st.success(f"✅ Pedido de {qtd}x {prod} enviado com sucesso para a cozinha!")
+
                         st.balloons()
+
                         st.rerun()
 
+
+
         with t_cons:
+
             total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
+
             
+
             if dados_m.get("solicitou_fecho"):
-                st.info("⏳ Pedido de fecho enviado ao caixa. Aguarde a emissão da fatura.")
+
+                st.info("⏳ Pedido de fecho enviado ao caixa.")
+
             else:
+
                 if st.button("🔔 Pedir Conta", type="primary", use_container_width=True):
+
                     dados_m["solicitou_fecho"] = True
+
                     salvar_mesas_disco(mesas_data)
-                    st.success("Conta solicitada ao caixa com sucesso!")
+
+                    st.success("Conta solicitada!")
+
                     st.rerun()
+
                     
+
     st.markdown('</div>', unsafe_allow_html=True)
     
 # ==========================================
