@@ -1076,6 +1076,9 @@ def area_caixa_mesas():
             rows = 8
             mesa_idx = 1
             
+            # Variável de controlo para emitir o som de caixa registadora se houver pelo menos uma mesa a solicitar fecho
+            tem_solicitacao_fecho_geral = False
+            
             for r in range(rows):
                 cols = st.columns(cols_grelha)
                 for c in range(cols_grelha):
@@ -1091,8 +1094,9 @@ def area_caixa_mesas():
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
-                        # 💸 SÍMBOLO AUMENTADO EM 100% (font-size alterado de 0.65rem para 1.3rem)
-                        simbolo_topo = '<span style="font-size: 1.3rem; line-height: 1rem;">💸</span>'
+                        tem_solicitacao_fecho_geral = True
+                        # 💸 SÍMBOLO AUMENTADO EM MAIS 100% (font-size passado para 2.6rem)
+                        simbolo_topo = '<span style="font-size: 2.6rem; line-height: 1rem;">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
                         tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -1116,7 +1120,7 @@ def area_caixa_mesas():
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         conteudo_circulo = f"""
-                            <div style="text-align: center; height: 22px; line-height: 22px; margin-bottom: 2px;">{simbolo_topo}</div>
+                            <div style="text-align: center; height: 35px; line-height: 35px; margin-bottom: 2px;">{simbolo_topo}</div>
                             <div class="mesa-circle {classe_css}">
                                 <span style="font-size: 0.65rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
                                 <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_cliente_curto}</span>
@@ -1132,6 +1136,15 @@ def area_caixa_mesas():
                             st.rerun()
                         
                     mesa_idx += 1
+
+            # Disparar efeito sonoro de caixa registadora quando o símbolo 💸 aparece ativo
+            if tem_solicitacao_fecho_geral and st.session_state.get("som_ativado_caixa", False):
+                audio_fecho_html = """
+                    <audio id="audio_fecho_conta" autoplay>
+                      <source src="https://assets.mixkit.co/active_storage/sfx/2872/2872-preview.mp3" type="audio/mpeg">
+                    </audio>
+                """
+                components.html(audio_fecho_html, height=0, width=0)
 
         with col_esq:
             with st.container():
