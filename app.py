@@ -705,13 +705,13 @@ def area_cozinha():
 import streamlit.components.v1 as components
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (COMPLETA)
+# ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # 1. Verificação de Alarme Ativo (Mesas prontas na cozinha ou novos pedidos)
+    # 1. Verificação de Alarme Ativo
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -720,30 +720,30 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # 2. Gestão de Estado de Áudio Ativado (Evita restrições de autoplay dos browsers)
+    # 2. Gestão de Estado de Áudio Ativado (Evita bloqueio de autoplay do browser)
     if "som_ativado_caixa" not in st.session_state:
         st.session_state.som_ativado_caixa = False
 
     if not st.session_state.som_ativado_caixa:
-        st.warning("⚠️ O sistema de som automático para novos pedidos/cozinha requer ativação inicial.")
-        if st.button("📞 Clique aqui para habilitar o alarme de telefone fixo", type="primary", use_container_width=True):
+        st.warning("⚠️ O sistema de som automático requer ativação inicial.")
+        if st.button("🔊 Clique aqui para habilitar o alarme sonoro do caixa", type="primary", use_container_width=True):
             st.session_state.som_ativado_caixa = True
             st.rerun()
 
-    # 3. Disparador de Alarme Sonoro (Toque de Telefone Fixo em Loop Contínuo)
+    # Se ativado e houver mesas prontas, disparamos o som via componente dedicado para evitar cortes do fragmento
     if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
-        # Link com efeito de toque de telefone fixo realista
+        # Usamos um componente HTML com script persistente de loop de áudio
         audio_html = """
-            <audio id="telefone_toque" autoplay loop>
+            <audio id="alarme_audio" autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
             </audio>
             <script>
-                var audio = document.getElementById("telefone_toque");
+                var audio = document.getElementById("alarme_audio");
                 audio.volume = 1.0;
                 var playPromise = audio.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        console.log("Autoplay bloqueado pelo browser, à espera de interação...");
+                        console.log("Autoplay prevenido pelo browser, a tentar novamente...");
                         document.addEventListener('click', function() {
                             audio.play();
                         }, {once: true});
@@ -753,7 +753,7 @@ def area_caixa_mesas():
         """
         components.html(audio_html, height=0, width=0)
 
-    # Estilo CSS para animação visual da mesa a piscar em verde (alerta)
+    # Inserir estilo CSS para a animação de piscar em verde
     st.markdown("""
         <style>
         @keyframes piscar-verde {
@@ -892,7 +892,7 @@ def area_caixa_mesas():
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
                 st.rerun()
-        return    
+        return   
 
     hist_vendas = carregar_historico_vendas()
     stock_df_cx_card = carregar_stock_disco()
@@ -1025,6 +1025,7 @@ def area_caixa_mesas():
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
+                        # 💸 SÍMBOLO AUMENTADO EM 100% (font-size alterado de 0.65rem para 1.3rem)
                         simbolo_topo = '<span style="font-size: 1.3rem; line-height: 1rem;">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
@@ -1235,17 +1236,11 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        # Limpa os dados da mesa após fechar a conta
+                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
+                        
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada",
-                            "cliente": None,
-                            "pedidos": [],
-                            "total": 0.0,
-                            "solicitou_fecho": False
+                            "status": "Fechada"
                         }
-                        salvar_mesas_disco(mesas_data)
-                        st.success(f"Conta da Mesa {m_sel} fechada com sucesso!")
-                        st.rerun()
 
 # ==========================================
 # ROTEADOR PRINCIPAL DA APLICAÇÃO
