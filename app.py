@@ -487,13 +487,12 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
-    # Abre a moldura do smartphone com entalhe superior integrado
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
-    # 1. VERIFICAÇÃO PRINCIPAL: Se a fatura foi emitida (pelo caixa ou fechamento), exibe a fatura completa e o agradecimento
+    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Fatura Digital</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Recibo / Fatura Digital</h4>", unsafe_allow_html=True)
         st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
         
         for item in fat['itens']:
@@ -501,7 +500,6 @@ def area_cliente():
             
         st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
         
-        # Mensagem de agradecimento logo abaixo da fatura pedida
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
@@ -520,24 +518,24 @@ def area_cliente():
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # 2. SE O CLIENTE PEDIU A CONTA ("solicitou_fecho"), mas o caixa ainda não gerou a fatura oficial
+    # 2. CASO O CLIENTE TENHA SOLICITADO A CONTA MAS O CAIXA AINDA NÃO EMITIU
     if dados_m.get("solicitou_fecho"):
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa}</div>", unsafe_allow_html=True)
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; text-align: center; margin-top: 20px;'>
                 <h4 style='color: #ffffff; font-size: 0.9rem; margin-bottom: 8px;'>⏳ Conta Solicitada</h4>
-                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde um momento enquanto processamos a sua fatura.</p>
+                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde o processamento.</p>
             </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # 3. FLUXO NORMAL DE REGISTO DO CLIENTE (caso ainda não tenha inserido o nome)
+    # 3. REGISTO DO CLIENTE (CASO AINDA NÃO TENHA IDENTIFICAÇÃO)
     if not dados_m.get("cliente"):
         st.markdown(f"""
             <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px; margin-top: 10px;'>
                 <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
-                <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados para iniciar na <b>Mesa {num_mesa}</b>.</p>
+                <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados na <b>Mesa {num_mesa}</b>.</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -553,111 +551,57 @@ def area_cliente():
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
     else:
-        # 4. FLUXO NORMAL DE PEDIDOS (Cardápio, Conta Parcial, Eventos)
+        # 4. CARDÁPIO E PEDIDOS
         cli = dados_m["cliente"]
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
-        
-        # Indicador visual dinâmico caso haja um pedido recém-enviado nesta sessão
-        if st.session_state.get(f"pedido_recente_mesa_{num_mesa}", False):
-            st.markdown("""
-                <div class="pedido-enviado-toast">
-                    ✅ Pedido enviado com sucesso! A preparar...
-                </div>
-            """, unsafe_allow_html=True)
-            st.session_state[f"pedido_recente_mesa_{num_mesa}"] = False
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
         with t_menu:
-            categorias_fixas = ["Bebidas", "Refeições", "Sobremesas", "Outros"]
-            
             stock_df_atual = carregar_stock_disco()
-            if not stock_df_atual.empty:
-                utilitarios_extras = [
-                    {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
-                ]
-                stock_df_atual = pd.concat([stock_df_atual, pd.DataFrame(utilitarios_extras)], ignore_index=True)
-            else:
-                stock_df_atual = pd.DataFrame([
-                    {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
-                ])
-
-            cats_disponiveis = [c for c in categorias_fixas if c in stock_df_atual['Categoria'].unique().tolist()]
-            if not cats_disponiveis:
-                cats_disponiveis = stock_df_atual['Categoria'].unique().tolist()
-
-            cat = st.selectbox("Categoria:", cats_disponiveis, key="c_cat")
-            itens = stock_df_atual[stock_df_atual['Categoria'] == cat]
+            cat = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Outros"], key="c_cat")
+            itens = stock_df_atual[stock_df_atual['Categoria'] == cat] if not stock_df_atual.empty else pd.DataFrame()
             
             if not itens.empty:
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
                     lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens.iterrows()}
                     item_label_selecionado = st.selectbox("Item:", list(lista_itens_formatada.keys()))
                     prod = lista_itens_formatada[item_label_selecionado]
-                    
                     qtd = st.number_input("Quantidade:", 1, 99, 1)
-                    obs_cliente = st.text_input("Observação (opcional):", placeholder="Ex: Sem gelo...")
                     
                     if st.form_submit_button("🚀 Enviar Pedido", use_container_width=True):
                         p_row = itens[itens['Produto'] == prod].iloc[0]
-                        preco_unit = float(p_row['Preço Unitário']) if 'Preço Unitário' in p_row else 0.0
-                        is_ref = cat.lower() in ["refeições", "refeicoes", "pratos", "comida"]
-                        
                         dados_m["pedidos"].append({
-                            "item": prod, 
-                            "tipo": cat, 
-                            "quantidade": int(qtd),
-                            "preco": preco_unit, 
-                            "origem": f"Cliente ({cli['nome']})",
-                            "observacao": obs_cliente, 
-                            "status": "Confirmado" if not is_ref else "Pendente",
-                            "cozinha_status": "N/A" if not is_ref else "Pendente", 
-                            "hora": datetime.now().strftime("%H:%M")
+                            "item": prod, "tipo": cat, "quantidade": int(qtd),
+                            "preco": float(p_row['Preço Unitário']), "status": "Pendente", "cozinha_status": "Pendente"
                         })
-                        
-                        dados_m["total"] = float(sum(p['quantidade']*p['preco'] for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                         salvar_mesas_disco(mesas_data)
                         
-                        st.session_state[f"pedido_recente_mesa_{num_mesa}"] = True
+                        # Guardamos em session_state um aviso temporário para o cliente visualizar a notificação
+                        st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido enviado com sucesso: {qtd}x {prod}!"
                         st.balloons()
                         st.rerun()
 
-        with t_cons:
-            total_parcial = 0
-            for p in dados_m["pedidos"]:
-                if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
-                    continue
-                
-                t_item = p['quantidade'] * p['preco']
-                total_parcial += t_item
-                st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
-            
-            dados_m["total"] = float(total_parcial)
-            salvar_mesas_disco(mesas_data)
+            # Notificação visual destacada logo abaixo do formulário caso o pedido tenha acabado de ser submetido
+            aviso_chave = f"aviso_pedido_enviado_{num_mesa}"
+            if aviso_chave in st.session_state:
+                st.success(st.session_state[aviso_chave])
+                # Removemos a notificação da session_state para que ela não fique permanente a cada clique futuro
+                del st.session_state[aviso_chave]
 
+        with t_cons:
+            total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 6px 0; border-color: #222;'>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
                 st.info("⏳ Pedido de fecho enviado ao caixa.")
-                if st.button("Cancelar Pedido", key=f"cf_{num_mesa}", use_container_width=True):
-                    dados_m["solicitou_fecho"] = False
-                    salvar_mesas_disco(mesas_data)
-                    st.rerun()
             else:
                 if st.button("🔔 Pedir Conta", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
                     salvar_mesas_disco(mesas_data)
                     st.success("Conta solicitada!")
                     st.rerun()
-
-        with t_ev:
-            st.markdown("<span style='font-size:0.7rem; color:#aaaaaa;'><b>Agenda:</b><br>• Sexta: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
-            
+                    
     st.markdown('</div>', unsafe_allow_html=True)
     
 # ==========================================
