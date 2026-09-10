@@ -489,30 +489,35 @@ def area_cliente():
 
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
-    # Verificação automática do temporizador de 5 minutos após fecho emitido
+    # 1. VISUALIZAÇÃO DA FATURA DIGITAL COM TEMPORIZADOR DE 5 MINUTOS PARA SAÍDA AUTOMÁTICA
     if dados_m.get("fatura_emitida"):
-        if "tempo_fecho_emitido" not in dados_m:
-            dados_m["tempo_fecho_emitido"] = time.time()
+        fat = dados_m["fatura_emitida"]
+        
+        # Gestão do tempo limite de 5 minutos após emissão da fatura
+        if "tempo_fatura_emitida" not in dados_m or not dados_m.get("tempo_fatura_emitida"):
+            dados_m["tempo_fatura_emitida"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             salvar_mesas_disco(mesas_data)
-        else:
-            # 5 minutos = 300 segundos
-            tempo_decorrido = time.time() - dados_m.get("tempo_fecho_emitido", time.time())
-            if tempo_decorrido > 300:
-                # Limpa a mesa automaticamente após 5 minutos sem interação
+        
+        try:
+            hora_emissao = datetime.strptime(dados_m["tempo_fatura_emitida"], "%Y-%m-%d %H:%M:%S")
+            diferenca_minutos = (datetime.now() - hora_emissao).total_seconds() / 60.0
+            
+            if diferenca_minutos >= 5:
+                # Limpa automaticamente a mesa após 5 minutos sem clique
                 mesas_data[str(num_mesa)] = {
                     "status": "Fechada",
                     "cliente": None,
                     "pedidos": [],
                     "total": 0.0,
                     "solicitou_fecho": False,
-                    "fatura_emitida": None
+                    "fatura_emitida": None,
+                    "tempo_fatura_emitida": None
                 }
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
+        except Exception:
+            pass
 
-    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO
-    if dados_m.get("fatura_emitida"):
-        fat = dados_m["fatura_emitida"]
         st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Recibo / Fatura Digital</h4>", unsafe_allow_html=True)
         st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
         
@@ -525,6 +530,7 @@ def area_cliente():
             <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
                 <p style='color: #aaaaaa; font-size: 0.7rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
+                <p style='color: #ffb703; font-size: 0.6rem; margin-top: 4px;'>⏱️ Esta tela fechará automaticamente em breve.</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -536,19 +542,18 @@ def area_cliente():
         except Exception:
             pass
             
-        # Botão Sair manual (com contagem decrescente aproximada ou aviso de tempo limite)
-        st.markdown("<p style='font-size: 0.65rem; color: #888; text-align: center;'>Esta fatura fechará automaticamente em 5 minutos.</p>", unsafe_allow_html=True)
-        if st.button("🚪 Sair / Terminar Sessão da Mesa", type="primary", use_container_width=True):
+        # Botão manual para sair de imediato
+        if st.button("🚪 Terminar e Sair", type="primary", use_container_width=True):
             mesas_data[str(num_mesa)] = {
                 "status": "Fechada",
                 "cliente": None,
                 "pedidos": [],
                 "total": 0.0,
                 "solicitou_fecho": False,
-                "fatura_emitida": None
+                "fatura_emitida": None,
+                "tempo_fatura_emitida": None
             }
             salvar_mesas_disco(mesas_data)
-            st.success("Sessão encerrada com sucesso!")
             st.rerun()
             
         st.markdown('</div>', unsafe_allow_html=True)
@@ -613,13 +618,13 @@ def area_cliente():
                         })
                         salvar_mesas_disco(mesas_data)
                         
-                        # Ativa o aviso visual imediato de sucesso no envio do pedido
-                        st.success("✅ Pedido enviado com sucesso para a cozinha!")
+                        # Notificação visual imediata para o cliente confirmar o envio
+                        st.success(f"✅ Pedido de {qtd}x {prod} enviado com sucesso para a cozinha!")
                         st.balloons()
                         st.rerun()
 
         with t_cons:
-            total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status'] != "Recusado")
+            total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
@@ -628,7 +633,7 @@ def area_cliente():
                 if st.button("🔔 Pedir Conta", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
                     salvar_mesas_disco(mesas_data)
-                    st.success("Conta solicitada com sucesso!")
+                    st.success("Conta solicitada!")
                     st.rerun()
                     
     st.markdown('</div>', unsafe_allow_html=True)
