@@ -784,10 +784,9 @@ def area_caixa_mesas():
             break
 
     if tem_mesas_prontas_com_alerta:
-        # Áudio alterado para toque clássico de telefone fixo (Tririiiiim / Trim-trim)
         st.markdown("""
             <audio autoplay loop>
-              <source src="https://assets.mixkit.co/active_storage/sfx/535/535-preview.mp3" type="audio/mpeg">
+              <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
               Seu navegador não suporta elemento de áudio.
             </audio>
         """, unsafe_allow_html=True)
@@ -1278,15 +1277,8 @@ def area_caixa_mesas():
                         
                         st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
                         
-                        dados_m_sel["fatura_emitida"] = {
-                            "itens": registo_venda["pedidos"],
-                            "total": total_a_pagar,
-                            "cliente": nome_c,
-                            "data": registo_venda["Data"]
-                        }
-                        
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False, "fatura_emitida": dados_m_sel["fatura_emitida"]
+                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
                         }
                         salvar_mesas_disco(mesas_data)
                         st.success(f"Mesa {m_sel} encerrada!")
