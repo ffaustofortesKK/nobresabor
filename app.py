@@ -773,6 +773,21 @@ def area_cozinha():
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
+    # 1. Gestão de permissão de áudio para contornar o bloqueio do navegador
+    if "som_desbloqueado" not in st.session_state:
+        st.session_state.som_desbloqueado = False
+
+    if not st.session_state.som_desbloqueado:
+        st.markdown("""
+            <div style="background-color: #141420; padding: 12px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 15px; text-align: center;">
+                <p style="margin-bottom: 8px; font-size: 0.9rem; color: #ffb703;">🔔 <b>Atenção:</b> Para ouvir os alertas sonoros de novas refeições prontas, clique no botão abaixo para ativar o som do navegador.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔊 Ativar Alertas Sonoros do Caixa", type="primary", use_container_width=True):
+            st.session_state.som_desbloqueado = True
+            st.rerun()
+        return  # Aguarda o clique para prosseguir com a interface normal do caixa
+
     mesas_data = carregar_mesas_disco()
 
     tem_mesas_prontas_com_alerta = False
@@ -905,7 +920,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
