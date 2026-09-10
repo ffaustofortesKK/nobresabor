@@ -477,7 +477,7 @@ if "rh" not in st.session_state:
 # ==========================================
 # ÁREA: CLIENTE (DENTRO DA TELA DO TELEFONE)
 # ==========================================
-@st.fragment(run_every=5)
+@st.fragment(run_every=6)
 def area_cliente():
     if not (mesa_detectada and 1 <= mesa_detectada <= 30):
         st.error("⚠️ Mesa inválida! Escaneie o QR correto.")
@@ -489,33 +489,30 @@ def area_cliente():
 
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
-    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO (COM TEMPORIZADOR DE 5 MINUTOS)
+    # Verificação automática do temporizador de 5 minutos após fecho emitido
+    if dados_m.get("fatura_emitida"):
+        if "tempo_fecho_emitido" not in dados_m:
+            dados_m["tempo_fecho_emitido"] = time.time()
+            salvar_mesas_disco(mesas_data)
+        else:
+            # 5 minutos = 300 segundos
+            tempo_decorrido = time.time() - dados_m.get("tempo_fecho_emitido", time.time())
+            if tempo_decorrido > 300:
+                # Limpa a mesa automaticamente após 5 minutos sem interação
+                mesas_data[str(num_mesa)] = {
+                    "status": "Fechada",
+                    "cliente": None,
+                    "pedidos": [],
+                    "total": 0.0,
+                    "solicitou_fecho": False,
+                    "fatura_emitida": None
+                }
+                salvar_mesas_disco(mesas_data)
+                st.rerun()
+
+    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        
-        # Gestão do temporizador de fecho automático após 5 minutos (300 segundos)
-        tempo_atual_epoch = time.time()
-        if "tempo_emissao_fatura" not in dados_m or not dados_m.get("tempo_emissao_fatura"):
-            dados_m["tempo_emissao_fatura"] = tempo_atual_epoch
-            salvar_mesas_disco(mesas_data)
-            
-        tempo_decorrido = tempo_atual_epoch - float(dados_m.get("tempo_emissao_fatura", tempo_atual_epoch))
-        limite_tempo_segundos = 300 # 5 minutos
-        
-        if tempo_decorrido >= limite_tempo_segundos:
-            # Reseta automaticamente a mesa após 5 minutos sem interação
-            mesas_data[str(num_mesa)] = {
-                "status": "Fechada",
-                "cliente": None,
-                "pedidos": [],
-                "total": 0.0,
-                "solicitou_fecho": False,
-                "fatura_emitida": None,
-                "tempo_emissao_fatura": None
-            }
-            salvar_mesas_disco(mesas_data)
-            st.rerun()
-
         st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Recibo / Fatura Digital</h4>", unsafe_allow_html=True)
         st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
         
@@ -528,7 +525,6 @@ def area_cliente():
             <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
                 <p style='color: #aaaaaa; font-size: 0.7rem; line-height: 1.1;'>Agradecemos a sua preferência pelo <b>Restaurante Nobre Sabor</b>.</p>
-                <p style='color: #ffb703; font-size: 0.6rem; margin-top: 4px;'>Esta sessão fecha automaticamente em 5 minutos.</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -540,17 +536,19 @@ def area_cliente():
         except Exception:
             pass
             
-        if st.button("🚪 Sair / Terminar Sessão", type="primary", use_container_width=True):
+        # Botão Sair manual (com contagem decrescente aproximada ou aviso de tempo limite)
+        st.markdown("<p style='font-size: 0.65rem; color: #888; text-align: center;'>Esta fatura fechará automaticamente em 5 minutos.</p>", unsafe_allow_html=True)
+        if st.button("🚪 Sair / Terminar Sessão da Mesa", type="primary", use_container_width=True):
             mesas_data[str(num_mesa)] = {
                 "status": "Fechada",
                 "cliente": None,
                 "pedidos": [],
                 "total": 0.0,
                 "solicitou_fecho": False,
-                "fatura_emitida": None,
-                "tempo_emissao_fatura": None
+                "fatura_emitida": None
             }
             salvar_mesas_disco(mesas_data)
+            st.success("Sessão encerrada com sucesso!")
             st.rerun()
             
         st.markdown('</div>', unsafe_allow_html=True)
@@ -562,7 +560,7 @@ def area_cliente():
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; text-align: center; margin-top: 20px;'>
                 <h4 style='color: #ffffff; font-size: 0.9rem; margin-bottom: 8px;'>⏳ Conta Solicitada</h4>
-                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde a emissão da fatura.</p>
+                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde o processamento.</p>
             </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -593,16 +591,6 @@ def area_cliente():
         cli = dados_m["cliente"]
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
         
-        # Notificação temporária de sucesso ao enviar pedido guardada no session_state
-        if st.session_state.get(f"pedido_enviado_msg_{num_mesa}", False):
-            st.markdown("""
-                <div style='background-color: rgba(74, 194, 107, 0.2); border: 1px solid #4ac26b; padding: 8px; border-radius: 6px; text-align: center; margin-bottom: 8px;'>
-                    <p style='color: #4ac26b; font-size: 0.75rem; margin: 0;'>✅ <b>Pedido enviado com sucesso para a cozinha!</b></p>
-                </div>
-            """, unsafe_allow_html=True)
-            # Limpa a flag após exibir para não ficar permanente
-            st.session_state[f"pedido_enviado_msg_{num_mesa}"] = False
-
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
         with t_menu:
@@ -625,13 +613,13 @@ def area_cliente():
                         })
                         salvar_mesas_disco(mesas_data)
                         
-                        # Ativa a mensagem visual de sucesso no ecrã do cliente
-                        st.session_state[f"pedido_enviado_msg_{num_mesa}"] = True
+                        # Ativa o aviso visual imediato de sucesso no envio do pedido
+                        st.success("✅ Pedido enviado com sucesso para a cozinha!")
                         st.balloons()
                         st.rerun()
 
         with t_cons:
-            total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
+            total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status'] != "Recusado")
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
@@ -640,7 +628,7 @@ def area_cliente():
                 if st.button("🔔 Pedir Conta", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
                     salvar_mesas_disco(mesas_data)
-                    st.success("Conta solicitada!")
+                    st.success("Conta solicitada com sucesso!")
                     st.rerun()
                     
     st.markdown('</div>', unsafe_allow_html=True)
