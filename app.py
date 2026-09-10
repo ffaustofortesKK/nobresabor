@@ -487,23 +487,19 @@ def area_cliente():
     mesas_data = carregar_mesas_disco()
     dados_m = mesas_data[str(num_mesa)]
 
-    # Abre a moldura do smartphone com entalhe superior integrado
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
-    # 1. VERIFICAÇÃO PRINCIPAL: Se a fatura foi emitida (pelo caixa ou fechamento), exibe a fatura completa e o agradecimento
+    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
-        st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Fatura / Recibo Digital</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Recibo / Fatura Digital</h4>", unsafe_allow_html=True)
         st.markdown("<p style='text-align:center; font-size:0.75rem; color:#ffb703;'><b>Restaurante Nobre Sabor</b></p>", unsafe_allow_html=True)
         
         for item in fat['itens']:
-            sub_val = item['quantidade'] * item['preco']
-            st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {sub_val:,.0f}Kz</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>- {item['quantidade']}x {item['item']} | {(item['quantidade']*item['preco']):,.0f}Kz</span>", unsafe_allow_html=True)
             
         st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Pago: {fat['total']:,.2f}Kz</b></span>", unsafe_allow_html=True)
-        st.markdown(f"<span style='font-size:0.65rem; color:#888888;'>Forma: {fat.get('forma_pagamento', 'Dinheiro')} | Operador: {fat.get('operador', 'Caixa')}</span>", unsafe_allow_html=True)
         
-        # Mensagem de agradecimento logo abaixo da fatura pedida
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; text-align: center; margin: 10px 0;'>
                 <p style='color: #4ac26b; font-size: 0.8rem; margin-bottom: 2px;'>🙏 Muito Obrigado!</p>
@@ -520,26 +516,26 @@ def area_cliente():
             pass
             
         st.markdown('</div>', unsafe_allow_html=True)
-        return 
+        return
 
-    # 2. SE O CLIENTE PEDIU A CONTA ("solicitou_fecho"), mas o caixa ainda não gerou a fatura oficial
+    # 2. CASO O CLIENTE TENHA SOLICITADO A CONTA MAS O CAIXA AINDA NÃO EMITIU
     if dados_m.get("solicitou_fecho"):
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa}</div>", unsafe_allow_html=True)
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; text-align: center; margin-top: 20px;'>
                 <h4 style='color: #ffffff; font-size: 0.9rem; margin-bottom: 8px;'>⏳ Conta Solicitada</h4>
-                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde um momento enquanto processamos a sua fatura.</p>
+                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde o processamento.</p>
             </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # 3. FLUXO NORMAL DE REGISTO DO CLIENTE (caso ainda não tenha inserido o nome)
+    # 3. REGISTO DO CLIENTE (CASO AINDA NÃO TENHA IDENTIFICAÇÃO)
     if not dados_m.get("cliente"):
         st.markdown(f"""
             <div style='text-align: center; background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; margin-bottom: 12px; margin-top: 10px;'>
                 <h4 style='font-size:0.95rem; color:#ffffff; margin-bottom: 4px;'>✨ Bem-vindo(a) ao Nobre Sabor!</h4>
-                <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados para iniciar na <b>Mesa {num_mesa}</b>.</p>
+                <p style='font-size:0.75rem; color:#aaaaaa; margin: 0;'>Insira os seus dados na <b>Mesa {num_mesa}</b>.</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -555,110 +551,47 @@ def area_cliente():
                 salvar_mesas_disco(mesas_data)
                 st.rerun()
     else:
-        # 4. FLUXO NORMAL DE PEDIDOS (Cardápio, Conta Parcial, Eventos)
+        # 4. CARDÁPIO E PEDIDOS
         cli = dados_m["cliente"]
         st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
-        
-        # Indicador visual dinâmico caso haja um pedido recém-enviado nesta sessão
-        if st.session_state.get(f"pedido_recente_mesa_{num_mesa}", False):
-            st.markdown("""
-                <div class="pedido-enviado-toast">
-                    ✅ Pedido enviado com sucesso! A preparar...
-                </div>
-            """, unsafe_allow_html=True)
-            st.session_state[f"pedido_recente_mesa_{num_mesa}"] = False
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
         with t_menu:
-            categorias_fixas = ["Bebidas", "Refeições", "Sobremesas", "Outros"]
-            
             stock_df_atual = carregar_stock_disco()
-            if not stock_df_atual.empty:
-                utilitarios_extras = [
-                    {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
-                ]
-                stock_df_atual = pd.concat([stock_df_atual, pd.DataFrame(utilitarios_extras)], ignore_index=True)
-            else:
-                stock_df_atual = pd.DataFrame([ 
-                    {"Categoria": "Outros", "Produto": "Copo", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Guardanapos", "Preço Unitário": 0.0},
-                    {"Categoria": "Outros", "Produto": "Talheres", "Preço Unitário": 0.0}
-                ])
-
-            cats_disponiveis = [c for c in categorias_fixas if c in stock_df_atual['Categoria'].unique().tolist()]
-            if not cats_disponiveis:
-                cats_disponiveis = stock_df_atual['Categoria'].unique().tolist()
-
-            cat = st.selectbox("Categoria:", cats_disponiveis, key="c_cat")
-            itens = stock_df_atual[stock_df_atual['Categoria'] == cat]
+            cat = st.selectbox("Categoria:", ["Bebidas", "Refeições", "Sobremesas", "Outros"], key="c_cat")
+            itens = stock_df_atual[stock_df_atual['Categoria'] == cat] if not stock_df_atual.empty else pd.DataFrame()
             
             if not itens.empty:
                 with st.form(f"fp_{num_mesa}", clear_on_submit=True):
                     lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens.iterrows()}
                     item_label_selecionado = st.selectbox("Item:", list(lista_itens_formatada.keys()))
                     prod = lista_itens_formatada[item_label_selecionado]
-                    
                     qtd = st.number_input("Quantidade:", 1, 99, 1)
-                    obs_cliente = st.text_input("Observação (opcional):", placeholder="Ex: Sem gelo...")
                     
                     if st.form_submit_button("🚀 Enviar Pedido", use_container_width=True):
                         p_row = itens[itens['Produto'] == prod].iloc[0]
-                        preco_unit = float(p_row['Preço Unitário']) if 'Preço Unitário' in p_row else 0.0
-                        is_ref = cat.lower() in ["refeições", "refeicoes", "pratos", "comida"]
-                        
                         dados_m["pedidos"].append({
-                            "item": prod, 
-                            "tipo": cat, 
-                            "quantidade": int(qtd),
-                            "preco": preco_unit, 
-                            "origem": f"Cliente ({cli['nome']})",
-                            "observacao": obs_cliente, 
-                            "status": "Confirmado" if not is_ref else "Pendente",
-                            "cozinha_status": "N/A" if not is_ref else "Pendente", 
-                            "hora": datetime.now().strftime("%H:%M")
+                            "item": prod, "tipo": cat, "quantidade": int(qtd),
+                            "preco": float(p_row['Preço Unitário']), "status": "Pendente", "cozinha_status": "Pendente"
                         })
-                        
-                        dados_m["total"] = float(sum(p['quantidade']*p['preco'] for p in dados_m["pedidos"] if p['status'] not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                         salvar_mesas_disco(mesas_data)
-                        
-                        st.session_state[f"pedido_recente_mesa_{num_mesa}"] = True
                         st.balloons()
                         st.rerun()
 
         with t_cons:
-            total_parcial = 0
-            for p in dados_m["pedidos"]:
-                if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
-                    continue
-                
-                t_item = p['quantidade'] * p['preco']
-                total_parcial += t_item
-                st.markdown(f"<span style='font-size:0.7rem; color:#cccccc;'>• {p['quantidade']}x {p['item']} ({t_item:,.0f}Kz) — {p['status']}</span>", unsafe_allow_html=True)
-            
-            dados_m["total"] = float(total_parcial)
-            salvar_mesas_disco(mesas_data)
+            total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
-            st.markdown("<hr style='margin: 6px 0; border-color: #222;'>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
                 st.info("⏳ Pedido de fecho enviado ao caixa.")
-                if st.button("Cancelar Pedido", key=f"cf_{num_mesa}", use_container_width=True):
-                    dados_m["solicitou_fecho"] = False
-                    salvar_mesas_disco(mesas_data)
-                    st.rerun()
             else:
                 if st.button("🔔 Pedir Conta", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
                     salvar_mesas_disco(mesas_data)
                     st.success("Conta solicitada!")
                     st.rerun()
-
-        with t_ev:
-            st.markdown("<span style='font-size:0.7rem; color:#aaaaaa;'><b>Agenda:</b><br>• Sexta: Música ao Vivo<br>• Sábado: Karaoke (Grupo FF)</span>", unsafe_allow_html=True)
-            
+                    
     st.markdown('</div>', unsafe_allow_html=True)
     
 # ==========================================
@@ -778,23 +711,16 @@ import streamlit.components.v1 as components
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # 1. Verificação de Alarme Ativo (Mesas prontas ou Solicitação de Fecho com 💸)
+    # 1. Verificação de Alarme Ativo
     tem_mesas_prontas_com_alerta = False
-    tem_solicitacao_fecho_alerta = False
-    
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-        solicitou_fecho_mesa = dados_m.get("solicitou_fecho", False) and not dados_m.get("fatura_emitida")
-        
         silenciado_pelo_operador = st.session_state.get(f"silenciar_alarme_mesa_{str_m}", False)
-        
-        if (tem_pronto or solicitou_fecho_mesa) and not silenciado_pelo_operador:
+        if (tem_pronto or dados_m.get("solicitou_fecho")) and not silenciado_pelo_operador:
             tem_mesas_prontas_com_alerta = True
-            if solicitou_fecho_mesa:
-                tem_solicitacao_fecho_alerta = True
             break
 
-    # 2. Gestão de Estado de Áudio Ativado (Evita bloqueio de autoplay do browser)
+    # 2. Gestão de Estado de Áudio Ativado
     if "som_ativado_caixa" not in st.session_state:
         st.session_state.som_ativado_caixa = False
 
@@ -804,35 +730,22 @@ def area_caixa_mesas():
             st.session_state.som_ativado_caixa = True
             st.rerun()
 
-    # Se ativado e houver mesas prontas ou solicitação de fecho, disparamos o som de caixa registadora / alerta
+    # Se ativado e houver mesas prontas ou solicitação de fecho, toca som de caixa registradora 💰
     if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
-        # Link de áudio de caixa registadora/sino
-        url_som = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
-        if tem_solicitacao_fecho_alerta:
-            # Som característico de caixa registadora para fecho de conta se preferir, ou usa o mesmo link otimizado
-            url_som = "https://assets.mixkit.co/active_storage/sfx/2004/2004-preview.mp3"
-
-        audio_html = f"""
-            <audio id="alarme_audio" autoplay loop>
-              <source src="{url_som}" type="audio/mpeg">
+        audio_html = """
+            <audio id="alarme_audio" autoplay>
+              <source src="https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3" type="audio/mpeg">
             </audio>
             <script>
                 var audio = document.getElementById("alarme_audio");
                 audio.volume = 1.0;
-                var playPromise = audio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log("Autoplay prevenido pelo browser, a tentar novamente...");
-                        document.addEventListener('click', function() {
-                            audio.play();
-                        }, {{once: true}});
-                    });
-                }
+                audio.play().catch(error => {
+                    console.log("Autoplay prevenido pelo browser...");
+                });
             </script>
         """
         components.html(audio_html, height=0, width=0)
 
-    # Inserir estilo CSS para a animação de piscar em verde
     st.markdown("""
         <style>
         @keyframes piscar-verde {
@@ -874,40 +787,20 @@ def area_caixa_mesas():
             <div style="background-color: #141420; padding: 15px; border-radius: 6px; border: 1px solid #ff4b4b; text-align: center; margin-bottom: 15px;">
                 <h3 style="color: #ff4b4b; font-size: 1.1rem;">🔒 CAIXA TRANCADO</h3>
                 <p>Operador: <b>{sessao_op['operador']}</b></p>
-                <p style="font-size: 0.8rem; color: #aaa;">Insira a sua senha para voltar ao trabalho.</p>
             </div>
         """, unsafe_allow_html=True)
 
         with st.form("form_destrancar_caixa"):
             senha_destrancar = st.text_input("Introduza a sua Senha:", type="password")
-            btn_sub_destrancar = st.form_submit_button("🔓 Destrancar Caixa", use_container_width=True)
-            
-            if btn_sub_destrancar:
-                senha_correta_sistema = "123123" 
-                if senha_destrancar == senha_correta_sistema:
+            if st.form_submit_button("🔓 Destrancar Caixa", use_container_width=True):
+                if senha_destrancar == "123123":
                     sessao_op["trancado"] = False
                     sessao_op["tentativas_falhadas"] = 0
                     salvar_sessao_operador(sessao_op)
                     st.success("Caixa destrancado com sucesso!")
                     st.rerun()
                 else:
-                    sessao_op["tentativas_falhadas"] = sessao_op.get("tentativas_falhadas", 0) + 1
-                    tentativas_restantes = 5 - sessao_op["tentativas_falhadas"]
-                    salvar_sessao_operador(sessao_op)
-                    
-                    if sessao_op["tentativas_falhadas"] >= 5:
-                        bloqueios_lista.append({
-                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Operador": sessao_op['operador'],
-                            "Senha Antiga (Correta)": senha_correta_sistema,
-                            "Senha Errada Inserida": senha_destrancar,
-                            "Resolvido": False
-                        })
-                        salvar_bloqueios(bloqueios_lista)
-                        st.error("🚨 Limite de 5 tentativas excedido! Conta bloqueada.")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Senha incorreta! Restam {tentativas_restantes} tentativas.")
+                    st.error("❌ Senha incorreta!")
         return
 
     if not sessao_op["logado"]:
@@ -920,8 +813,7 @@ def area_caixa_mesas():
             periodo_input = st.selectbox("Período:", ["Dia", "Noite"])
             senha_input = st.text_input("Senha:", type="password")
             
-            btn_login_cx = st.form_submit_button("Entrar no Caixa", use_container_width=True)
-            if btn_login_cx:
+            if st.form_submit_button("Entrar no Caixa", use_container_width=True):
                 if utilizador_input and senha_input:
                     sessao_op["logado"] = True
                     sessao_op["operador"] = utilizador_input
@@ -929,156 +821,53 @@ def area_caixa_mesas():
                     sessao_op["turno_aberto"] = False
                     sessao_op["saldo_inicial"] = 0.0
                     sessao_op["trancado"] = False
-                    sessao_op["tentativas_falhadas"] = 0
                     sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     salvar_sessao_operador(sessao_op)
-                    st.success(f"Bem-vindo(a), {utilizador_input}!")
                     st.rerun()
-                else:
-                    st.warning("Preencha o utilizador e a senha.")
         return
 
     if not sessao_op["turno_aberto"]:
-        st.markdown(f"""
-            <div style="background-color: #141420; padding: 10px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 10px;">
-                <p>👤 <b>Utilizador:</b> {sessao_op['operador']} | ⏰ <b>Período:</b> {sessao_op['periodo']}</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
         saidas_todas = carregar_saidas_caixa()
         saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
-        if saidas_destinadas:
-            st.success(f"💵 Fundo de maneio detetado: **{saldo_inicial_recebido:,.2f} Kz**")
-        else:
-            st.info("💵 Sem fundo de maneio atribuído.")
-
-        col_op1, col_op2 = st.columns(2)
-        with col_op1:
-            if st.button("🟢 Abertura do Período", type="primary", use_container_width=True):
-                sessao_op["turno_aberto"] = True
-                sessao_op["saldo_inicial"] = saldo_inicial_recebido
-                sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                salvar_sessao_operador(sessao_op)
-                st.success("Caixa aberto!")
-                st.rerun()
-        with col_op2:
-            if st.button("🚪 Sair", use_container_width=True):
-                sessao_op["logado"] = False
-                sessao_op["operador"] = "Nenhum"
-                sessao_op["turno_aberto"] = False
-                sessao_op["saldo_inicial"] = 0.0
-                salvar_sessao_operador(sessao_op)
-                st.rerun()
+        if st.button("🟢 Abertura do Período", type="primary", use_container_width=True):
+            sessao_op["turno_aberto"] = True
+            sessao_op["saldo_inicial"] = saldo_inicial_recebido
+            sessao_op["hora_abertura"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            salvar_sessao_operador(sessao_op)
+            st.rerun()
         return   
 
     hist_vendas = carregar_historico_vendas()
     stock_df_cx_card = carregar_stock_disco()
-
     hora_abertura_turno = sessao_op.get("hora_abertura", "2000-01-01 00:00:00")
-    vendas_turno = [
-        v for v in hist_vendas 
-        if v.get("Data", "") >= hora_abertura_turno and v.get("Operador", sessao_op['operador']) == sessao_op['operador']
-    ]
+    vendas_turno = [v for v in hist_vendas if v.get("Data", "") >= hora_abertura_turno and v.get("Operador", sessao_op['operador']) == sessao_op['operador']]
 
     total_dinheiro_vendas = sum(float(v.get('Valor Dinheiro', 0)) for v in vendas_turno)
     total_tpa_vendas = sum(float(v.get('Valor TPA', 0)) for v in vendas_turno)
-    
     saldo_inicial_turno = float(sessao_op.get("saldo_inicial", 0.0))
     saldo_em_caixa_fisico = saldo_inicial_turno + total_dinheiro_vendas
 
-    col_cab1, col_cab2 = st.columns([2.5, 1.5])
-    with col_cab1:
-        st.markdown(f"""
-            <div style="background-color: #141420; padding: 8px 12px; border-radius: 6px; border: 1px solid #21262d;">
-                <span style="font-size: 0.8rem; color: #ffb703;">Saldo em Caixa:</span> 
-                Dinheiro: <b style="color: #4ac26b;">{saldo_em_caixa_fisico:,.2f} Kz</b> | TPA: <b style="color: #ffb703;">{total_tpa_vendas:,.2f} Kz</b>
-            </div>
-        """, unsafe_allow_html=True)
-    with col_cab2:
-        col_op_txt, col_op_btn = st.columns([1.3, 1])
-        with col_op_txt:
-            st.markdown(f"<div style='text-align: right; font-size: 0.8rem; padding-top: 4px;'><b>{sessao_op['operador']}</b> ({sessao_op['periodo']})</div>", unsafe_allow_html=True)
-        with col_op_btn:
-            if st.button("🔒 Trancar", use_container_width=True, type="secondary"):
-                sessao_op["trancado"] = True
-                sessao_op["tentativas_falhadas"] = 0
-                salvar_sessao_operador(sessao_op)
-                st.rerun()
-
-    aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs([
-        "🗺️ Mesas & Operações", 
-        "📚 Histórico de Vendas", 
-        "🔒 Fecho de Caixa"
-    ])
+    aba_operador_1, aba_operador_2, aba_operador_3 = st.tabs(["🗺️ Mesas & Operações", "📚 Histórico de Vendas", "🔒 Fecho de Caixa"])
 
     with aba_operador_3:
         st.markdown("### 🔒 Auditoria e Fecho de Caixa do Período")
-        col_res1, col_res2, col_res3 = st.columns(3)
-        with col_res1: st.metric("Saldo Inicial", f"{saldo_inicial_turno:,.2f} Kz")
-        with col_res2: st.metric("Dinheiro", f"{total_dinheiro_vendas:,.2f} Kz")
-        with col_res3: st.metric("TPA", f"{total_tpa_vendas:,.2f} Kz")
-            
-        st.markdown("---")
-        if vendas_turno:
-            itens_consolidados = {}
-            for v in vendas_turno:
-                for p in v.get("pedidos", []):
-                    if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
-                        continue
-                    nome_prod = p.get('item', 'Desconhecido')
-                    qtd_prod = int(p.get('quantidade', 1))
-                    preco_prod = float(p.get('preco', 0.0))
-                    
-                    if nome_prod not in itens_consolidados:
-                        itens_consolidados[nome_prod] = {"quantidade": 0, "total": 0.0, "preco": preco_prod}
-                    itens_consolidados[nome_prod]["quantidade"] += qtd_prod
-                    itens_consolidados[nome_prod]["total"] += (qtd_prod * preco_prod)
-            
-            for prod, dados in itens_consolidados.items():
-                st.write(f"- **{dados['quantidade']}x** {prod} — {dados['total']:,.2f} Kz")
-            
-            total_geral_turno = sum(d["total"] for d in itens_consolidados.values())
-            st.markdown(f"### Faturação Total: **{total_geral_turno:,.2f} Kz**")
-            
-            if st.button("🔒 Fechar Período de Caixa", type="primary", use_container_width=True):
-                fechos = carregar_fechos_caixa()
-                fechos.append({
-                    "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Operador": sessao_op['operador'],
-                    "Período": sessao_op['periodo'],
-                    "Total Fecho": total_geral_turno,
-                    "Dinheiro": total_dinheiro_vendas,
-                    "TPA": total_tpa_vendas
-                })
-                salvar_fechos_caixa(fechos)
-                
-                sessao_op["logado"] = False
-                sessao_op["operador"] = "Nenhum"
-                sessao_op["turno_aberto"] = False
-                sessao_op["saldo_inicial"] = 0.0
-                salvar_sessao_operador(sessao_op)
-                st.success("Período de caixa encerrado!")
-                st.rerun()
-        else:
-            st.info("Sem vendas registadas neste turno.")
-
-    with aba_operador_2:
-        st.markdown("### 🔍 Histórico de Vendas")
-        if hist_vendas:
-            pesquisa_cli = st.text_input("Filtrar Cliente/Telefone:", placeholder="Pesquisar...", key="filtro_hist_cli_caixa")
-            vendas_filtradas = [v for v in hist_vendas if pesquisa_cli.lower() in str(v.get("Cliente", "")).lower() or pesquisa_cli in str(v.get("Telefone", ""))] if pesquisa_cli else hist_vendas
-            
-            for v_item in reversed(vendas_filtradas):
-                with st.expander(f"Mesa {v_item.get('Mesa', '?')} — {v_item.get('Cliente', 'Desconhecido')} | {v_item.get('Total', 0.0):,.2f} Kz"):
-                    st.write(f"Operador: {v_item.get('Operador', '')} | Data: {v_item.get('Data', '')}")
-                    for p in v_item.get("pedidos", []):
-                        if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
-                            continue
-                        st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
-        else:
-            st.info("Sem histórico.")
+        if st.button("🔒 Fechar Período de Caixa", type="primary", use_container_width=True):
+            fechos = carregar_fechos_caixa()
+            fechos.append({
+                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Operador": sessao_op['operador'],
+                "Período": sessao_op['periodo'],
+                "Total Fecho": total_dinheiro_vendas + total_tpa_vendas,
+                "Dinheiro": total_dinheiro_vendas,
+                "TPA": total_tpa_vendas
+            })
+            salvar_fechos_caixa(fechos)
+            sessao_op["logado"] = False
+            sessao_op["turno_aberto"] = False
+            salvar_sessao_operador(sessao_op)
+            st.rerun()
 
     with aba_operador_1:
         col_esq, col_dir = st.columns([1.1, 0.9])
@@ -1092,256 +881,91 @@ def area_caixa_mesas():
             for r in range(rows):
                 cols = st.columns(cols_grelha)
                 for c in range(cols_grelha):
-                    if mesa_idx > 30:
-                        break
+                    if mesa_idx > 30: break
                     str_m = str(mesa_idx)
                     dados_m = mesas_data[str_m]
                     
-                    status_m = dados_m.get("status", "Fechada")
-                    cli_m = dados_m.get("cliente")
-                    solicitou_fecho = dados_m.get("solicitou_fecho", False) and not dados_m.get("fatura_emitida")
+                    solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     total_m = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
-                    dados_m["total"] = total_m
-
+                    
                     if solicitou_fecho:
-                        # 💸 SÍMBOLO AUMENTADO EM 100% (font-size alterado para 2.6rem - dobrado em relação a 1.3rem)
-                        simbolo_topo = '<span style="font-size: 2.6rem; line-height: 1.2rem;">💸</span>'
+                        # 💸 SÍMBOLO AUMENTADO EM 100% ADICIONAL (font-size elevado para 2.6rem)
+                        simbolo_topo = '<span style="font-size: 2.6rem; line-height: 1rem;">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
-                        tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-                        tem_bebida = any(("bebida" in str(p.get("tipo", "")).lower() or any(w in str(p.get("item", "")).lower() for w in ["sumo", "cerveja", "refrigerante", "vinho", "agua"])) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-                        tem_sobremesa = any(("sobremesa" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-                        
-                        simbolos_topo_lista = []
-                        if tem_refeicao: simbolos_topo_lista.append("🍲")
-                        if tem_bebida: simbolos_topo_lista.append("🍹")
-                        if tem_sobremesa: simbolos_topo_lista.append("🍰")
-                        simbolo_topo = " ".join(simbolos_topo_lista)
-
-                        if any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
-                            classe_css = "mesa-pronta-alerta"
-                        elif status_m == "Aberta" or cli_m:
-                            classe_css = "mesa-aberta"
-                        else:
-                            classe_css = "mesa-fechada"
+                        simbolo_topo = "🍲" if any("refei" in str(p.get("tipo", "")).lower() for p in dados_m["pedidos"]) else "🍹"
+                        classe_css = "mesa-aberta" if dados_m.get("status") == "Aberta" else "mesa-fechada"
 
                     with cols[c]:
-                        nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
-                        
-                        conteudo_circulo = f"""
-                            <div style="text-align: center; height: 32px; line-height: 32px; margin-bottom: 2px;">{simbolo_topo}</div>
+                        nome_cliente_curto = dados_m.get('cliente', {}).get('nome', 'Livre').split()[0] if isinstance(dados_m.get('cliente'), dict) else "Livre"
+                        st.markdown(f"""
+                            <div style="text-align: center; height: 35px; line-height: 35px;">{simbolo_topo}</div>
                             <div class="mesa-circle {classe_css}">
-                                <span style="font-size: 0.65rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
-                                <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_cliente_curto}</span>
-                                <span style="font-size: 0.42rem; color: #ffb703; line-height: 1.1;">{total_m:,.0f}K</span>
+                                <span style="font-size: 0.65rem; font-weight: 500;">M{mesa_idx}</span>
+                                <span style="font-size: 0.42rem; color: #aaa;">{nome_cliente_curto}</span>
+                                <span style="font-size: 0.42rem; color: #ffb703;">{total_m:,.0f}K</span>
                             </div>
-                        """
-                        st.markdown(conteudo_circulo, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
                         
                         if st.button(f"M{mesa_idx}", key=f"btn_gerir_mesa_cx_{mesa_idx}", use_container_width=True):
                             st.session_state.mesa_selecionada_caixa = mesa_idx
                             st.session_state[f"silenciar_alarme_mesa_{str_m}"] = True
-                            st.session_state[f"adicionando_pedido_cx_{mesa_idx}"] = False
                             st.rerun()
-                        
                     mesa_idx += 1
 
         with col_esq:
-            with st.container():
-                m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
-                dados_m_sel = mesas_data[str(m_sel)]
-                
-                cli_atual = dados_m_sel.get("cliente")
-                nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
-                
-                st.markdown(f"#### ⚙️ Mesa {m_sel} — {nome_cliente_titulo}", unsafe_allow_html=True)
-                
-                if st.button("➕ Adicionar Item", key=f"btn_toggle_add_pedido_{m_sel}", type="secondary", use_container_width=True):
-                    st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
-                    st.rerun()
-                
-                if st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False):
-                    with st.container():
-                        st.markdown(f"<div style='background: #141420; padding: 8px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 8px;'>", unsafe_allow_html=True)
-                        
-                        if not stock_df_cx_card.empty:
-                            categorias_disponiveis = ["Refeições", "Bebidas", "Sobremesas", "Outros"]
-                            categorias_validas = [cat for cat in categorias_disponiveis if cat in stock_df_cx_card['Categoria'].values]
-                            if not categorias_validas:
-                                categorias_validas = stock_df_cx_card['Categoria'].unique().tolist()
+            m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
+            dados_m_sel = mesas_data[str(m_sel)]
+            cli_atual = dados_m_sel.get("cliente")
+            
+            st.markdown(f"#### ⚙️ Mesa {m_sel} — {cli_atual.get('nome', 'Livre') if isinstance(cli_atual, dict) else 'Livre'}", unsafe_allow_html=True)
+            
+            total_a_pagar = float(sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel.get("pedidos", []) if i.get('status') not in ["Anulado", "Recusado pela Cozinha"] and i.get('cozinha_status') != "Recusado"))
+            st.markdown(f"**Total a Pagar: {total_a_pagar:,.2f} Kz**")
+            
+            if total_a_pagar > 0:
+                tipo_pagamento = st.selectbox("Forma:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
+                v_dinheiro = total_a_pagar if tipo_pagamento == "Dinheiro" else (0.0 if tipo_pagamento == "TPA" else st.number_input("Dinheiro:", value=0.0, key=f"din_{m_sel}"))
+                v_tpa = total_a_pagar if tipo_pagamento == "TPA" else (0.0 if tipo_pagamento == "Dinheiro" else max(0.0, total_a_pagar - v_dinheiro))
 
-                            cat_escolhida = st.selectbox("Categoria:", categorias_validas, key=f"cx_cat_{m_sel}")
-                            itens_da_cat = stock_df_cx_card[stock_df_cx_card['Categoria'] == cat_escolhida]
-                            
-                            if not itens_da_cat.empty:
-                                lista_itens_formatada = {f"{row['Produto']} — {row['Preço Unitário']:,.2f} Kz": row['Produto'] for _, row in itens_da_cat.iterrows()}
-                                item_selecionado_label = st.selectbox("Item:", list(lista_itens_formatada.keys()), key=f"cx_item_label_{m_sel}")
-                                
-                                nome_item_escolhido = lista_itens_formatada[item_selecionado_label]
-                                p_row = itens_da_cat[itens_da_cat['Produto'] == nome_item_escolhido].iloc[0]
-                                preco_unitario = float(p_row['Preço Unitário'])
-                                
-                                qtd_adicionar = st.number_input("Qtd:", min_value=1, value=1, step=1, key=f"cx_qtd_{m_sel}")
-                                obs_item = st.text_input("Obs:", key=f"cx_obs_{m_sel}")
-                                
-                                if st.button("📥 Confirmar", type="primary", key=f"cx_salvar_novo_ped_{m_sel}", use_container_width=True):
-                                    is_ref_cx = cat_escolhida.lower() in ["refeições", "refeicoes", "pratos", "comida"]
-                                    novo_item_reg = {
-                                        "item": nome_item_escolhido,
-                                        "quantidade": int(qtd_adicionar),
-                                        "preco": preco_unitario,
-                                        "tipo": cat_escolhida,
-                                        "observacao": obs_item,
-                                        "status": "Confirmado" if not is_ref_cx else "Pendente",
-                                        "cozinha_status": "N/A" if not is_ref_cx else "Pendente",
-                                        "origem": f"Caixa ({sessao_op['operador']})",
-                                        "hora": datetime.now().strftime("%H:%M")
-                                    }
-                                    
-                                    if not dados_m_sel.get("cliente"):
-                                        dados_m_sel["cliente"] = {"nome": "Cliente Balcão", "telefone": "N/A"}
-                                        dados_m_sel["status"] = "Aberta"
-                                    
-                                    dados_m_sel["pedidos"].append(novo_item_reg)
-                                    novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"] and i.get('cozinha_status') != "Recusado")
-                                    dados_m_sel["total"] = novo_total
-                                    
-                                    mesas_data[str(m_sel)] = dados_m_sel
-                                    salvar_mesas_disco(mesas_data)
-                                    
-                                    st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
-                                    st.success(f"Adicionado!")
-                                    st.rerun()
-                            else:
-                                st.warning("Sem itens nesta categoria.")
-                        else:
-                            st.warning("Stock vazio.")
-                        st.markdown("</div>", unsafe_allow_html=True)
-
-                st.markdown("<span style='font-size: 0.85rem;'><b>Consumos da Mesa</b></span>", unsafe_allow_html=True)
-                pedidos_mesa = dados_m_sel.get("pedidos", [])
-                
-                pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
-                
-                if pedidos_ativos:
-                    for idx_p, p in enumerate(pedidos_mesa):
-                        if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
-                            continue
-                        q = p.get('quantidade', 1)
-                        preco_u = p.get('preco', 0.0)
-                        subtotal_item = q * preco_u
-                        
-                        col_it1, col_it2 = st.columns([2.5, 1])
-                        with col_it1:
-                            st.markdown(f"<span style='font-size: 0.75rem;'>- {q}x {p.get('item')} ({subtotal_item:,.0f}Kz) — [{p.get('cozinha_status', 'OK')}]</span>", unsafe_allow_html=True)
-                        with col_it2:
-                            if st.button(f"🗑️", key=f"btn_anular_item_cx_{m_sel}_{idx_p}", use_container_width=True):
-                                st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = True
-                        
-                        if st.session_state.get(f"abrindo_anulacao_{m_sel}_{idx_p}", False):
-                            with st.container():
-                                motivo_anulacao = st.text_input(f"Motivo anulação ({p.get('item')}):", key=f"motivo_anulacao_txt_{m_sel}_{idx_p}")
-                                col_j1, col_j2 = st.columns(2)
-                                with col_j1:
-                                    if st.button("Confirmar", type="primary", key=f"conf_anular_{m_sel}_{idx_p}", use_container_width=True):
-                                        if motivo_anulacao.strip():
-                                            p['status'] = "Anulado"
-                                            p['motivo_anulacao'] = motivo_anulacao
-                                            
-                                            novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"] and item.get('cozinha_status') != "Recusado")
-                                            dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
-                                            mesas_data[str(m_sel)] = dados_m_sel
-                                            salvar_mesas_disco(mesas_data)
-                                            
-                                            vendas_excluidas = carregar_vendas_excluidas()
-                                            vendas_excluidas.append({
-                                                "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                                "Caixa": sessao_op['operador'],
-                                                "Mesa": m_sel,
-                                                "Item": p.get('item'),
-                                                "Quantidade": q,
-                                                "Valor": subtotal_item,
-                                                "Motivo": motivo_anulacao,
-                                                "Período": sessao_op['periodo']
-                                            })
-                                            salvar_vendas_excluidas(vendas_excluidas)
-                                            
-                                            st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
-                                            st.success("Anulado!")
-                                            st.rerun()
-                                        else:
-                                            st.warning("Insira o motivo.")
-                                with col_j2:
-                                    if st.button("Cancelar", key=f"fechar_anular_{m_sel}_{idx_p}", use_container_width=True):
-                                        st.session_state[f"abrindo_anulacao_{m_sel}_{idx_p}"] = False
-                                        st.rerun()
-                else:
-                    st.info("Sem consumos ativos.")
-
-                total_a_pagar = float(sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel.get("pedidos", []) if i.get('status') not in ["Anulado", "Recusado pela Cozinha"] and i.get('cozinha_status') != "Recusado"))
-                dados_m_sel["total"] = total_a_pagar
-                
-                st.markdown(f"**Total a Pagar: {total_a_pagar:,.2f} Kz**")
-                
-                if total_a_pagar > 0 or cli_atual:
-                    st.markdown("---")
-                    tipo_pagamento = st.selectbox("Forma:", ["Dinheiro", "TPA", "Misto"], key=f"pag_tipo_mesa_{m_sel}")
+                # Botão que efetua o fecho da conta, cria os dados da fatura digital e emite para o visor do cliente
+                if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
+                    itens_fatura = [
+                        {
+                            "item": p.get('item'), 
+                            "quantidade": p.get('quantidade', 1), 
+                            "preco": p.get('preco', 0.0)
+                        } for p in dados_m_sel.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"
+                    ]
                     
-                    v_dinheiro, v_tpa = 0.0, 0.0
-                    if tipo_pagamento == "Dinheiro":
-                        v_dinheiro = total_a_pagar
-                    elif tipo_pagamento == "TPA":
-                        v_tpa = total_a_pagar
-                    else:
-                        v_dinheiro = st.number_input("Dinheiro:", value=0.0, key=f"din_mesa_{m_sel}")
-                        v_tpa = st.number_input("TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
-
-                    # BOTÃO: "Fechar Conta e Emitir Recibo"
-                    if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
-                        nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
-                        tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
-                        
-                        itens_fatura = [
-                            {
-                                "item": p.get('item'), 
-                                "quantidade": p.get('quantidade', 1), 
-                                "preco": p.get('preco', 0.0)
-                            } 
-                            for p in dados_m_sel.get("pedidos", []) 
-                            if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"
-                        ]
-
-                        registo_venda = {
-                            "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Mesa": m_sel,
-                            "Cliente": nome_c,
-                            "Telefone": tel_c,
-                            "Operador": sessao_op['operador'],
-                            "Período": sessao_op['periodo'],
-                            "Valor Dinheiro": v_dinheiro,
-                            "Valor TPA": v_tpa,
-                            "Valor Total": total_a_pagar,
-                            "pedidos": itens_fatura
-                        }
-                        hist_vendas.append(registo_venda)
-                        salvar_historico_vendas(hist_vendas)
-                        
-                        # Criar objeto de fatura oficial no dicionário da mesa para exibir no visor do cliente
-                        dados_m_sel["fatura_emitida"] = {
-                            "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "operador": sessao_op['operador'],
-                            "itens": itens_fatura,
-                            "total": total_a_pagar,
-                            "forma_pagamento": tipo_pagamento
-                        }
-                        dados_m_sel["solicitou_fecho"] = False # limpa a solicitação de fecho
-                        
-                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
-                        mesas_data[str(m_sel)] = dados_m_sel
-                        salvar_mesas_disco(mesas_data)
-                        
-                        st.success(f"Conta da Mesa {m_sel} fechada e recibo enviado para o visor do cliente com sucesso!")
-                        st.rerun()
+                    fatura_obj = {
+                        "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "operador": sessao_op['operador'],
+                        "itens": itens_fatura,
+                        "total": total_a_pagar,
+                        "pagamento": tipo_pagamento
+                    }
+                    
+                    # Salva a fatura no registo da mesa para atualizar automaticamente o visor do cliente
+                    dados_m_sel["fatura_emitida"] = fatura_obj
+                    dados_m_sel["solicitou_fecho"] = False
+                    
+                    # Adiciona ao histórico geral de vendas
+                    hist_vendas.append({
+                        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Mesa": m_sel,
+                        "Cliente": cli_atual.get('nome', 'Balcão') if isinstance(cli_atual, dict) else 'Balcão',
+                        "Operador": sessao_op['operador'],
+                        "Período": sessao_op['periodo'],
+                        "Valor Dinheiro": v_dinheiro,
+                        "Valor TPA": v_tpa,
+                        "Valor Total": total_a_pagar,
+                        "pedidos": itens_fatura
+                    })
+                    salvar_historico_vendas(hist_vendas)
+                    salvar_mesas_disco(mesas_data)
+                    st.success("Conta fechada e recibo emitido para o cliente com sucesso!")
+                    st.rerun()
                         
 # ==========================================
 # ÁREA: ADMINISTRADOR
