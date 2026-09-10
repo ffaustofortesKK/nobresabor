@@ -784,9 +784,10 @@ def area_caixa_mesas():
             break
 
     if tem_mesas_prontas_com_alerta:
+        # Áudio alterado para toque clássico de telefone fixo (Tririiiiim / Trim-trim)
         st.markdown("""
             <audio autoplay loop>
-              <source src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3" type="audio/mpeg">
+              <source src="https://assets.mixkit.co/active_storage/sfx/535/535-preview.mp3" type="audio/mpeg">
               Seu navegador não suporta elemento de áudio.
             </audio>
         """, unsafe_allow_html=True)
@@ -1060,11 +1061,9 @@ def area_caixa_mesas():
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
                     
-                    # Recalcular total limpo (sem anulados/recusados) para exibição na grelha
                     total_m = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                     dados_m["total"] = total_m
 
-                    # --- LÓGICA ATUALIZADA DE EMOJIS E CLASSES CSS ---
                     if solicitou_fecho:
                         simbolo_topo = "💸"
                         classe_css = "mesa-solicita-fecho-piscar"
@@ -1182,7 +1181,6 @@ def area_caixa_mesas():
                 st.markdown("<span style='font-size: 0.85rem;'><b>Consumos da Mesa</b></span>", unsafe_allow_html=True)
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
-                # Filtrar apenas pedidos ativos (excluindo anulados e recusados pela cozinha)
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
                 
                 if pedidos_ativos:
@@ -1280,8 +1278,15 @@ def area_caixa_mesas():
                         
                         st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
                         
+                        dados_m_sel["fatura_emitida"] = {
+                            "itens": registo_venda["pedidos"],
+                            "total": total_a_pagar,
+                            "cliente": nome_c,
+                            "data": registo_venda["Data"]
+                        }
+                        
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
+                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False, "fatura_emitida": dados_m_sel["fatura_emitida"]
                         }
                         salvar_mesas_disco(mesas_data)
                         st.success(f"Mesa {m_sel} encerrada!")
