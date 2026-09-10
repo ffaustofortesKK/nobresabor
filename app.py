@@ -705,13 +705,13 @@ def area_cozinha():
 import streamlit.components.v1 as components
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (COMPLETA)
+# ÁREA: CAIXA / GESTÃO DE MESAS (COMPLETA E CORRIGIDA)
 # ==========================================
-@st.fragment(run_every=6)
+@st.fragment(run_every=5)
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # 1. Verificação de Alarme Ativo (Mesas prontas na cozinha ou novos pedidos)
+    # 1. Verificação de Alarme Ativo (Mesas prontas na cozinha)
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -720,40 +720,43 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # 2. Gestão de Estado de Áudio Ativado (Evita restrições de autoplay dos browsers)
+    # 2. Gestão de Estado de Áudio Ativado
     if "som_ativado_caixa" not in st.session_state:
         st.session_state.som_ativado_caixa = False
 
     if not st.session_state.som_ativado_caixa:
-        st.warning("⚠️ O sistema de som automático para novos pedidos/cozinha requer ativação inicial.")
-        if st.button("📞 Clique aqui para habilitar o alarme de telefone fixo", type="primary", use_container_width=True):
+        st.warning("⚠️ O sistema de alarme sonoro requer ativação única para cumprir as regras do navegador.")
+        if st.button("🔊 Ativar Som de Chamada / Alarme no Caixa", type="primary", use_container_width=True):
             st.session_state.som_ativado_caixa = True
             st.rerun()
 
-    # 3. Disparador de Alarme Sonoro (Toque de Telefone Fixo em Loop Contínuo)
+    # 3. Alarme Sonoro Robusto (Áudio integrado com recarregamento garantido via JS)
     if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
-        # Link com efeito de toque de telefone fixo realista
         audio_html = """
-            <audio id="telefone_toque" autoplay loop>
-              <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-            </audio>
+            <div style="display:none;">
+                <audio id="toque_telefone_caixa" autoplay loop>
+                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+                </audio>
+            </div>
             <script>
-                var audio = document.getElementById("telefone_toque");
-                audio.volume = 1.0;
-                var playPromise = audio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log("Autoplay bloqueado pelo browser, à espera de interação...");
-                        document.addEventListener('click', function() {
-                            audio.play();
-                        }, {once: true});
-                    });
+                var audioEl = document.getElementById("toque_telefone_caixa");
+                if (audioEl) {
+                    audioEl.volume = 1.0;
+                    var promessaPlay = audioEl.play();
+                    if (promessaPlay !== undefined) {
+                        promessaPlay.catch(error => {
+                            console.log("Autoplay barrado, aguardando clique...");
+                            window.addEventListener('click', function() {
+                                audioEl.play();
+                            }, {once: true});
+                        });
+                    }
                 }
             </script>
         """
         components.html(audio_html, height=0, width=0)
 
-    # Estilo CSS para animação visual da mesa a piscar em verde (alerta)
+    # Estilos CSS (incluindo o tamanho dos emojis a 100% / proporção visual destacada)
     st.markdown("""
         <style>
         @keyframes piscar-verde {
@@ -763,6 +766,12 @@ def area_caixa_mesas():
         }
         .mesa-solicita-fecho-piscar {
             animation: piscar-verde 1s infinite;
+        }
+        .emoji-topo-mesa {
+            font-size: 1.5rem !important; /* Tamanho 100% expandido relative à linha */
+            line-height: 1.2rem;
+            display: inline-block;
+            margin-bottom: 4px;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -1025,7 +1034,7 @@ def area_caixa_mesas():
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
-                        simbolo_topo = '<span style="font-size: 1.3rem; line-height: 1rem;">💸</span>'
+                        simbolo_topo = '<span class="emoji-topo-mesa">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
                         tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -1033,10 +1042,10 @@ def area_caixa_mesas():
                         tem_sobremesa = any(("sobremesa" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
                         
                         simbolos_topo_lista = []
-                        if tem_refeicao: simbolos_topo_lista.append("🍲")
-                        if tem_bebida: simbolos_topo_lista.append("🍹")
-                        if tem_sobremesa: simbolos_topo_lista.append("🍰")
-                        simbolo_topo = " ".join(simbolos_topo_lista)
+                        if tem_refeicao: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍲</span>')
+                        if tem_bebida: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍹</span>')
+                        if tem_sobremesa: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍰</span>')
+                        simbolo_topo = "".join(simbolos_topo_lista)
 
                         if any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
                             classe_css = "mesa-pronta-alerta"
@@ -1049,7 +1058,7 @@ def area_caixa_mesas():
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         conteudo_circulo = f"""
-                            <div style="text-align: center; height: 22px; line-height: 22px; margin-bottom: 2px;">{simbolo_topo}</div>
+                            <div style="text-align: center; height: 32px; line-height: 28px; margin-bottom: 2px;">{simbolo_topo}</div>
                             <div class="mesa-circle {classe_css}">
                                 <span style="font-size: 0.65rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
                                 <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_cliente_curto}</span>
@@ -1235,7 +1244,7 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        # Limpa os dados da mesa após fechar a conta
+                        # Limpa a mesa após fechar a conta
                         mesas_data[str(m_sel)] = {
                             "status": "Fechada",
                             "cliente": None,
