@@ -768,28 +768,16 @@ def area_cozinha():
             df_feitos = pd.DataFrame(lista_pratos_feitos)
             st.dataframe(df_feitos, use_container_width=True)
 
+import streamlit.components.v1 as components
+
 # ==========================================
 # ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
-    # 1. Gestão de permissão de áudio para contornar o bloqueio do navegador
-    if "som_desbloqueado" not in st.session_state:
-        st.session_state.som_desbloqueado = False
-
-    if not st.session_state.som_desbloqueado:
-        st.markdown("""
-            <div style="background-color: #141420; padding: 12px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 15px; text-align: center;">
-                <p style="margin-bottom: 8px; font-size: 0.9rem; color: #ffb703;">🔔 <b>Atenção:</b> Para ouvir os alertas sonoros de novas refeições prontas, clique no botão abaixo para ativar o som do navegador.</p>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🔊 Ativar Alertas Sonoros do Caixa", type="primary", use_container_width=True):
-            st.session_state.som_desbloqueado = True
-            st.rerun()
-        return  # Aguarda o clique para prosseguir com a interface normal do caixa
-
     mesas_data = carregar_mesas_disco()
 
+    # 1. Verificação de Alarme Ativo
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -798,13 +786,38 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    if tem_mesas_prontas_com_alerta:
-        st.markdown("""
-            <audio autoplay loop>
+    # 2. Gestão de Estado de Áudio Ativado (Evita bloqueio de autoplay do browser)
+    if "som_ativado_caixa" not in st.session_state:
+        st.session_state.som_ativado_caixa = False
+
+    if not st.session_state.som_ativado_caixa:
+        st.warning("⚠️ O sistema de som automático requer ativação inicial.")
+        if st.button("🔊 Clique aqui para habilitar o alarme sonoro do caixa", type="primary", use_container_width=True):
+            st.session_state.som_ativado_caixa = True
+            st.rerun()
+
+    # Se ativado e houver mesas prontas, disparamos o som via componente dedicado para evitar cortes do fragmento
+    if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
+        # Usamos um componente HTML com script persistente de loop de áudio
+        audio_html = """
+            <audio id="alarme_audio" autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-              Seu navegador não suporta elemento de áudio.
             </audio>
-        """, unsafe_allow_html=True)
+            <script>
+                var audio = document.getElementById("alarme_audio");
+                audio.volume = 1.0;
+                var playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("Autoplay prevenido pelo browser, a tentar novamente...");
+                        document.addEventListener('click', function() {
+                            audio.play();
+                        }, {once: true});
+                    });
+                }
+            </script>
+        """
+        components.html(audio_html, height=0, width=0)
 
     # Inserir estilo CSS para a animação de piscar em verde
     st.markdown("""
@@ -920,7 +933,7 @@ def area_caixa_mesas():
         """, unsafe_allow_html=True)
         
         saidas_todas = carregar_saidas_caixa()
-        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período"] == sessao_op['periodo']]
+        saidas_destinadas = [s for s in saidas_todas if s.get("Destino Utilizador") == sessao_op['operador'] and s.get("Período") == sessao_op['periodo']]
         saldo_inicial_recebido = sum(float(s['Valor']) for s in saidas_destinadas)
         
         if saidas_destinadas:
@@ -1298,7 +1311,7 @@ def area_caixa_mesas():
                         salvar_mesas_disco(mesas_data)
                         st.success(f"Mesa {m_sel} encerrada!")
                         st.rerun()
-
+                        
 # ==========================================
 # ÁREA: ADMINISTRADOR
 # ==========================================
