@@ -705,13 +705,13 @@ def area_cozinha():
 import streamlit.components.v1 as components
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS
+# ÁREA: CAIXA / GESTÃO DE MESAS (COMPLETA)
 # ==========================================
 @st.fragment(run_every=6)
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # 1. Verificação de Alarme Ativo
+    # 1. Verificação de Alarme Ativo (Mesas prontas na cozinha ou novos pedidos)
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -720,29 +720,30 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # 2. Gestão de Estado de Áudio Ativado (Evita bloqueio de autoplay do browser)
+    # 2. Gestão de Estado de Áudio Ativado (Evita restrições de autoplay dos browsers)
     if "som_ativado_caixa" not in st.session_state:
         st.session_state.som_ativado_caixa = False
 
     if not st.session_state.som_ativado_caixa:
-        st.warning("⚠️ O sistema de som automático requer ativação inicial.")
-        if st.button("🔊 Clique aqui para habilitar o alarme sonoro do caixa", type="primary", use_container_width=True):
+        st.warning("⚠️ O sistema de som automático para novos pedidos/cozinha requer ativação inicial.")
+        if st.button("📞 Clique aqui para habilitar o alarme de telefone fixo", type="primary", use_container_width=True):
             st.session_state.som_ativado_caixa = True
             st.rerun()
 
-    # Se ativado e houver mesas prontas, disparamos o som via componente dedicado para evitar cortes do fragmento
+    # 3. Disparador de Alarme Sonoro (Toque de Telefone Fixo em Loop Contínuo)
     if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
+        # Link com efeito de toque de telefone fixo realista
         audio_html = """
-            <audio id="alarme_audio" autoplay loop>
+            <audio id="telefone_toque" autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
             </audio>
             <script>
-                var audio = document.getElementById("alarme_audio");
+                var audio = document.getElementById("telefone_toque");
                 audio.volume = 1.0;
                 var playPromise = audio.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        console.log("Autoplay prevenido pelo browser, a tentar novamente...");
+                        console.log("Autoplay bloqueado pelo browser, à espera de interação...");
                         document.addEventListener('click', function() {
                             audio.play();
                         }, {once: true});
@@ -752,7 +753,7 @@ def area_caixa_mesas():
         """
         components.html(audio_html, height=0, width=0)
 
-    # Inserir estilo CSS para a animação de piscar em verde
+    # Estilo CSS para animação visual da mesa a piscar em verde (alerta)
     st.markdown("""
         <style>
         @keyframes piscar-verde {
@@ -1234,7 +1235,7 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        # Limpa a mesa após fechar a conta
+                        # Limpa os dados da mesa após fechar a conta
                         mesas_data[str(m_sel)] = {
                             "status": "Fechada",
                             "cliente": None,
