@@ -732,7 +732,6 @@ def area_caixa_mesas():
 
     # Se ativado e houver mesas prontas, disparamos o som via componente dedicado para evitar cortes do fragmento
     if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
-        # Usamos um componente HTML com script persistente de loop de áudio
         audio_html = """
             <audio id="alarme_audio" autoplay loop>
               <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
@@ -892,7 +891,7 @@ def area_caixa_mesas():
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
                 st.rerun()
-        return   
+        return    
 
     hist_vendas = carregar_historico_vendas()
     stock_df_cx_card = carregar_stock_disco()
@@ -1025,7 +1024,6 @@ def area_caixa_mesas():
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
-                        # 💸 SÍMBOLO AUMENTADO EM 100% (font-size alterado de 0.65rem para 1.3rem)
                         simbolo_topo = '<span style="font-size: 1.3rem; line-height: 1rem;">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
@@ -1236,11 +1234,17 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
-                        
+                        # Limpa a mesa após fechar a conta
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada"
+                            "status": "Fechada",
+                            "cliente": None,
+                            "pedidos": [],
+                            "total": 0.0,
+                            "solicitou_fecho": False
                         }
+                        salvar_mesas_disco(mesas_data)
+                        st.success(f"Conta da Mesa {m_sel} fechada com sucesso!")
+                        st.rerun()
 
 # ==========================================
 # ROTEADOR PRINCIPAL DA APLICAÇÃO
