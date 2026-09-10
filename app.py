@@ -958,7 +958,7 @@ def area_caixa_mesas():
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
                 st.rerun()
-        return  
+        return   
 
     hist_vendas = carregar_historico_vendas()
     stock_df_cx_card = carregar_stock_disco()
@@ -1087,12 +1087,12 @@ def area_caixa_mesas():
                     status_m = dados_m.get("status", "Fechada")
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
-                    
                     total_m = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
-                        simbolo_topo = "💸"
+                        # 💸 SÍMBOLO AUMENTADO EM 100% (font-size alterado de 0.65rem para 1.3rem)
+                        simbolo_topo = '<span style="font-size: 1.3rem; line-height: 1rem;">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
                         tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -1116,7 +1116,7 @@ def area_caixa_mesas():
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         conteudo_circulo = f"""
-                            <div style="text-align: center; font-size: 0.65rem; height: 16px; line-height: 16px; margin-bottom: 2px;">{simbolo_topo}</div>
+                            <div style="text-align: center; height: 22px; line-height: 22px; margin-bottom: 2px;">{simbolo_topo}</div>
                             <div class="mesa-circle {classe_css}">
                                 <span style="font-size: 0.65rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
                                 <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_cliente_curto}</span>
@@ -1146,7 +1146,7 @@ def area_caixa_mesas():
                 if st.button("➕ Adicionar Item", key=f"btn_toggle_add_pedido_{m_sel}", type="secondary", use_container_width=True):
                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
                     st.rerun()
-
+                
                 if st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False):
                     with st.container():
                         st.markdown(f"<div style='background: #141420; padding: 8px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 8px;'>", unsafe_allow_html=True)
@@ -1299,18 +1299,14 @@ def area_caixa_mesas():
                             "Valor Total": total_a_pagar,
                             "pedidos": [p for p in dados_m_sel.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
                         }
-                        
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
                         st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
                         
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
+                            "status": "Fechada"
                         }
-                        salvar_mesas_disco(mesas_data)
-                        st.success(f"Mesa {m_sel} encerrada!")
-                        st.rerun()
                         
 # ==========================================
 # ÁREA: ADMINISTRADOR
