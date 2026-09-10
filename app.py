@@ -771,13 +771,13 @@ def area_cozinha():
 import streamlit.components.v1 as components
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS
+# ÁREA: CAIXA / GESTÃO DE MESAS (COMPLETA E CORRIGIDA)
 # ==========================================
-@st.fragment(run_every=6)
+@st.fragment(run_every=5)
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # 1. Verificação de Alarme Ativo
+    # 1. Verificação de Alarme Ativo (Mesas prontas na cozinha)
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -786,40 +786,43 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # 2. Gestão de Estado de Áudio Ativado (Evita bloqueio de autoplay do browser)
+    # 2. Gestão de Estado de Áudio Ativado
     if "som_ativado_caixa" not in st.session_state:
         st.session_state.som_ativado_caixa = False
 
     if not st.session_state.som_ativado_caixa:
-        st.warning("⚠️ O sistema de som automático requer ativação inicial.")
-        if st.button("🔊 Clique aqui para habilitar o alarme sonoro do caixa", type="primary", use_container_width=True):
+        st.warning("⚠️ O sistema de alarme sonoro requer ativação única para cumprir as regras do navegador.")
+        if st.button("🔊 Ativar Som de Chamada / Alarme no Caixa", type="primary", use_container_width=True):
             st.session_state.som_ativado_caixa = True
             st.rerun()
 
-    # Se ativado e houver mesas prontas, disparamos o som via componente dedicado para evitar cortes do fragmento
+    # 3. Alarme Sonoro Robusto (Áudio integrado com recarregamento garantido via JS)
     if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
-        # Usamos um componente HTML com script persistente de loop de áudio
         audio_html = """
-            <audio id="alarme_audio" autoplay loop>
-              <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-            </audio>
+            <div style="display:none;">
+                <audio id="toque_telefone_caixa" autoplay loop>
+                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+                </audio>
+            </div>
             <script>
-                var audio = document.getElementById("alarme_audio");
-                audio.volume = 1.0;
-                var playPromise = audio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log("Autoplay prevenido pelo browser, a tentar novamente...");
-                        document.addEventListener('click', function() {
-                            audio.play();
-                        }, {once: true});
-                    });
+                var audioEl = document.getElementById("toque_telefone_caixa");
+                if (audioEl) {
+                    audioEl.volume = 1.0;
+                    var promessaPlay = audioEl.play();
+                    if (promessaPlay !== undefined) {
+                        promessaPlay.catch(error => {
+                            console.log("Autoplay barrado, aguardando clique...");
+                            window.addEventListener('click', function() {
+                                audioEl.play();
+                            }, {once: true});
+                        });
+                    }
                 }
             </script>
         """
         components.html(audio_html, height=0, width=0)
 
-    # Inserir estilo CSS para a animação de piscar em verde
+    # Estilos CSS (incluindo o tamanho dos emojis a 100% / proporção visual destacada)
     st.markdown("""
         <style>
         @keyframes piscar-verde {
@@ -829,6 +832,12 @@ def area_caixa_mesas():
         }
         .mesa-solicita-fecho-piscar {
             animation: piscar-verde 1s infinite;
+        }
+        .emoji-topo-mesa {
+            font-size: 1.5rem !important; /* Tamanho 100% expandido relative à linha */
+            line-height: 1.2rem;
+            display: inline-block;
+            margin-bottom: 4px;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -958,7 +967,7 @@ def area_caixa_mesas():
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
                 st.rerun()
-        return   
+        return    
 
     hist_vendas = carregar_historico_vendas()
     stock_df_cx_card = carregar_stock_disco()
@@ -1076,9 +1085,6 @@ def area_caixa_mesas():
             rows = 8
             mesa_idx = 1
             
-            # Variável de controlo para emitir o som de caixa registadora se houver pelo menos uma mesa a solicitar fecho
-            tem_solicitacao_fecho_geral = False
-            
             for r in range(rows):
                 cols = st.columns(cols_grelha)
                 for c in range(cols_grelha):
@@ -1094,9 +1100,7 @@ def area_caixa_mesas():
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
-                        tem_solicitacao_fecho_geral = True
-                        # 💸 SÍMBOLO AUMENTADO EM MAIS 100% (font-size passado para 2.6rem)
-                        simbolo_topo = '<span style="font-size: 2.6rem; line-height: 1rem;">💸</span>'
+                        simbolo_topo = '<span class="emoji-topo-mesa">💸</span>'
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
                         tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -1104,10 +1108,10 @@ def area_caixa_mesas():
                         tem_sobremesa = any(("sobremesa" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
                         
                         simbolos_topo_lista = []
-                        if tem_refeicao: simbolos_topo_lista.append("🍲")
-                        if tem_bebida: simbolos_topo_lista.append("🍹")
-                        if tem_sobremesa: simbolos_topo_lista.append("🍰")
-                        simbolo_topo = " ".join(simbolos_topo_lista)
+                        if tem_refeicao: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍲</span>')
+                        if tem_bebida: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍹</span>')
+                        if tem_sobremesa: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍰</span>')
+                        simbolo_topo = "".join(simbolos_topo_lista)
 
                         if any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
                             classe_css = "mesa-pronta-alerta"
@@ -1120,7 +1124,7 @@ def area_caixa_mesas():
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         conteudo_circulo = f"""
-                            <div style="text-align: center; height: 35px; line-height: 35px; margin-bottom: 2px;">{simbolo_topo}</div>
+                            <div style="text-align: center; height: 32px; line-height: 28px; margin-bottom: 2px;">{simbolo_topo}</div>
                             <div class="mesa-circle {classe_css}">
                                 <span style="font-size: 0.65rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
                                 <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_cliente_curto}</span>
@@ -1136,15 +1140,6 @@ def area_caixa_mesas():
                             st.rerun()
                         
                     mesa_idx += 1
-
-            # Disparar efeito sonoro de caixa registadora quando o símbolo 💸 aparece ativo
-            if tem_solicitacao_fecho_geral and st.session_state.get("som_ativado_caixa", False):
-                audio_fecho_html = """
-                    <audio id="audio_fecho_conta" autoplay>
-                      <source src="https://assets.mixkit.co/active_storage/sfx/2872/2872-preview.mp3" type="audio/mpeg">
-                    </audio>
-                """
-                components.html(audio_fecho_html, height=0, width=0)
 
         with col_esq:
             with st.container():
@@ -1315,11 +1310,17 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
-                        
+                        # Limpa a mesa após fechar a conta
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada"
+                            "status": "Fechada",
+                            "cliente": None,
+                            "pedidos": [],
+                            "total": 0.0,
+                            "solicitou_fecho": False
                         }
+                        salvar_mesas_disco(mesas_data)
+                        st.success(f"Conta da Mesa {m_sel} fechada com sucesso!")
+                        st.rerun()
                         
 # ==========================================
 # ÁREA: ADMINISTRADOR
