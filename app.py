@@ -489,7 +489,7 @@ def area_cliente():
 
     st.markdown('<div class="smartphone-frame">', unsafe_allow_html=True)
 
-    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO
+    # 1. VISUALIZAÇÃO DA FATURA DIGITAL CASO O CAIXA TENHA EMITIDO (COM BOTÃO DE SAÍDA)
     if dados_m.get("fatura_emitida"):
         fat = dados_m["fatura_emitida"]
         st.markdown("<h4 style='text-align:center; font-size:0.95rem; color:#ffffff;'>🧾 Recibo / Fatura Digital</h4>", unsafe_allow_html=True)
@@ -515,8 +515,10 @@ def area_cliente():
         except Exception:
             pass
             
-        # Botão para o cliente terminar/sair e limpar o ecrã do telemóvel após fechar a conta
-        if st.button("🚪 Sair / Terminar Sessão da Mesa", type="secondary", use_container_width=True, key="btn_sair_cliente_final"):
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Botão de Sair / Limpar Sessão do Cliente após pagamento emitido
+        if st.button("🚪 Sair / Terminar Sessão da Mesa", type="primary", use_container_width=True, key=f"btn_sair_cliente_{num_mesa}"):
             mesas_data[str(num_mesa)] = {
                 "status": "Fechada",
                 "cliente": None,
@@ -526,6 +528,7 @@ def area_cliente():
                 "fatura_emitida": None
             }
             salvar_mesas_disco(mesas_data)
+            st.success("Sessão terminada. Obrigado pela visita!")
             st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -537,7 +540,7 @@ def area_cliente():
         st.markdown("""
             <div style='background-color: #1a1a24; padding: 15px; border-radius: 8px; border: 1px solid #ffb703; text-align: center; margin-top: 20px;'>
                 <h4 style='color: #ffffff; font-size: 0.9rem; margin-bottom: 8px;'>⏳ Conta Solicitada</h4>
-                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. Por favor, aguarde a emissão da fatura.</p>
+                <p style='color: #aaaaaa; font-size: 0.75rem; line-height: 1.2;'>O seu pedido de fecho foi enviado ao caixa. A fatura aparecerá aqui em instantes...</p>
             </div>
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -590,8 +593,8 @@ def area_cliente():
                         })
                         salvar_mesas_disco(mesas_data)
                         
-                        # Notificação visual instantânea de confirmação para o cliente
-                        st.toast(f"✅ Pedido enviado com sucesso: {qtd}x {prod}!", icon="🚀")
+                        # Notificação visual de sucesso imediata para o cliente
+                        st.success(f"✅ Pedido de {qtd}x {prod} enviado com sucesso para a cozinha!")
                         st.balloons()
                         st.rerun()
 
@@ -600,7 +603,7 @@ def area_cliente():
             st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
-                st.info("⏳ Pedido de fecho enviado ao caixa. Aguarde a fatura.")
+                st.info("⏳ Pedido de fecho enviado ao caixa. Aguarde a emissão da fatura.")
             else:
                 if st.button("🔔 Pedir Conta", type="primary", use_container_width=True):
                     dados_m["solicitou_fecho"] = True
