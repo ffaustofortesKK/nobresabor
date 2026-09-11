@@ -553,7 +553,37 @@ def area_cliente():
     else:
         # 4. CARDÁPIO E PEDIDOS
         cli = dados_m["cliente"]
-        st.markdown(f"<div style='font-size:0.75rem; color:#ffb703; margin-bottom:6px; margin-top:10px; text-align:center; background:#1a1a24; padding:6px; border-radius:6px;'>Mesa {num_mesa} | <b>{cli['nome']}</b></div>", unsafe_allow_html=True)
+        
+        # Efeito arco-íris animado aplicado a 100% no Número da Mesa e Nome do Cliente
+        st.markdown(f"""
+            <style>
+                @keyframes rainbowGlow {{
+                    0% {{ filter: hue-rotate(0deg); }}
+                    100% {{ filter: hue-rotate(360deg); }}
+                }}
+                .animated-header-text {{
+                    font-size: 1.5rem;
+                    font-weight: 900;
+                    text-align: center;
+                    background: linear-gradient(45deg, #ff0055, #ffae00, #00ffcc, #0066ff, #9900ff);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    animation: rainbowGlow 4s infinite linear;
+                    margin-bottom: 6px;
+                    margin-top: 10px;
+                    display: block;
+                }}
+                /* Estilização para deixar o texto do botão de envio em preto e negrito */
+                div[data-testid="stFormSubmitButton"] button p,
+                div[data-testid="stFormSubmitButton"] button span {{
+                    color: #000000 !important;
+                    font-weight: bold !important;
+                }}
+            </style>
+            <div style='background:#1a1a24; padding:8px; border-radius:8px; text-align:center;'>
+                <span class="animated-header-text">Mesa {num_mesa} | {cli['nome']}</span>
+            </div>
+        """, unsafe_allow_html=True)
         
         t_menu, t_cons, t_ev = st.tabs(["📋 Pedido", "📊 Conta", "🎉 Eventos"])
         
@@ -577,21 +607,40 @@ def area_cliente():
                         })
                         salvar_mesas_disco(mesas_data)
                         
-                        # Guardamos em session_state um aviso temporário para o cliente visualizar a notificação
                         st.session_state[f"aviso_pedido_enviado_{num_mesa}"] = f"✅ Pedido enviado com sucesso: {qtd}x {prod}!"
                         st.balloons()
                         st.rerun()
 
-            # Notificação visual destacada logo abaixo do formulário caso o pedido tenha acabado de ser submetido
-            aviso_chave = f"aviso_pedido_enviado_{num_mesa}"
-            if aviso_chave in st.session_state:
-                st.success(st.session_state[aviso_chave])
-                # Removemos a notificação da session_state para que ela não fique permanente a cada clique futuro
-                del st.session_state[aviso_chave]
+        aviso_chave = f"aviso_pedido_enviado_{num_mesa}"
+        if aviso_chave in st.session_state:
+            st.success(st.session_state[aviso_chave])
+            del st.session_state[aviso_chave]
 
         with t_cons:
+            st.markdown("<h4 style='font-size:0.9rem; color:#ffb703; text-align:center;'>📋 Lista de Controlo dos Pedidos</h4>", unsafe_allow_html=True)
+            
+            # Exibir todos os itens pedidos numa lista detalhada
+            if dados_m["pedidos"]:
+                for idx, p in enumerate(dados_m["pedidos"], 1):
+                    subtotal = p['quantidade'] * p['preco']
+                    cor_status = "#4ac26b" if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] else "#ff4b4b"
+                    st.markdown(f"""
+                        <div style='background: #1a1a24; padding: 8px; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid {cor_status}; font-size: 0.75rem;'>
+                            <b>{idx}. {p['quantidade']}x {p['item']}</b> ({p['tipo']})<br>
+                            <span style='color: #aaaaaa;'>Preço Unit.: {p['preco']:,.2f} Kz | <b>Subtotal: {subtotal:,.2f} Kz</b></span><br>
+                            <span style='color: {cor_status}; font-size: 0.7rem;'>Estado: {p.get('status', 'Pendente')}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown("<p style='font-size: 0.75rem; color: #888; text-align: center;'>Nenhum pedido efetuado ainda.</p>", unsafe_allow_html=True)
+
             total_parcial = sum(p['quantidade'] * p['preco'] for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
-            st.markdown(f"<span style='font-size:0.8rem; color:#ffffff;'><b>Total Parcial: {total_parcial:,.2f}Kz</b></span>", unsafe_allow_html=True)
+            
+            st.markdown(f"""
+                <div style='background: #262636; padding: 10px; border-radius: 6px; text-align: center; margin-top: 10px; border: 1px solid #ffb703;'>
+                    <span style='font-size:0.9rem; color:#ffffff;'><b>Total Geral: {total_parcial:,.2f} Kz</b></span>
+                </div>
+            """, unsafe_allow_html=True)
             
             if dados_m.get("solicitou_fecho"):
                 st.info("⏳ Pedido de fecho enviado ao caixa.")
@@ -601,7 +650,17 @@ def area_cliente():
                     salvar_mesas_disco(mesas_data)
                     st.success("Conta solicitada!")
                     st.rerun()
-                    
+
+        with t_ev:
+            st.markdown("<h4 style='font-size:0.9rem; color:#ffb703; text-align:center;'>🎉 Agenda de Eventos</h4>", unsafe_allow_html=True)
+            st.markdown("""
+                <div style='background: #1a1a24; padding: 12px; border-radius: 8px; border: 1px solid #ffb703; font-size: 0.75rem; line-height: 1.5;'>
+                    <p style='color: #ffffff; margin-bottom: 6px;'>🎵 <b>Quinta-Feira</b> - Karaoke Grupo FF</p>
+                    <p style='color: #ffffff; margin-bottom: 6px;'>💃 <b>Sexta-Feira</b> - Kizombando</p>
+                    <p style='color: #ffffff; margin-bottom: 0;'>🎸 <b>Sábado</b> - Música ao Vivo (Hora do Almoço)</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
     st.markdown('</div>', unsafe_allow_html=True)
     
 # ==========================================
