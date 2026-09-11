@@ -774,13 +774,12 @@ def area_cozinha():
 import streamlit.components.v1 as components
 
 # ==========================================
-# ÁREA: CAIXA / GESTÃO DE MESAS (COMPLETA E CORRIGIDA)
+# ÁREA: CAIXA / GESTÃO DE MESAS
 # ==========================================
-@st.fragment(run_every=5)
+@st.fragment(run_every=6)
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
-    # 1. Verificação de Alarme Ativo (Mesas prontas na cozinha)
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -789,43 +788,15 @@ def area_caixa_mesas():
             tem_mesas_prontas_com_alerta = True
             break
 
-    # 2. Gestão de Estado de Áudio Ativado
-    if "som_ativado_caixa" not in st.session_state:
-        st.session_state.som_ativado_caixa = False
+    if tem_mesas_prontas_com_alerta:
+        st.markdown("""
+            <audio autoplay loop>
+              <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+              Seu navegador não suporta elemento de áudio.
+            </audio>
+        """, unsafe_allow_html=True)
 
-    if not st.session_state.som_ativado_caixa:
-        st.warning("⚠️ O sistema de alarme sonoro requer ativação única para cumprir as regras do navegador.")
-        if st.button("🔊 Ativar Som de Chamada / Alarme no Caixa", type="primary", use_container_width=True):
-            st.session_state.som_ativado_caixa = True
-            st.rerun()
-
-    # 3. Alarme Sonoro Robusto (Áudio integrado com recarregamento garantido via JS)
-    if st.session_state.som_ativado_caixa and tem_mesas_prontas_com_alerta:
-        audio_html = """
-            <div style="display:none;">
-                <audio id="toque_telefone_caixa" autoplay loop>
-                  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-                </audio>
-            </div>
-            <script>
-                var audioEl = document.getElementById("toque_telefone_caixa");
-                if (audioEl) {
-                    audioEl.volume = 1.0;
-                    var promessaPlay = audioEl.play();
-                    if (promessaPlay !== undefined) {
-                        promessaPlay.catch(error => {
-                            console.log("Autoplay barrado, aguardando clique...");
-                            window.addEventListener('click', function() {
-                                audioEl.play();
-                            }, {once: true});
-                        });
-                    }
-                }
-            </script>
-        """
-        components.html(audio_html, height=0, width=0)
-
-    # Estilos CSS (incluindo o tamanho dos emojis a 100% / proporção visual destacada)
+    # Inserir estilo CSS para a animação de piscar em verde
     st.markdown("""
         <style>
         @keyframes piscar-verde {
@@ -835,12 +806,6 @@ def area_caixa_mesas():
         }
         .mesa-solicita-fecho-piscar {
             animation: piscar-verde 1s infinite;
-        }
-        .emoji-topo-mesa {
-            font-size: 1.5rem !important; /* Tamanho 100% expandido relative à linha */
-            line-height: 1.2rem;
-            display: inline-block;
-            margin-bottom: 4px;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -970,7 +935,7 @@ def area_caixa_mesas():
                 sessao_op["saldo_inicial"] = 0.0
                 salvar_sessao_operador(sessao_op)
                 st.rerun()
-        return    
+        return  
 
     hist_vendas = carregar_historico_vendas()
     stock_df_cx_card = carregar_stock_disco()
@@ -1023,7 +988,9 @@ def area_caixa_mesas():
         if vendas_turno:
             itens_consolidados = {}
             for v in vendas_turno:
-                for p in v.get("pedidos", []):
+                # Garantir compatibilidade caso a chave venha como 'pedidos' ou 'itens'
+                lista_pedidos_venda = v.get("pedidos", []) or v.get("itens", [])
+                for p in lista_pedidos_venda:
                     if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
                         continue
                     nome_prod = p.get('item', 'Desconhecido')
@@ -1051,8 +1018,7 @@ def area_caixa_mesas():
                     "Dinheiro": total_dinheiro_vendas,
                     "TPA": total_tpa_vendas
                 })
-                salvar_fechos_caixa(fechos)
-                
+                salvar_fechos_caixa(fechos) 
                 sessao_op["logado"] = False
                 sessao_op["operador"] = "Nenhum"
                 sessao_op["turno_aberto"] = False
@@ -1072,7 +1038,10 @@ def area_caixa_mesas():
             for v_item in reversed(vendas_filtradas):
                 with st.expander(f"Mesa {v_item.get('Mesa', '?')} — {v_item.get('Cliente', 'Desconhecido')} | {v_item.get('Total', 0.0):,.2f} Kz"):
                     st.write(f"Operador: {v_item.get('Operador', '')} | Data: {v_item.get('Data', '')}")
-                    for p in v_item.get("pedidos", []):
+                    
+                    # Garantir exibição de todos os itens guardados independentemente da chave
+                    itens_venda_exibir = v_item.get("pedidos", []) or v_item.get("itens", [])
+                    for p in itens_venda_exibir:
                         if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
                             continue
                         st.markdown(f"- {p.get('quantidade', 1)}x {p.get('item')} ({p.get('preco', 0):,.2f} Kz)")
@@ -1099,11 +1068,12 @@ def area_caixa_mesas():
                     status_m = dados_m.get("status", "Fechada")
                     cli_m = dados_m.get("cliente")
                     solicitou_fecho = dados_m.get("solicitou_fecho", False)
+                    
                     total_m = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
                     dados_m["total"] = total_m
 
                     if solicitou_fecho:
-                        simbolo_topo = '<span class="emoji-topo-mesa">💸</span>'
+                        simbolo_topo = "💸"
                         classe_css = "mesa-solicita-fecho-piscar"
                     else:
                         tem_refeicao = any(("refei" in str(p.get("tipo", "")).lower() or "prato" in str(p.get("tipo", "")).lower() or "comida" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -1111,10 +1081,10 @@ def area_caixa_mesas():
                         tem_sobremesa = any(("sobremesa" in str(p.get("tipo", "")).lower()) for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
                         
                         simbolos_topo_lista = []
-                        if tem_refeicao: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍲</span>')
-                        if tem_bebida: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍹</span>')
-                        if tem_sobremesa: simbolos_topo_lista.append('<span class="emoji-topo-mesa">🍰</span>')
-                        simbolo_topo = "".join(simbolos_topo_lista)
+                        if tem_refeicao: simbolos_topo_lista.append("🍲")
+                        if tem_bebida: simbolos_topo_lista.append("🍹")
+                        if tem_sobremesa: simbolos_topo_lista.append("🍰")
+                        simbolo_topo = " ".join(simbolos_topo_lista)
 
                         if any(p.get("cozinha_status") == "Feito" for p in dados_m["pedidos"] if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
                             classe_css = "mesa-pronta-alerta"
@@ -1127,7 +1097,7 @@ def area_caixa_mesas():
                         nome_cliente_curto = cli_m['nome'].split()[0] if cli_m and isinstance(cli_m, dict) and cli_m.get('nome') else "Livre"
                         
                         conteudo_circulo = f"""
-                            <div style="text-align: center; height: 32px; line-height: 28px; margin-bottom: 2px;">{simbolo_topo}</div>
+                            <div style="text-align: center; font-size: 0.65rem; height: 16px; line-height: 16px; margin-bottom: 2px;">{simbolo_topo}</div>
                             <div class="mesa-circle {classe_css}">
                                 <span style="font-size: 0.65rem; font-weight: 500; line-height: 1.1;">M{mesa_idx}</span>
                                 <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_cliente_curto}</span>
@@ -1143,7 +1113,6 @@ def area_caixa_mesas():
                             st.rerun()
                         
                     mesa_idx += 1
-
         with col_esq:
             with st.container():
                 m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
@@ -1157,7 +1126,7 @@ def area_caixa_mesas():
                 if st.button("➕ Adicionar Item", key=f"btn_toggle_add_pedido_{m_sel}", type="secondary", use_container_width=True):
                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
                     st.rerun()
-                
+
                 if st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False):
                     with st.container():
                         st.markdown(f"<div style='background: #141420; padding: 8px; border-radius: 6px; border: 1px solid #ffb703; margin-bottom: 8px;'>", unsafe_allow_html=True)
@@ -1310,19 +1279,17 @@ def area_caixa_mesas():
                             "Valor Total": total_a_pagar,
                             "pedidos": [p for p in dados_m_sel.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
                         }
+                        
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        # Limpa a mesa após fechar a conta
+                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
+                        
                         mesas_data[str(m_sel)] = {
-                            "status": "Fechada",
-                            "cliente": None,
-                            "pedidos": [],
-                            "total": 0.0,
-                            "solicitou_fecho": False
+                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
                         }
                         salvar_mesas_disco(mesas_data)
-                        st.success(f"Conta da Mesa {m_sel} fechada com sucesso!")
+                        st.success(f"Mesa {m_sel} encerrada!")
                         st.rerun()
                         
 # ==========================================
