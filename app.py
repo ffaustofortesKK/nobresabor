@@ -780,6 +780,10 @@ import streamlit.components.v1 as components
 def area_caixa_mesas():
     mesas_data = carregar_mesas_disco()
 
+    # Garantir que o Cliente Singular existe na estrutura de dados (tratado internamente como a chave "singular" ou mesa "0"/"singular")
+    if "singular" not in mesas_data:
+        mesas_data["singular"] = {"status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "solicitou_fecho": False}
+
     tem_mesas_prontas_com_alerta = False
     for str_m, dados_m in mesas_data.items():
         tem_pronto = any(p.get("cozinha_status") == "Feito" for p in dados_m.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado")
@@ -988,7 +992,6 @@ def area_caixa_mesas():
         if vendas_turno:
             itens_consolidados = {}
             for v in vendas_turno:
-                # Garantir compatibilidade caso a chave venha como 'pedidos' ou 'itens'
                 lista_pedidos_venda = v.get("pedidos", []) or v.get("itens", [])
                 for p in lista_pedidos_venda:
                     if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
@@ -1039,7 +1042,6 @@ def area_caixa_mesas():
                 with st.expander(f"Mesa {v_item.get('Mesa', '?')} — {v_item.get('Cliente', 'Desconhecido')} | {v_item.get('Total', 0.0):,.2f} Kz"):
                     st.write(f"Operador: {v_item.get('Operador', '')} | Data: {v_item.get('Data', '')}")
                     
-                    # Garantir exibição de todos os itens guardados independentemente da chave
                     itens_venda_exibir = v_item.get("pedidos", []) or v_item.get("itens", [])
                     for p in itens_venda_exibir:
                         if p.get('status') in ["Anulado", "Recusado pela Cozinha"] or p.get('cozinha_status') == "Recusado":
@@ -1052,7 +1054,43 @@ def area_caixa_mesas():
         col_esq, col_dir = st.columns([1.1, 0.9])
 
         with col_dir:
+            # ----------------------------------------------------
+            # BOTÃO DO CLIENTE SINGULAR (POSICIONADO ACIMA DA MESA 1)
+            # ----------------------------------------------------
+            dados_singular = mesas_data["singular"]
+            total_singular = float(sum(float(p.get('quantidade', 1)) * float(p.get('preco', 0.0)) for p in dados_singular.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"))
+            dados_singular["total"] = total_singular
+            cli_sing = dados_singular.get("cliente")
+            nome_sing_curto = cli_sing['nome'].split()[0] if cli_sing and isinstance(cli_sing, dict) and cli_sing.get('nome') else "Singular"
+            
+            if dados_singular.get("solicitou_fecho"):
+                classe_sing_css = "mesa-solicita-fecho-piscar"
+            elif any(p.get("cozinha_status") == "Feito" for p in dados_singular.get("pedidos", []) if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"):
+                classe_sing_css = "mesa-pronta-alerta"
+            elif dados_singular.get("status") == "Aberta" or cli_sing:
+                classe_sing_css = "mesa-aberta"
+            else:
+                classe_sing_css = "mesa-fechada"
+
+            st.markdown("<h4 style='text-align: right; margin-bottom: 2px; font-size: 0.8rem;'>CLIENTE SINGULAR</h4>", unsafe_allow_html=True)
+            conteudo_singular_circulo = f"""
+                <div style="text-align: center; font-size: 0.65rem; height: 16px; line-height: 16px; margin-bottom: 2px;">👤</div>
+                <div class="mesa-circle {classe_sing_css}" style="border: 2px dashed #ffb703;">
+                    <span style="font-size: 0.6rem; font-weight: 700; line-height: 1.1; color: #ffb703;">SINGULAR</span>
+                    <span style="font-size: 0.42rem; color: #aaa; line-height: 1.1;">{nome_sing_curto}</span>
+                    <span style="font-size: 0.42rem; color: #ffb703; line-height: 1.1;">{total_singular:,.0f}K</span>
+                </div>
+            """
+            st.markdown(conteudo_singular_circulo, unsafe_allow_html=True)
+            if st.button("👤 CLIENTE SINGULAR", key="btn_gerir_cliente_singular", use_container_width=True):
+                st.session_state.mesa_selecionada_caixa = "singular"
+                st.session_state["silenciar_alarme_mesa_singular"] = True
+                st.session_state["adicionando_pedido_cx_singular"] = False
+                st.rerun()
+
+            st.markdown("<hr style='margin: 8px 0;'>", unsafe_allow_html=True)
             st.markdown("<h4 style='text-align: right; margin-bottom: 4px; font-size: 0.9rem;'>MESAS (1-30)</h4>", unsafe_allow_html=True)
+            
             cols_grelha = 4
             rows = 8
             mesa_idx = 1
@@ -1113,15 +1151,20 @@ def area_caixa_mesas():
                             st.rerun()
                         
                     mesa_idx += 1
+
         with col_esq:
             with st.container():
                 m_sel = st.session_state.get("mesa_selecionada_caixa", 1)
-                dados_m_sel = mesas_data[str(m_sel)]
+                str_m_sel = str(m_sel)
+                dados_m_sel = mesas_data[str_m_sel]
                 
                 cli_atual = dados_m_sel.get("cliente")
-                nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
-                
-                st.markdown(f"#### ⚙️ Mesa {m_sel} — {nome_cliente_titulo}", unsafe_allow_html=True)
+                if m_sel == "singular":
+                    nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Cliente Singular"
+                    st.markdown(f"#### ⚙️ Cliente Singular — {nome_cliente_titulo}", unsafe_allow_html=True)
+                else:
+                    nome_cliente_titulo = cli_atual.get('nome') if cli_atual and isinstance(cli_atual, dict) and cli_atual.get('nome') else "Livre"
+                    st.markdown(f"#### ⚙️ Mesa {m_sel} — {nome_cliente_titulo}", unsafe_allow_html=True)
                 
                 if st.button("➕ Adicionar Item", key=f"btn_toggle_add_pedido_{m_sel}", type="secondary", use_container_width=True):
                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = not st.session_state.get(f"adicionando_pedido_cx_{m_sel}", False)
@@ -1166,14 +1209,14 @@ def area_caixa_mesas():
                                     }
                                     
                                     if not dados_m_sel.get("cliente"):
-                                        dados_m_sel["cliente"] = {"nome": "Cliente Balcão", "telefone": "N/A"}
+                                        dados_m_sel["cliente"] = {"nome": "Cliente Singular" if m_sel == "singular" else "Cliente Balcão", "telefone": "N/A"}
                                         dados_m_sel["status"] = "Aberta"
                                     
                                     dados_m_sel["pedidos"].append(novo_item_reg)
                                     novo_total = sum(float(i.get('quantidade', 1)) * float(i.get('preco', 0.0)) for i in dados_m_sel["pedidos"] if i.get('status') not in ["Anulado", "Recusado pela Cozinha"] and i.get('cozinha_status') != "Recusado")
                                     dados_m_sel["total"] = novo_total
                                     
-                                    mesas_data[str(m_sel)] = dados_m_sel
+                                    mesas_data[str_m_sel] = dados_m_sel
                                     salvar_mesas_disco(mesas_data)
                                     
                                     st.session_state[f"adicionando_pedido_cx_{m_sel}"] = False
@@ -1185,7 +1228,7 @@ def area_caixa_mesas():
                             st.warning("Stock vazio.")
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                st.markdown("<span style='font-size: 0.85rem;'><b>Consumos da Mesa</b></span>", unsafe_allow_html=True)
+                st.markdown("<span style='font-size: 0.85rem;'><b>Consumos</b></span>", unsafe_allow_html=True)
                 pedidos_mesa = dados_m_sel.get("pedidos", [])
                 
                 pedidos_ativos = [p for p in pedidos_mesa if p.get('status') not in ["Anulado", "Recusado pela Cozinha"] and p.get('cozinha_status') != "Recusado"]
@@ -1217,7 +1260,7 @@ def area_caixa_mesas():
                                             
                                             novo_total = sum(float(item.get('quantidade', 1)) * float(item.get('preco', 0.0)) for item in dados_m_sel["pedidos"] if item.get('status') not in ["Anulado", "Recusado pela Cozinha"] and item.get('cozinha_status') != "Recusado")
                                             dados_m_sel["total"] = novo_total if novo_total > 0 else 0.0
-                                            mesas_data[str(m_sel)] = dados_m_sel
+                                            mesas_data[str_m_sel] = dados_m_sel
                                             salvar_mesas_disco(mesas_data)
                                             
                                             vendas_excluidas = carregar_vendas_excluidas()
@@ -1264,12 +1307,12 @@ def area_caixa_mesas():
                         v_tpa = st.number_input("TPA:", value=max(0.0, total_a_pagar - v_dinheiro), key=f"tpa_mesa_{m_sel}")
 
                     if st.button("✅ Fechar Conta e Emitir Recibo", type="primary", use_container_width=True, key=f"btn_fechar_conta_mesa_{m_sel}"):
-                        nome_c = cli_atual.get("nome", "Cliente Balcão") if isinstance(cli_atual, dict) else "Cliente Balcão"
+                        nome_c = cli_atual.get("nome", "Cliente Singular" if m_sel == "singular" else "Cliente Balcão") if isinstance(cli_atual, dict) else ("Cliente Singular" if m_sel == "singular" else "Cliente Balcão")
                         tel_c = cli_atual.get("telefone", "N/A") if isinstance(cli_atual, dict) else "N/A"
                         
                         registo_venda = {
                             "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Mesa": m_sel,
+                            "Mesa": "Singular" if m_sel == "singular" else m_sel,
                             "Cliente": nome_c,
                             "Telefone": tel_c,
                             "Operador": sessao_op['operador'],
@@ -1283,13 +1326,13 @@ def area_caixa_mesas():
                         hist_vendas.append(registo_venda)
                         salvar_historico_vendas(hist_vendas)
                         
-                        st.session_state[f"silenciar_alarme_mesa_{str(m_sel)}"] = False
+                        st.session_state[f"silenciar_alarme_mesa_{str_m_sel}"] = False
                         
-                        mesas_data[str(m_sel)] = {
-                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "garcon": "", "solicitou_fecho": False
+                        mesas_data[str_m_sel] = {
+                            "status": "Fechada", "cliente": None, "pedidos": [], "total": 0.0, "solicitou_fecho": False
                         }
                         salvar_mesas_disco(mesas_data)
-                        st.success(f"Mesa {m_sel} encerrada!")
+                        st.success(f"Conta encerrada com sucesso!")
                         st.rerun()
                         
 # ==========================================
